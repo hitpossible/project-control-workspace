@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SYSTEM_STAFF_ROLES } from '@/lib/constants';
-import { dbClient } from '@/lib/db/client';
+import { dbClient, handleUnauthorized } from '@/lib/db/client';
 import type { Profile, Role } from '@/lib/types';
 
 interface AppCtx {
@@ -37,7 +37,10 @@ export default function AppProvider({ children }: { children: React.ReactNode })
 
   const refreshProfiles = useCallback(async () => {
     const [auth, { data }] = await Promise.all([
-      fetch('/api/auth/me').then((r) => (r.ok ? r.json() : { data: null })).catch(() => ({ data: null })),
+      fetch('/api/auth/me').then((r) => {
+        if (r.status === 401) void handleUnauthorized();
+        return r.ok ? r.json() : { data: null };
+      }).catch(() => ({ data: null })),
       db.from('profiles').select('*').order('full_name'),
     ]);
     const list = (data ?? []) as Profile[];

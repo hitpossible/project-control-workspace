@@ -7,12 +7,19 @@ import type { DataFilter, DataQuery, DbError, DbResult } from './protocol';
  */
 /* eslint-disable @typescript-eslint/no-explicit-any -- untyped rows, like supabase-js without generated types */
 
+let signingOut = false;
+/** Session expired or the user was deactivated: clear the cookie (else the proxy bounces /login back) and go to login */
+export async function handleUnauthorized() {
+  if (typeof window === 'undefined' || signingOut || window.location.pathname.startsWith('/login')) return;
+  signingOut = true;
+  await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+  window.location.assign(new URL(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, window.location.origin));
+}
+
 async function post<T>(url: string, body: unknown): Promise<DbResult<T>> {
   try {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-      window.location.assign(new URL(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, window.location.origin));
-    }
+    if (res.status === 401) void handleUnauthorized();
     const json = await res.json().catch(() => ({ error: { message: res.statusText } }));
     if (!res.ok || json.error) return { data: null as T, error: json.error ?? { message: res.statusText, status: res.status }, count: null };
     return { data: json.data as T, error: null, count: json.count ?? null };
