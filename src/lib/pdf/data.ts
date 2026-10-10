@@ -1,0 +1,88 @@
+// Loads report data from the Workspace (master data) — respects the viewer's RLS permissions
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type {
+  Activity, Baseline, BaselineItem, Evidence, EvidenceRequirement, Insight, KpiProject, KpiTeam, ProjectMember, ProjectView,
+} from '../types';
+
+export type ReportType = 'status' | 'meeting' | 'closure' | 'management';
+
+export interface QaStats { open_bugs: number; critical_bugs: number; high_bugs: number; retest_pending: number; retest_overdue: number; fix_overdue: number; evidence_missing: number }
+
+export interface ProjectReportData {
+  project: ProjectView;
+  activities: Activity[];
+  members: ProjectMember[];
+  baselines: Baseline[];
+  baselineItems: BaselineItem[];
+  insights: Insight[];
+  kpi: KpiProject | null;
+  requirements: EvidenceRequirement[];
+  evidence: Evidence[];
+  qa: QaStats | null;
+  bugTotals: { total: number; closed: number } | null;
+}
+
+export interface ManagementReportData {
+  from: string;
+  to: string;
+  projects: ProjectView[];
+  team: KpiTeam | null;
+  kpis: KpiProject[];
+  insights: Insight[];
+}
+
+export interface ReportMeta {
+  generatedBy: string;
+  generatedAt: string;
+  name: (id: string | null | undefined) => string;
+}
+
+export async function loadProjectReport(supabase: SupabaseClient, projectId: string): Promise<ProjectReportData> {
+  const [pv, acts, mem, bl, ins, kp, reqs, ev, qa, bugs] = await Promise.all([
+    supabase.from('v_projects').select('*').eq('id', projectId).single(),
+    supabase.from('activities').select('*').eq('project_id', projectId).order('seq'),
+    supabase.from('project_members').select('*').eq('project_id', projectId),
+    supabase.from('project_baselines').select('*').eq('project_id', projectId).order('version_no'),
+    supabase.rpc('smart_insights', { p_project_id: projectId }),
+    supabase.rpc('kpi_projects'),
+    supabase.from('evidence_requirements').select('*').eq('project_id', projectId).order('created_at'),
+    supabase.from('evidence').select('*').eq('project_id', projectId),
+    supabase.rpc('project_qa_stats', { p_project_id: projectId }),
+    supabase.from('bugs').select('status').eq('project_id', projectId),
+  ]);
+  if (pv.error) throw pv.error;
+  const baselines = (bl.data ?? []) as Baseline[];
+  const items = baselines.length
+    ? ((await supabase.from('project_baseline_items').select('*').in('baseline_id', baselines.map((b) => b.id)).order('seq')).data ?? []) as BaselineItem[]
+    : [];
+  const bugRows = (bugs.data ?? []) as { status: string }[];
+  return {
+    project: pv.data as ProjectView,
+    activities: (acts.data ?? []) as Activity[],
+    members: (mem.data ?? []) as ProjectMember[],
+    baselines,
+    baselineItems: items,
+    insights: (ins.data ?? []) as Insight[],
+    kpi: ((kp.data ?? []) as KpiProject[]).find((k) => k.project_id === projectId) ?? null,
+    requirements: (reqs.data ?? []) as EvidenceRequirement[],
+    evidence: (ev.data ?? []) as Evidence[],
+    qa: ((qa.data ?? []) as QaStats[])[0] ?? null,
+    bugTotals: bugRows.length ? { total: bugRows.filter((b) => b.status !== 'cancelled').length, closed: bugRows.filter((b) => b.status === 'closed').length } : null,
+  };
+}
+
+export async function loadManagementReport(supabase: SupabaseClient, from: string, to: string): Promise<ManagementReportData> {
+  const [pv, team, kp, ins] = await Promise.all([
+    supabase.from('v_projects').select('*').order('project_code'),
+    supabase.rpc('kpi_team', { p_from: from, p_to: to }),
+    supabase.rpc('kpi_projects'),
+    supabase.rpc('smart_insights', { p_project_id: null }),
+  ]);
+  return {
+    from, to,
+    projects: (pv.data ?? []) as ProjectView[],
+    team: (team.data ?? null) as KpiTeam | null,
+    kpis: (kp.data ?? []) as KpiProject[],
+    insights: ((ins.data ?? []) as Insight[]).filter((i) => i.severity !== 'info'),
+  };
+}
