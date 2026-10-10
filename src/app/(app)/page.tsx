@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PROJECT_STATUSES, TASK_STATUSES, WORK_TYPES, optColor, optLabel } from '@/lib/constants';
 import { errMsg, fmtDate, isOverdue } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { ApprovalStep, InternalTask, ProjectView, WorkforcePlan } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +28,7 @@ export default function HomePage() {
 }
 
 function InternalDashboard() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const router = useRouter();
   const { me, profileName, notify, refreshUnread } = useApp();
   const [projects, setProjects] = useState<ProjectView[]>([]);
@@ -39,18 +39,18 @@ function InternalDashboard() {
 
   const load = useCallback(async () => {
     const [p, t, s, e] = await Promise.all([
-      supabase.from('v_projects').select('*').order('project_code'),
-      supabase.from('internal_tasks').select('*').not('status', 'in', '(completed,cancelled)'),
-      supabase.from('approval_steps').select('*').eq('status', 'waiting'),
-      supabase.from('evidence').select('id', { count: 'exact', head: true }).eq('verification_status', 'pending').not('project_id', 'is', null),
+      db.from('v_projects').select('*').order('project_code'),
+      db.from('internal_tasks').select('*').not('status', 'in', '(completed,cancelled)'),
+      db.from('approval_steps').select('*').eq('status', 'waiting'),
+      db.from('evidence').select('id', { count: 'exact', head: true }).eq('verification_status', 'pending').not('project_id', 'is', null),
     ]);
     setProjects((p.data ?? []) as ProjectView[]);
     setTasks((t.data ?? []) as InternalTask[]);
     setSteps((s.data ?? []) as ApprovalStep[]);
     setPendingEvidence(e.count ?? 0);
-    const w = await supabase.from('workforce_plans').select('*').eq('work_date', dayjs().format('YYYY-MM-DD')).order('start_time');
+    const w = await db.from('workforce_plans').select('*').eq('work_date', dayjs().format('YYYY-MM-DD')).order('start_time');
     setToday((w.data ?? []) as WorkforcePlan[]);
-  }, [supabase]);
+  }, [db]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
@@ -79,7 +79,7 @@ function InternalDashboard() {
   const maxLoad = Math.max(1, ...workload.map((w) => w.total));
 
   const runScan = async () => {
-    const { data, error } = await supabase.rpc('trigger_notification_scan');
+    const { data, error } = await db.rpc('trigger_notification_scan');
     if (error) return notify(errMsg(error), 'error');
     notify(`Scan done: ${data.due_tomorrow} due-tomorrow, ${data.overdue} overdue reminders, ${data.activities_delayed} activities marked delayed`, 'info');
     dispatchEmails();
@@ -101,7 +101,7 @@ function InternalDashboard() {
       <PageHeader
         title="Internal Dashboard"
         subtitle={`System Service · ${dayjs().format('dddd DD MMMM YYYY')}`}
-        actions={<Tip title="Runs hourly automatically (pg_cron). Run now to send due / overdue reminders."><Button variant="outline" onClick={runScan}><RefreshCw /> Run Notification Scan</Button></Tip>}
+        actions={<Tip title="Runs hourly automatically (scheduler). Run now to send due / overdue reminders."><Button variant="outline" onClick={runScan}><RefreshCw /> Run Notification Scan</Button></Tip>}
       />
 
       {myApprovals.length > 0 && (

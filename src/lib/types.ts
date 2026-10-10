@@ -13,6 +13,8 @@ export type Role =
 
 export interface Profile {
   id: string;
+  /** AD / company login name */
+  username: string | null;
   employee_id: string | null;
   full_name: string;
   email: string | null;
@@ -22,6 +24,7 @@ export interface Profile {
   extension: string | null;
   roles: Role[];
   is_active: boolean;
+  last_login_at?: string | null;
 }
 
 export interface ProjectType {

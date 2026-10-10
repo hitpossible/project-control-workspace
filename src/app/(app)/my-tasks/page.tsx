@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BUG_STATUSES, GROUP_COLORS, SEVERITIES, TASK_STATUSES } from '@/lib/constants';
 import { fmtDate, isOverdue } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Bug, InternalTask, Retest } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ type BugRow = Bug & { projects: ProjRef };
 type RetestRow = Retest & { projects: ProjRef; bugs: { bug_no: string; title: string; severity: string } | null };
 
 function MyWork() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const router = useRouter();
   const params = useSearchParams();
   const { me, profileName, hasRole } = useApp();
@@ -33,17 +33,17 @@ function MyWork() {
 
   useEffect(() => {
     if (!me) return;
-    let q = supabase.from('internal_tasks').select('*, projects(project_code, project_name), activities(name)').order('due_date');
+    let q = db.from('internal_tasks').select('*, projects(project_code, project_name), activities(name)').order('due_date');
     if (scope === 'mine') q = q.eq('owner_id', me.id);
     if (scope === 'review') q = q.eq('reviewer_id', me.id);
     q.then(({ data }) => setRows((data ?? []) as Row[]));
-    let b = supabase.from('bugs').select('*, projects(project_code, project_name)').order('due_date');
+    let b = db.from('bugs').select('*, projects(project_code, project_name)').order('due_date');
     if (scope !== 'all') b = b.eq('assigned_dev_id', me.id);
     b.then(({ data }) => setBugs((data ?? []) as BugRow[]));
-    let r = supabase.from('retests').select('*, projects(project_code, project_name), bugs(bug_no, title, severity)').eq('status', 'pending').order('due_date');
+    let r = db.from('retests').select('*, projects(project_code, project_name), bugs(bug_no, title, severity)').eq('status', 'pending').order('due_date');
     if (scope !== 'all') r = r.eq('tester_id', me.id);
     r.then(({ data }) => setRetests((data ?? []) as RetestRow[]));
-  }, [supabase, me, scope]);
+  }, [db, me, scope]);
 
   const list = rows.filter((t) => filter === 'all' || (filter === 'overdue' ? isOverdue(t.due_date, t.status) : !['completed', 'cancelled'].includes(t.status)));
   const bugList = bugs.filter((b) => filter === 'all' || (filter === 'overdue'

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PROJECT_STATUSES } from '@/lib/constants';
 import { exportProjectListExcel } from '@/lib/exportExcel';
 import { fmtDate } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { ProjectView } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +23,7 @@ const GROUPS = [
 ];
 
 function ProjectList() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const router = useRouter();
   const params = useSearchParams();
   const [rows, setRows] = useState<ProjectView[]>([]);
@@ -33,8 +33,8 @@ function ProjectList() {
   const [attention, setAttention] = useState(params.get('attention') === '1');
 
   useEffect(() => {
-    supabase.from('v_projects').select('*').order('project_code', { ascending: false }).then(({ data }) => setRows((data ?? []) as ProjectView[]));
-  }, [supabase]);
+    db.from('v_projects').select('*').order('project_code', { ascending: false }).then(({ data }) => setRows((data ?? []) as ProjectView[]));
+  }, [db]);
 
   const list = rows.filter((p) => {
     if (status === 'active' ? ['completed', 'cancelled'].includes(p.status) : status && p.status !== status) return false;

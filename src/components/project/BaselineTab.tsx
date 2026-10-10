@@ -11,7 +11,7 @@ import { REVISION_STATUSES } from '@/lib/constants';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { errMsg, fmtDate, fmtDateTime } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import { cn } from '@/lib/utils';
 import type { TabProps } from './types';
 
@@ -23,7 +23,7 @@ function Variance({ v }: { v: number | null }) {
 }
 
 export default function BaselineTab({ data, perm, reload }: TabProps) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { me, hasRole, profileName, notify } = useApp();
   const latestId = data.baselines[0]?.id ?? null;
   const [picked, setPicked] = useState<{ id: string | null; latest: string | null }>({ id: latestId, latest: latestId });
@@ -39,7 +39,7 @@ export default function BaselineTab({ data, perm, reload }: TabProps) {
   const latestItems = data.baselineItems.filter((i) => i.baseline_id === data.baselines[0]?.id);
 
   const rpc = async (fn: string, args: Record<string, unknown>, ok: string) => {
-    const { error } = await supabase.rpc(fn, args);
+    const { error } = await db.rpc(fn, args);
     if (error) { notify(errMsg(error), 'error'); return false; }
     notify(ok);
     dispatchEmails();
@@ -52,7 +52,7 @@ export default function BaselineTab({ data, perm, reload }: TabProps) {
   const first = p.baseline_version === 0;
 
   const create = async (reason: string) => {
-    const { error } = await supabase.rpc('create_baseline', { p_project_id: p.id, p_reason: reason || null });
+    const { error } = await db.rpc('create_baseline', { p_project_id: p.id, p_reason: reason || null });
     if (error) return notify(errMsg(error), 'error');
     notify(first ? 'Baseline V1 set — project started' : 'New baseline version created');
     dispatchEmails();

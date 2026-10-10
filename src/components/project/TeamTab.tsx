@@ -9,18 +9,18 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MEMBER_ROLES, optLabel } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { TabProps } from './types';
 
 export default function TeamTab({ data, perm, reload }: TabProps) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { profiles, notify } = useApp();
   const [user, setUser] = useState<string | null>(null);
   const [role, setRole] = useState('developer');
 
   const add = async () => {
     if (!user) return;
-    const { error } = await supabase.from('project_members').insert({ project_id: data.project.id, user_id: user, member_role: role });
+    const { error } = await db.from('project_members').insert({ project_id: data.project.id, user_id: user, member_role: role });
     if (error) return notify(errMsg(error), 'error');
     setUser(null);
     notify('Member added');
@@ -59,7 +59,7 @@ export default function TeamTab({ data, perm, reload }: TabProps) {
                   <TableCell className="text-center">{p?.email}</TableCell>
                   <TableCell className="text-center">
                     <Checkbox checked={m.notify} disabled={!perm.manage} onCheckedChange={async (c) => {
-                      const { error } = await supabase.from('project_members').update({ notify: !!c }).eq('id', m.id);
+                      const { error } = await db.from('project_members').update({ notify: !!c }).eq('id', m.id);
                       if (error) notify(errMsg(error), 'error');
                       await reload();
                     }} />
@@ -68,7 +68,7 @@ export default function TeamTab({ data, perm, reload }: TabProps) {
                     <TableCell className="w-11 text-center">
                       <Button variant="ghost" size="icon-sm" disabled={m.member_role === 'leader' && m.user_id === data.project.leader_id} onClick={async () => {
                         if (!confirm(`Remove ${p?.full_name} (${optLabel(MEMBER_ROLES, m.member_role)})?`)) return;
-                        const { error } = await supabase.from('project_members').delete().eq('id', m.id);
+                        const { error } = await db.from('project_members').delete().eq('id', m.id);
                         if (error) return notify(errMsg(error), 'error');
                         await reload();
                       }}><Trash2 /></Button>

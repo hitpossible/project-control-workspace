@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { PROJECT_STATUSES } from '@/lib/constants';
 import { exportProjectListExcel } from '@/lib/exportExcel';
 import { fmtDate } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { ProjectView } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import InsightList from './InsightList';
@@ -17,17 +17,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 
 /** Management / User View — project-level data only (no internal technical detail) */
 export default function ManagementDashboard() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const router = useRouter();
   const [rows, setRows] = useState<ProjectView[]>([]);
   const [dept, setDept] = useState('');
 
   useEffect(() => {
     // Explicit column list: Management view never reads internal fields
-    supabase.from('v_projects')
+    db.from('v_projects')
       .select('id,project_code,project_name,leader_name,requestor_department,department,target_date,forecast_date,baseline_finish,schedule_variance,status,progress,health,next_action,remark,attention,project_type_name,priority')
       .order('project_code').then(({ data }) => setRows((data ?? []) as ProjectView[]));
-  }, [supabase]);
+  }, [db]);
 
   const depts = [...new Set(rows.map((r) => r.requestor_department ?? r.department).filter(Boolean))] as string[];
   const list = rows.filter((r) => !dept || (r.requestor_department ?? r.department) === dept);

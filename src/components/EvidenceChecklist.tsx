@@ -3,7 +3,7 @@
 import { CircleCheck, CircleDashed, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { errMsg } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Evidence, EvidenceRequirement } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
@@ -28,7 +28,7 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
   onChange: () => void;
   labelFor?: (r: EvidenceRequirement) => string | undefined;
 }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
@@ -40,7 +40,7 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
 
   const add = async () => {
     const [type, id] = target.split(':');
-    const { error } = await supabase.from('evidence_requirements').insert({ project_id: projectId, entity_type: type, entity_id: id, name: name.trim(), is_mandatory: mandatory, source: 'manual' });
+    const { error } = await db.from('evidence_requirements').insert({ project_id: projectId, entity_type: type, entity_id: id, name: name.trim(), is_mandatory: mandatory, source: 'manual' });
     if (error) return notify(errMsg(error), 'error');
     setName('');
     setAdding(false);
@@ -49,7 +49,7 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
 
   const remove = async (r: EvidenceRequirement) => {
     if (!confirm(`Remove checklist item "${r.name}"?`)) return;
-    const { error } = await supabase.from('evidence_requirements').delete().eq('id', r.id);
+    const { error } = await db.from('evidence_requirements').delete().eq('id', r.id);
     if (error) return notify(errMsg(error), 'error');
     onChange();
   };
@@ -105,19 +105,19 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
 export function EntityEvidence({ projectId, entityType, entityId, canAdd, canManage, allowPublicToggle, onChange }: {
   projectId: string; entityType: 'activity' | 'task'; entityId: string; canAdd: boolean; canManage: boolean; allowPublicToggle?: boolean; onChange?: () => void;
 }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const [reqs, setReqs] = useState<EvidenceRequirement[]>([]);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [key, setKey] = useState(0);
 
   const load = useCallback(async () => {
     const [r, e] = await Promise.all([
-      supabase.from('evidence_requirements').select('*').eq('entity_type', entityType).eq('entity_id', entityId).order('created_at'),
-      supabase.from('evidence').select('*').eq('entity_type', entityType).eq('entity_id', entityId),
+      db.from('evidence_requirements').select('*').eq('entity_type', entityType).eq('entity_id', entityId).order('created_at'),
+      db.from('evidence').select('*').eq('entity_type', entityType).eq('entity_id', entityId),
     ]);
     setReqs((r.data ?? []) as EvidenceRequirement[]);
     setEvidence((e.data ?? []) as Evidence[]);
-  }, [supabase, entityType, entityId]);
+  }, [db, entityType, entityId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch

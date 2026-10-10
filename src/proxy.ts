@@ -1,33 +1,20 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { SESSION_COOKIE, verifySession } from '@/server/session';
 
-// Refresh the Supabase session cookie and redirect anonymous users to /login.
-// Authorization itself is enforced by Postgres RLS.
+// Redirect anonymous users to /login. Authorization itself is enforced per request by the API (src/server/policies.ts).
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
-  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    cookies: {
-      getAll: () => request.cookies.getAll(),
-      setAll: (list) => {
-        list.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        list.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-      },
-    },
-  });
-
-  const { data } = await supabase.auth.getUser();
-  const isLogin = request.nextUrl.pathname.startsWith('/login');
-  if (!data.user && !isLogin && !request.nextUrl.pathname.startsWith('/api')) {
+  const user = await verifySession(request.cookies.get(SESSION_COOKIE)?.value);
+  const { pathname, search } = request.nextUrl;
+  const isLogin = pathname.startsWith('/login');
+  if (!user && !isLogin && !pathname.startsWith('/api')) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    url.searchParams.set('next', request.nextUrl.pathname + request.nextUrl.search);
+    url.search = '';
+    url.searchParams.set('next', pathname + search);
     return NextResponse.redirect(url);
   }
-  if (data.user && isLogin) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-  return response;
+  if (user && isLogin) return NextResponse.redirect(new URL('/', request.url));
+  return NextResponse.next();
 }
 
 export const config = {

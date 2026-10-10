@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { REQUEST_STATUSES } from '@/lib/constants';
 import { fmtDate } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { ApprovalStep, ProjectRequest } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -24,7 +24,7 @@ const GROUPS = [
 ];
 
 export default function RequestsPage() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const router = useRouter();
   const { me, isStaff } = useApp();
   const [rows, setRows] = useState<ProjectRequest[]>([]);
@@ -34,9 +34,9 @@ export default function RequestsPage() {
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    supabase.from('project_requests').select('*').order('created_at', { ascending: false }).then(({ data }) => setRows(data ?? []));
-    supabase.from('approval_steps').select('*').eq('status', 'waiting').then(({ data }) => setSteps(data ?? []));
-  }, [supabase]);
+    db.from('project_requests').select('*').order('created_at', { ascending: false }).then(({ data }) => setRows(data ?? []));
+    db.from('approval_steps').select('*').eq('status', 'waiting').then(({ data }) => setSteps(data ?? []));
+  }, [db]);
 
   const myActionIds = useMemo(() => new Set(
     steps.filter((s) => (s.approver_id ? s.approver_id === me?.id : me?.roles.includes(s.approver_role as never))).map((s) => s.request_id),

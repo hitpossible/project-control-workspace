@@ -1,16 +1,18 @@
-// Seed demo users + run the real workflow (Request → Approval → Project → Plan) through RPCs.
-// Usage: npm run db:reset   (supabase db reset && node scripts/seed.mjs)
-import { createClient } from '@supabase/supabase-js';
+// Seed demo users + run the real workflow (Request → Approval → Project → Plan) through the same
+// workflow functions and access policies the API uses, acting as each user.
+// Usage: npm run db:reset   (migrate --reset && tsx scripts/seed.ts)
 import { config } from 'dotenv';
+import { hashPassword, loadProfile } from '../src/server/users';
+import { pool, uuid } from '../src/server/db';
+import { localDb } from '../src/server/local-db';
 
-config({ path: '.env.local' });
+config({ path: '.env.local', quiet: true });
 
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+/* eslint-disable @typescript-eslint/no-explicit-any -- demo data script */
 export const SEED_PASSWORD = 'Tbkk@1234';
 
-const admin = createClient(URL, SERVICE, { auth: { persistSession: false } });
+type Db = ReturnType<typeof localDb>;
+const admin = localDb(null); // system (was the service-role client)
 
 const USERS = [
   { key: 'admin',     email: 'admin@tbkk.test',      full_name: 'System Admin',        employee_id: 'A0001', department: 'System Service', section: 'System', roles: ['admin', 'requestor'] },
@@ -26,17 +28,17 @@ const USERS = [
   { key: 'mgmt',      email: 'mgmt@tbkk.test',       full_name: 'Management Viewer',   employee_id: 'M3002', department: 'Management',     section: 'Planning', roles: ['management_view'] },
 ];
 
-const ids = {};
-const clients = {};
+const ids: Record<string, string> = {};
+const clients: Record<string, Db> = {};
 
-const localIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const day = (offset) => {
+const localIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const day = (offset: number) => {
   const d = new Date();
   d.setDate(d.getDate() + offset);
   return localIso(d);
 };
 
-function must({ data, error }, label) {
+function must({ data, error }: { data: any; error: { message: string } | null }, label: string): any {
   if (error) {
     console.error(`✗ ${label}:`, error.message);
     process.exit(1);
@@ -45,28 +47,23 @@ function must({ data, error }, label) {
 }
 
 async function createUsers() {
+  const hash = await hashPassword(SEED_PASSWORD);
   for (const u of USERS) {
-    const { data, error } = await admin.auth.admin.createUser({
-      email: u.email,
-      password: SEED_PASSWORD,
-      email_confirm: true,
-      user_metadata: { full_name: u.full_name, employee_id: u.employee_id, department: u.department, section: u.section, roles: u.roles },
-    });
-    if (error) {
-      console.error(`✗ create ${u.email}:`, error.message);
-      process.exit(1);
-    }
-    ids[u.key] = data.user.id;
-    await admin.from('profiles').update({ telephone: '02-123-4567', extension: String(1000 + USERS.indexOf(u)) }).eq('id', data.user.id);
-    const c = createClient(URL, ANON, { auth: { persistSession: false } });
-    must(await c.auth.signInWithPassword({ email: u.email, password: SEED_PASSWORD }), `login ${u.email}`);
-    clients[u.key] = c;
+    const id = uuid();
+    must(await admin.from('profiles').insert({
+      id, username: u.email.split('@')[0], email: u.email, full_name: u.full_name, employee_id: u.employee_id, department: u.department,
+      section: u.section, roles: u.roles, telephone: '02-123-4567', extension: String(1000 + USERS.indexOf(u)),
+    }), `create ${u.email}`);
+    // local password for the demo accounts (real users sign in through AD)
+    await pool().query('UPDATE profiles SET password_hash = ? WHERE id = ?', [hash, id]);
+    ids[u.key] = id;
+    clients[u.key] = localDb(await loadProfile(id));
   }
   console.log(`✓ ${USERS.length} users`);
 }
 
-async function newRequest(fields) {
-  const u = USERS.find((x) => x.key === 'requestor');
+async function newRequest(fields: Record<string, unknown>) {
+  const u = USERS.find((x) => x.key === 'requestor')!;
   const req = must(
     await clients.requestor.from('project_requests').insert({
       req_employee_id: u.employee_id, req_full_name: u.full_name, req_department: u.department, req_section: u.section,
@@ -78,21 +75,21 @@ async function newRequest(fields) {
   return req;
 }
 
-const submit = async (r) => must(await clients.requestor.rpc('submit_request', { p_request_id: r.id }), 'submit');
+const submit = async (r: any) => must(await clients.requestor.rpc('submit_request', { p_request_id: r.id }), 'submit');
 
-async function waitingStep(requestId) {
+async function waitingStep(requestId: string) {
   return must(
     await admin.from('approval_steps').select('*').eq('request_id', requestId).eq('status', 'waiting').single(),
     'waiting step',
   );
 }
 
-async function approve(who, requestId, comment) {
+async function approve(who: string, requestId: string, comment?: string) {
   const s = await waitingStep(requestId);
   return must(await clients[who].rpc('act_on_approval', { p_step_id: s.id, p_action: 'approve', p_comment: comment ?? null }), `approve by ${who}`);
 }
 
-async function review(requestId, typeCode, tplCode) {
+async function review(requestId: string, typeCode: string, tplCode: string) {
   const type = must(await admin.from('project_types').select('id').eq('code', typeCode).single(), 'type');
   const tpl = must(await admin.from('project_templates').select('id').eq('code', tplCode).single(), 'tpl');
   must(await clients.reviewer.rpc('save_review', {
@@ -102,33 +99,24 @@ async function review(requestId, typeCode, tplCode) {
   }), 'save_review');
 }
 
-async function fullyApprove(r, typeCode, tplCode) {
+async function fullyApprove(r: any, typeCode: string, tplCode: string) {
   await approve('reqmgr', r.id, 'Agree, please proceed.');
   await review(r.id, typeCode, tplCode);
   await approve('reviewer', r.id, 'Reviewed by System Service.');
   await approve('authority', r.id, 'Approved.');
 }
 
-async function convert(r, start, target, sponsor) {
+async function convert(r: any, start: string, target: string, sponsor: string) {
   return must(await clients.reviewer.rpc('convert_request_to_project', {
     p_request_id: r.id, p_start_date: start, p_target_date: target, p_sponsor: sponsor,
   }), 'convert');
 }
 
-async function addMembers(projectId, list) {
+async function addMembers(projectId: string, list: [string, string][]) {
   must(await clients.leader.from('project_members').insert(list.map(([k, role]) => ({ project_id: projectId, user_id: ids[k], member_role: role }))), 'members');
 }
 
-async function waitForApi() {
-  for (let i = 0; i < 30; i++) {
-    const { error } = await admin.from('project_types').select('id').limit(1);
-    if (!error) return;
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-}
-
 async function main() {
-  await waitForApi();
   await createUsers();
   const L = clients.leader;
 
@@ -149,12 +137,12 @@ async function main() {
   const actsA = must(await L.from('activities').select('*').eq('project_id', pA.id).order('seq'), 'acts');
   must(await L.rpc('create_baseline', { p_project_id: pA.id, p_reason: null }), 'baseline A');
   const tasksA = must(await L.from('internal_tasks').select('*').eq('project_id', pA.id).order('seq'), 'tasks');
-  const byName = (n) => tasksA.find((t) => t.name === n);
-  const act = (n) => actsA.find((a) => a.name === n);
+  const byName = (n: string) => tasksA.find((t: any) => t.name === n);
+  const act = (n: string) => actsA.find((a: any) => a.name === n);
 
   // Evidence checklist (from template) — satisfy Requirement & Design before completing them
   const reqs = must(await L.from('evidence_requirements').select('*').eq('project_id', pA.id), 'reqs');
-  const reqFor = (actName) => reqs.filter((r) => r.entity_type === 'activity' && r.entity_id === act(actName).id);
+  const reqFor = (actName: string) => reqs.filter((r: any) => r.entity_type === 'activity' && r.entity_id === act(actName).id);
   for (const r of [...reqFor('Requirement'), ...reqFor('Design')]) {
     must(await L.from('evidence').insert({
       project_id: pA.id, entity_type: 'activity', entity_id: r.entity_id, requirement_id: r.id, evidence_type: 'sharepoint',
@@ -167,7 +155,7 @@ async function main() {
     must(await L.from('internal_tasks').update({ status: 'completed', actual_start: t.planned_start, actual_finish: t.due_date }).eq('id', t.id), `complete ${n}`);
   }
   must(await L.from('internal_tasks').update({ owner_id: ids.dev1, reviewer_id: ids.leader, progress: 70, status: 'in_progress', actual_start: byName('Develop Backend API').planned_start,
-    technical_note: 'Using Supabase RPC for shift aggregation. Index on (line_id, started_at).',
+    technical_note: 'Shift aggregation in a MySQL view. Index on (line_id, started_at).',
     internal_comment: 'Shift calendar API from HR not ready, using static table for now.' }).eq('id', byName('Develop Backend API').id), 'be');
   must(await L.from('internal_tasks').update({ owner_id: ids.dev2, reviewer_id: ids.leader, progress: 40, status: 'in_progress', actual_start: day(-14),
     delay_category: 'Resource Constraint', delay_reason: 'Dev2 supported urgent ERP issue for 3 days.',
@@ -207,13 +195,13 @@ async function main() {
     project_id: pA.id, activity_id: act('System Test (QA)').id, title: 'Regression Round 2', test_type: 'regression',
     tester_id: ids.qa, planned_date: day(1), due_date: day(3), status: 'planned',
   }), 'round2');
-  const bug = async (title, severity, dev, extra = {}) => must(await QA.rpc('report_bug', {
+  const bug = async (title: string, severity: string, dev: string | null, extra: Record<string, any> = {}) => must(await QA.rpc('report_bug', {
     p_project_id: pA.id, p_title: title, p_description: extra.description ?? title, p_severity: severity, p_priority: severity,
     p_test_round_id: round1.id, p_activity_id: null, p_task_id: extra.task ?? null, p_steps: extra.steps ?? null,
     p_expected: extra.expected ?? null, p_actual: extra.actual ?? null, p_assigned_dev_id: dev ? ids[dev] : null, p_due_date: extra.due ?? null,
   }), `bug ${title}`);
-  const startFix = async (who, b) => must(await clients[who].rpc('start_fix', { p_bug_id: b.id }), 'start_fix');
-  const ready = async (who, f, desc) => must(await clients[who].rpc('mark_fix_ready', {
+  const startFix = async (who: string, b: any) => must(await clients[who].rpc('start_fix', { p_bug_id: b.id }), 'start_fix');
+  const ready = async (who: string, f: any, desc: string) => must(await clients[who].rpc('mark_fix_ready', {
     p_fix_id: f.id, p_description: desc, p_unit_test_result: 'All unit tests passed (48/48)', p_technical_note: null,
     p_build_link: 'https://ci.tbkk.local/downtime/build/231', p_commit_link: 'https://git.tbkk.local/sys/downtime/commit/9f2c1ab', p_tester_id: null,
   }), 'fix_ready');
@@ -252,7 +240,7 @@ async function main() {
   await addMembers(pB.id, [['dev2', 'developer'], ['supervisor', 'supervisor']]);
   must(await L.rpc('create_baseline', { p_project_id: pB.id, p_reason: null }), 'baseline B');
   const tB = must(await L.from('internal_tasks').select('*').eq('project_id', pB.id), 'tB');
-  for (const t of tB) must(await L.from('internal_tasks').update({ owner_id: ids.dev2 }).eq('id', t.id), 'tB owner');
+  for (const t of tB as any[]) must(await L.from('internal_tasks').update({ owner_id: ids.dev2 }).eq('id', t.id), 'tB owner');
   const aB = must(await L.from('activities').select('*').eq('project_id', pB.id).order('seq'), 'aB');
   must(await L.from('activities').update({ progress: 60, actual_start: day(-2), status_note: 'Requirement draft reviewed', next_action: 'Confirm QR label format' }).eq('id', aB[0].id), 'aB0');
   must(await L.from('projects').update({ next_action: 'Confirm requirement with Maintenance' }).eq('id', pB.id), 'pB');
@@ -298,7 +286,7 @@ async function main() {
   await newRequest({ project_name: 'Spare Part Min/Max Alert', description: 'Alert when spare part stock is below minimum.', priority: 'medium' }); // draft
 
   // ---------------- Phase 3: Workforce plan (this week + next) ----------------
-  const wf = [];
+  const wf: Record<string, unknown>[] = [];
   const monday = (() => { const d = new Date(); const k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k); return d; })();
   const iso = localIso;
   for (let i = 0; i < 12; i++) {
@@ -333,7 +321,9 @@ async function main() {
   console.table(projects);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .then(() => pool().end())
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });

@@ -10,7 +10,7 @@ export const isOverdue = (due: string | null | undefined, status: string) =>
 
 export const daysBetween = (a: string, b: string) => dayjs(b).diff(dayjs(a), 'day');
 
-/** Supabase errors from RAISE EXCEPTION come back as `message` */
+/** API errors come back as `{ message }` */
 export const errMsg = (e: unknown) =>
   (e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)) || 'Unexpected error';
 

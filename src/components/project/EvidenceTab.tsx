@@ -7,23 +7,23 @@ import EvidenceChecklist from '@/components/EvidenceChecklist';
 import EvidencePanel from '@/components/EvidencePanel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EVIDENCE_TYPES, optLabel } from '@/lib/constants';
-import { errMsg, fmtDateTime } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { fmtDateTime } from '@/lib/format';
+import { dbClient } from '@/lib/db/client';
 import type { Evidence } from '@/lib/types';
 import type { TabProps } from './types';
 
 const ENTITY_LABEL: Record<string, string> = { project: 'Project', activity: 'Activity', task: 'Task', request: 'Request', test_round: 'Test Round', bug: 'Bug', fix: 'Fix', retest: 'Retest' };
 
 export default function EvidenceTab({ data, perm, names, reload }: TabProps & { names: Record<string, string> }) {
-  const supabase = supabaseBrowser();
-  const { profileName, notify } = useApp();
+  const db = dbClient();
+  const { profileName } = useApp();
   const [all, setAll] = useState<Evidence[]>([]);
 
   const load = useCallback(async () => {
     const or = data.project.request_id ? `project_id.eq.${data.project.id},request_id.eq.${data.project.request_id}` : `project_id.eq.${data.project.id}`;
-    const { data: rows } = await supabase.from('evidence').select('*').or(or).order('uploaded_at', { ascending: false });
+    const { data: rows } = await db.from('evidence').select('*').or(or).order('uploaded_at', { ascending: false });
     setAll((rows ?? []) as Evidence[]);
-  }, [supabase, data.project.id, data.project.request_id]);
+  }, [db, data.project.id, data.project.request_id]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
@@ -32,9 +32,7 @@ export default function EvidenceTab({ data, perm, names, reload }: TabProps & { 
 
   const open = async (ev: Evidence) => {
     if (ev.url) return window.open(ev.url, '_blank', 'noopener');
-    const { data: s, error } = await supabase.storage.from('evidence').createSignedUrl(ev.storage_path!, 300);
-    if (error) return notify(errMsg(error), 'error');
-    window.open(s.signedUrl, '_blank', 'noopener');
+    window.open(db.evidenceFileUrl(ev.id), '_blank', 'noopener');
   };
 
   return (

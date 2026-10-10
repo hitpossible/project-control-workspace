@@ -4,7 +4,7 @@ import { CircleAlert, Info, Lightbulb, TriangleAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { errMsg } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Insight } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
@@ -17,15 +17,15 @@ const ICON = {
 };
 
 export function useInsights(projectId?: string | null) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<Insight[] | null>(null);
   useEffect(() => {
-    supabase.rpc('smart_insights', { p_project_id: projectId ?? null }).then(({ data, error }) => {
+    db.rpc('smart_insights', { p_project_id: projectId ?? null }).then(({ data, error }) => {
       if (error) notify(errMsg(error), 'error');
       setRows((data ?? []) as Insight[]);
     });
-  }, [supabase, projectId, notify]);
+  }, [db, projectId, notify]);
   return rows;
 }
 

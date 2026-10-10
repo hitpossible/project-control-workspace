@@ -4,7 +4,7 @@ import { TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { ACTIVITY_STATUSES, DELAY_CATEGORIES, PRIORITIES, TASK_STATUSES, TASK_TYPES } from '@/lib/constants';
 import { errMsg, fmtDateTime, isOverdue, nullify } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Activity, InternalTask, Profile, Project, TaskDependency } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import AuditHistory from './AuditHistory';
@@ -48,7 +48,7 @@ export function ActivityDialog({ project, activity, hasTasks, canManage, canView
   project: Project; activity: Activity | null; hasTasks: boolean; canManage: boolean; canViewInternal: boolean;
   members: Profile[]; onClose: () => void; onSaved: () => void;
 }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { me, profileName, notify } = useApp();
   const [tab, setTab] = useState('Details');
   const [f, setF] = useState<Partial<Activity>>(activity ?? { name: '', pic_label: 'System', progress: 0, status: 'not_started', is_milestone: false });
@@ -62,7 +62,7 @@ export function ActivityDialog({ project, activity, hasTasks, canManage, canView
 
   const reviewRecovery = async () => {
     if (!activity) return;
-    const { error } = await supabase.rpc('review_recovery_plan', { p_activity_id: activity.id });
+    const { error } = await db.rpc('review_recovery_plan', { p_activity_id: activity.id });
     if (error) return notify(errMsg(error), 'error');
     notify('Recovery plan marked as reviewed');
     onSaved();
@@ -84,8 +84,8 @@ export function ActivityDialog({ project, activity, hasTasks, canManage, canView
       delay_impact: f.delay_impact ?? null, recovery_owner_id: f.recovery_owner_id ?? null, recovery_due_date: f.recovery_due_date ?? null,
     });
     const res = activity
-      ? await supabase.from('activities').update(payload).eq('id', activity.id)
-      : await supabase.from('activities').insert({ ...payload, project_id: project.id });
+      ? await db.from('activities').update(payload).eq('id', activity.id)
+      : await db.from('activities').insert({ ...payload, project_id: project.id });
     if (res.error) return notify(errMsg(res.error), 'error');
     notify(activity ? 'Activity updated' : 'Activity added');
     dispatchEmails();
@@ -94,7 +94,7 @@ export function ActivityDialog({ project, activity, hasTasks, canManage, canView
 
   const remove = async () => {
     if (!activity || !confirm(`Delete activity "${activity.name}" and all its internal tasks?`)) return;
-    const { error } = await supabase.from('activities').delete().eq('id', activity.id);
+    const { error } = await db.from('activities').delete().eq('id', activity.id);
     if (error) return notify(errMsg(error), 'error');
     notify('Activity deleted');
     onSaved();
@@ -177,7 +177,7 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
   activities: Activity[]; tasks: InternalTask[]; deps: TaskDependency[];
   canManage: boolean; members: Profile[]; onClose: () => void; onSaved: () => void;
 }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { me, profileName, notify } = useApp();
   const [tab, setTab] = useState('Details');
   const [f, setF] = useState<Partial<InternalTask>>(task ?? { name: '', task_type: 'dev', priority: 'medium', status: 'todo', progress: 0, owner_id: me?.id, ...defaults });
@@ -205,8 +205,8 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
       delay_category: f.delay_category ?? null, delay_reason: f.delay_reason ?? null, recovery_action: f.recovery_action ?? null,
     });
     const res = task
-      ? await supabase.from('internal_tasks').update(payload).eq('id', task.id).select().single()
-      : await supabase.from('internal_tasks').insert({ ...payload, project_id: project.id }).select().single();
+      ? await db.from('internal_tasks').update(payload).eq('id', task.id).select().single()
+      : await db.from('internal_tasks').insert({ ...payload, project_id: project.id }).select().single();
     if (res.error) return notify(errMsg(res.error), 'error');
     const id = res.data.id as string;
 
@@ -214,9 +214,9 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
       const current = deps.filter((d) => d.successor_id === id).map((d) => d.predecessor_id);
       const add = preds.filter((p) => !current.includes(p));
       const del = current.filter((p) => !preds.includes(p));
-      if (del.length) await supabase.from('task_dependencies').delete().eq('successor_id', id).in('predecessor_id', del);
+      if (del.length) await db.from('task_dependencies').delete().eq('successor_id', id).in('predecessor_id', del);
       if (add.length) {
-        const r = await supabase.from('task_dependencies').insert(add.map((p) => ({ project_id: project.id, predecessor_id: p, successor_id: id, dep_type: 'FS' })));
+        const r = await db.from('task_dependencies').insert(add.map((p) => ({ project_id: project.id, predecessor_id: p, successor_id: id, dep_type: 'FS' })));
         if (r.error) notify(errMsg(r.error), 'error');
       }
     }
@@ -227,7 +227,7 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
 
   const remove = async () => {
     if (!task || !confirm(`Delete task ${task.task_no} "${task.name}"?`)) return;
-    const { error } = await supabase.from('internal_tasks').delete().eq('id', task.id);
+    const { error } = await db.from('internal_tasks').delete().eq('id', task.id);
     if (error) return notify(errMsg(error), 'error');
     notify('Task deleted');
     onSaved();

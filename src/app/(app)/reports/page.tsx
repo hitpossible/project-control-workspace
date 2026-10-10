@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { PageHeader, PeriodPicker, SelectField, periodFor, type Period } from '@/components/common';
 import { useReport } from '@/components/ReportButton';
 import { Button } from '@/components/ui/button';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { ProjectView } from '@/lib/types';
 import type { ReportType } from '@/lib/pdf/data';
 
@@ -17,15 +17,15 @@ const CARDS: { type: ReportType; title: string; desc: string; icon: React.ReactN
 ];
 
 export default function ReportsPage() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { generate, busy } = useReport();
   const [projects, setProjects] = useState<ProjectView[]>([]);
   const [project, setProject] = useState('');
   const [period, setPeriod] = useState<Period>(() => periodFor('month'));
 
   useEffect(() => {
-    supabase.from('v_projects').select('*').order('project_code').then(({ data }) => setProjects((data ?? []) as ProjectView[]));
-  }, [supabase]);
+    db.from('v_projects').select('*').order('project_code').then(({ data }) => setProjects((data ?? []) as ProjectView[]));
+  }, [db]);
 
   const sel = projects.find((p) => p.id === project);
 

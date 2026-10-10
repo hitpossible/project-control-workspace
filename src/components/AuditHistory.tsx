@@ -3,7 +3,7 @@
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { fmtDateTime } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { AuditLog } from '@/lib/types';
 import { useApp } from './AppProvider';
 import { EmptyState } from './common';
@@ -21,19 +21,19 @@ const USER_FIELDS = new Set(['leader_id', 'pic_user_id', 'owner_id', 'reviewer_i
 export default function AuditHistory({ projectId, requestId, entityId, names }: {
   projectId?: string; requestId?: string; entityId?: string; names?: Record<string, string>;
 }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { profileName } = useApp();
   const [rows, setRows] = useState<AuditLog[] | null>(null);
   const [q, setQ] = useState('');
 
   useEffect(() => {
-    let query = supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(500);
+    let query = db.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(500);
     if (entityId) query = query.eq('entity_id', entityId);
     else if (projectId) query = query.eq('project_id', projectId);
     else if (requestId) query = query.eq('request_id', requestId);
     query.then(({ data }) => setRows((data ?? []) as AuditLog[]));
     return () => setRows(null);
-  }, [supabase, projectId, requestId, entityId]);
+  }, [db, projectId, requestId, entityId]);
 
   const val = (field: string | null, v: string | null) => {
     if (v == null || v === '') return '∅';

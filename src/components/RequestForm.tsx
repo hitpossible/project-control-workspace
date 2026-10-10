@@ -4,7 +4,7 @@ import { Info } from 'lucide-react';
 import { useState } from 'react';
 import { PRIORITIES } from '@/lib/constants';
 import { errMsg, nullify } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Profile, ProjectRequest } from '@/lib/types';
 import { useApp } from './AppProvider';
 import { DateField, Section, SelectField, TextField, UserSelect } from './common';
@@ -44,7 +44,7 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
   onSaved: (r: ProjectRequest) => void;
   onSubmit?: (r: ProjectRequest) => Promise<void>;
 }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [f, setF] = useState<RequestDraft>(initial);
   const [busy, setBusy] = useState(false);
@@ -61,8 +61,8 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
     }
     const payload = nullify(Object.fromEntries(EDITABLE.map((k) => [k, f[k] ?? null])));
     const res = f.id
-      ? await supabase.from('project_requests').update(payload).eq('id', f.id).select().single()
-      : await supabase.from('project_requests').insert(payload).select().single();
+      ? await db.from('project_requests').update(payload).eq('id', f.id).select().single()
+      : await db.from('project_requests').insert(payload).select().single();
     if (res.error) {
       notify(errMsg(res.error), 'error');
       return null;

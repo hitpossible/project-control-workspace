@@ -22,14 +22,14 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PROJECT_STATUSES } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
 import { exportProjectExcel } from '@/lib/exportExcel';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Activity, Baseline, BaselineItem, BaselineRevision, Bug, BugFix, Evidence, EvidenceRequirement, InternalTask, ProjectMember, ProjectView, Retest, TaskDependency, TestRound } from '@/lib/types';
 
 function Workspace() {
   const { id } = useParams<{ id: string }>();
   const params = useSearchParams();
   const router = useRouter();
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { me, profiles, profileName, notify, hasRole } = useApp();
   const [data, setData] = useState<ProjectData | null>(null);
   const [perm, setPerm] = useState({ internal: false, manage: false });
@@ -38,31 +38,31 @@ function Workspace() {
 
   const load = useCallback(async () => {
     const [pv, internal, manage] = await Promise.all([
-      supabase.from('v_projects').select('*').eq('id', id).maybeSingle(),
-      supabase.rpc('can_view_internal', { p_project_id: id }),
-      supabase.rpc('can_manage_project', { p_project_id: id }),
+      db.from('v_projects').select('*').eq('id', id).maybeSingle(),
+      db.rpc('can_view_internal', { p_project_id: id }),
+      db.rpc('can_manage_project', { p_project_id: id }),
     ]);
     if (!pv.data) return setMissing(true);
     const canInternal = !!internal.data;
     setPerm({ internal: canInternal, manage: !!manage.data });
     const none = Promise.resolve({ data: [] });
     const [acts, mem, bl, tasks, deps, reqs, ev, rounds, bugs, fixes, retests, revs] = await Promise.all([
-      supabase.from('activities').select('*').eq('project_id', id).order('seq').order('plan_start'),
-      supabase.from('project_members').select('*').eq('project_id', id).order('member_role'),
-      supabase.from('project_baselines').select('*').eq('project_id', id).order('version_no', { ascending: false }),
-      canInternal ? supabase.from('internal_tasks').select('*').eq('project_id', id).order('seq').order('task_no') : none,
-      canInternal ? supabase.from('task_dependencies').select('*').eq('project_id', id) : none,
-      supabase.from('evidence_requirements').select('*').eq('project_id', id).order('created_at'),
-      supabase.from('evidence').select('*').eq('project_id', id),
-      canInternal ? supabase.from('test_rounds').select('*').eq('project_id', id).order('round_no') : none,
-      canInternal ? supabase.from('bugs').select('*').eq('project_id', id).order('created_at', { ascending: false }) : none,
-      canInternal ? supabase.from('bug_fixes').select('*').eq('project_id', id).order('fix_cycle') : none,
-      canInternal ? supabase.from('retests').select('*').eq('project_id', id).order('retest_round') : none,
-      supabase.from('baseline_revisions').select('*').eq('project_id', id).order('requested_at', { ascending: false }),
+      db.from('activities').select('*').eq('project_id', id).order('seq').order('plan_start'),
+      db.from('project_members').select('*').eq('project_id', id).order('member_role'),
+      db.from('project_baselines').select('*').eq('project_id', id).order('version_no', { ascending: false }),
+      canInternal ? db.from('internal_tasks').select('*').eq('project_id', id).order('seq').order('task_no') : none,
+      canInternal ? db.from('task_dependencies').select('*').eq('project_id', id) : none,
+      db.from('evidence_requirements').select('*').eq('project_id', id).order('created_at'),
+      db.from('evidence').select('*').eq('project_id', id),
+      canInternal ? db.from('test_rounds').select('*').eq('project_id', id).order('round_no') : none,
+      canInternal ? db.from('bugs').select('*').eq('project_id', id).order('created_at', { ascending: false }) : none,
+      canInternal ? db.from('bug_fixes').select('*').eq('project_id', id).order('fix_cycle') : none,
+      canInternal ? db.from('retests').select('*').eq('project_id', id).order('retest_round') : none,
+      db.from('baseline_revisions').select('*').eq('project_id', id).order('requested_at', { ascending: false }),
     ]);
     const baselines = (bl.data ?? []) as Baseline[];
     const items = baselines.length
-      ? ((await supabase.from('project_baseline_items').select('*').in('baseline_id', baselines.map((b) => b.id)).order('seq')).data ?? []) as BaselineItem[]
+      ? ((await db.from('project_baseline_items').select('*').in('baseline_id', baselines.map((b) => b.id)).order('seq')).data ?? []) as BaselineItem[]
       : [];
     setData({
       project: pv.data as ProjectView,
@@ -80,7 +80,7 @@ function Workspace() {
       fixes: (fixes.data ?? []) as BugFix[],
       retests: (retests.data ?? []) as Retest[],
     });
-  }, [supabase, id]);
+  }, [db, id]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch

@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PROJECT_STATUSES } from '@/lib/constants';
 import { exportKpiExcel } from '@/lib/exportExcel';
 import { errMsg } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { KpiIndividual, KpiProject, KpiSnapshot, KpiTeam } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +21,7 @@ const pct = (v: number | null | undefined) => (v == null ? '–' : `${v}%`);
 const rateColor = (v: number | null | undefined, good = 80, ok = 60) => (v == null ? '#c4c4c4' : v >= good ? '#00c875' : v >= ok ? '#fdab3d' : '#e2445c');
 
 export default function KpiPage() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const router = useRouter();
   const { hasRole, isStaff, notify } = useApp();
   const [period, setPeriod] = useState<Period>(() => periodFor('last_90'));
@@ -37,11 +37,11 @@ export default function KpiPage() {
 
   const load = useCallback(async () => {
     const [t, p, i, s, e] = await Promise.all([
-      canTeam ? supabase.rpc('kpi_team', { p_from: period.from, p_to: period.to }) : Promise.resolve({ data: null, error: null }),
-      supabase.rpc('kpi_projects'),
-      isStaff ? supabase.rpc('kpi_individual', { p_from: period.from, p_to: period.to }) : Promise.resolve({ data: [], error: null }),
-      supabase.from('project_kpi_snapshots').select('*').order('snapshot_date'),
-      supabase.from('app_settings').select('value').eq('key', 'kpi_excluded_delay_categories').maybeSingle(),
+      canTeam ? db.rpc('kpi_team', { p_from: period.from, p_to: period.to }) : Promise.resolve({ data: null, error: null }),
+      db.rpc('kpi_projects'),
+      isStaff ? db.rpc('kpi_individual', { p_from: period.from, p_to: period.to }) : Promise.resolve({ data: [], error: null }),
+      db.from('project_kpi_snapshots').select('*').order('snapshot_date'),
+      db.from('app_settings').select('value').eq('key', 'kpi_excluded_delay_categories').maybeSingle(),
     ]);
     const err = t.error ?? p.error ?? i.error;
     if (err) notify(errMsg(err), 'error');
@@ -50,7 +50,7 @@ export default function KpiPage() {
     setPeople((i.data ?? []) as KpiIndividual[]);
     setSnaps((s.data ?? []) as KpiSnapshot[]);
     setExcused((e.data?.value as string[]) ?? []);
-  }, [supabase, period.from, period.to, canTeam, isStaff, notify]);
+  }, [db, period.from, period.to, canTeam, isStaff, notify]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
@@ -68,7 +68,7 @@ export default function KpiPage() {
         subtitle="Calculated from workspace data — no manual collection (PRD §23)"
         actions={<>
           {canAll && <Button variant="outline" onClick={async () => {
-            const { data, error } = await supabase.rpc('trigger_kpi_snapshot');
+            const { data, error } = await db.rpc('trigger_kpi_snapshot');
             if (error) return notify(errMsg(error), 'error');
             notify(`KPI snapshot saved for ${data} project(s) (also runs weekly)`);
             load();

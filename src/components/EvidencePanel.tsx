@@ -4,7 +4,7 @@ import { BadgeCheck, ExternalLink, Link2, Paperclip, Trash2 } from 'lucide-react
 import { useCallback, useEffect, useState } from 'react';
 import { EVIDENCE_TYPES, optLabel } from '@/lib/constants';
 import { errMsg, fmtDateTime } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { EntityType, Evidence, EvidenceRequirement } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
@@ -40,7 +40,7 @@ export default function EvidencePanel({
   /** checklist items this evidence can satisfy */
   requirements?: EvidenceRequirement[]; reloadKey?: number;
 }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { me, profileName, notify } = useApp();
   const [items, setItems] = useState<Evidence[]>([]);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -50,9 +50,9 @@ export default function EvidencePanel({
   const [reqId, setReqId] = useState('');
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('evidence').select('*').eq('entity_type', entityType).eq('entity_id', entityId).order('uploaded_at');
+    const { data } = await db.from('evidence').select('*').eq('entity_type', entityType).eq('entity_id', entityId).order('uploaded_at');
     setItems((data ?? []) as Evidence[]);
-  }, [supabase, entityType, entityId]);
+  }, [db, entityType, entityId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
@@ -71,18 +71,8 @@ export default function EvidencePanel({
     setBusy(true);
     try {
       for (const file of Array.from(files)) {
-        const folder = projectId ? `project/${projectId}` : `request/${requestId}`;
-        const path = `${folder}/${entityType}-${entityId}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, '_')}`;
-        const up = await supabase.storage.from('evidence').upload(path, file, { contentType: file.type || undefined });
+        const up = await db.uploadEvidence({ ...base, evidence_type: guessType(file), description: null }, file);
         if (up.error) throw up.error;
-        const ins = await supabase.from('evidence').insert({
-          ...base, evidence_type: guessType(file), file_name: file.name, storage_path: path,
-          mime_type: file.type || null, file_size: file.size, url: null, description: null,
-        });
-        if (ins.error) {
-          await supabase.storage.from('evidence').remove([path]);
-          throw ins.error;
-        }
       }
       notify('Evidence uploaded');
       setReqId('');
@@ -96,7 +86,7 @@ export default function EvidencePanel({
   };
 
   const addLink = async () => {
-    const { error } = await supabase.from('evidence').insert({
+    const { error } = await db.from('evidence').insert({
       ...base, evidence_type: link.evidence_type, url: link.url.trim(), file_name: link.file_name.trim() || link.url.trim(),
       description: link.description.trim() || null, storage_path: null, mime_type: null, file_size: null,
     });
@@ -111,13 +101,11 @@ export default function EvidencePanel({
 
   const open = async (ev: Evidence) => {
     if (ev.url) return window.open(ev.url, '_blank', 'noopener');
-    const { data, error } = await supabase.storage.from('evidence').createSignedUrl(ev.storage_path!, 300);
-    if (error) return notify(errMsg(error), 'error');
-    window.open(data.signedUrl, '_blank', 'noopener');
+    window.open(db.evidenceFileUrl(ev.id), '_blank', 'noopener');
   };
 
   const verify = async (ev: Evidence, status: 'verified' | 'rejected') => {
-    const { error } = await supabase.from('evidence')
+    const { error } = await db.from('evidence')
       .update({ verification_status: status, verified_by: me?.id, verified_at: new Date().toISOString() }).eq('id', ev.id);
     if (error) return notify(errMsg(error), 'error');
     await load();
@@ -125,9 +113,8 @@ export default function EvidencePanel({
 
   const remove = async (ev: Evidence) => {
     if (!confirm(`Remove evidence "${ev.file_name ?? ev.url}"?`)) return;
-    const { error } = await supabase.from('evidence').delete().eq('id', ev.id);
+    const { error } = await db.from('evidence').delete().eq('id', ev.id);
     if (error) return notify(errMsg(error), 'error');
-    if (ev.storage_path) await supabase.storage.from('evidence').remove([ev.storage_path]);
     await load();
     onChange?.();
   };

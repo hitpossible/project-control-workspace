@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { WORK_TYPES } from '@/lib/constants';
 import { exportWorkforceExcel } from '@/lib/exportExcel';
 import { errMsg, nullify } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Project, WorkforcePlan } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -39,7 +39,7 @@ function Chip({ p, projectCode, onClick, compact }: { p: WorkforcePlan; projectC
 }
 
 export default function WorkforcePage() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { me, profiles, hasRole, notify } = useApp();
   const [view, setView] = useState<View>('week');
   const [anchor, setAnchor] = useState<Dayjs>(() => dayjs());
@@ -66,10 +66,10 @@ export default function WorkforcePage() {
 
   const load = useCallback(async () => {
     const [w, t, b, p] = await Promise.all([
-      supabase.from('workforce_plans').select('*').gte('work_date', fromS).lte('work_date', toS).order('start_time'),
-      supabase.from('internal_tasks').select('owner_id, due_date').not('status', 'in', '(completed,cancelled)').gte('due_date', fromS).lte('due_date', toS),
-      supabase.from('bugs').select('assigned_dev_id, due_date').in('status', ['assigned', 'in_progress', 'reopened']).gte('due_date', fromS).lte('due_date', toS),
-      supabase.from('projects').select('*').not('status', 'in', '(completed,cancelled)').order('project_code'),
+      db.from('workforce_plans').select('*').gte('work_date', fromS).lte('work_date', toS).order('start_time'),
+      db.from('internal_tasks').select('owner_id, due_date').not('status', 'in', '(completed,cancelled)').gte('due_date', fromS).lte('due_date', toS),
+      db.from('bugs').select('assigned_dev_id, due_date').in('status', ['assigned', 'in_progress', 'reopened']).gte('due_date', fromS).lte('due_date', toS),
+      db.from('projects').select('*').not('status', 'in', '(completed,cancelled)').order('project_code'),
     ]);
     setPlans((w.data ?? []) as WorkforcePlan[]);
     setLoads([
@@ -77,7 +77,7 @@ export default function WorkforcePage() {
       ...((b.data ?? []) as { assigned_dev_id: string; due_date: string }[]).filter((x) => x.assigned_dev_id).map((x) => ({ owner_id: x.assigned_dev_id, due_date: x.due_date, kind: 'bug' as const })),
     ]);
     setProjects((p.data ?? []) as Project[]);
-  }, [supabase, fromS, toS]);
+  }, [db, fromS, toS]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
@@ -106,7 +106,7 @@ export default function WorkforcePage() {
     });
     let res;
     if (edit.id) {
-      res = await supabase.from('workforce_plans').update({ ...base, work_date: edit.work_date }).eq('id', edit.id);
+      res = await db.from('workforce_plans').update({ ...base, work_date: edit.work_date }).eq('id', edit.id);
     } else {
       const rows = [];
       for (let d = dayjs(edit.work_date); !d.isAfter(edit.to ?? edit.work_date, 'day'); d = d.add(1, 'day')) {
@@ -114,7 +114,7 @@ export default function WorkforcePage() {
         rows.push({ ...base, work_date: d.format('YYYY-MM-DD') });
       }
       if (!rows.length) return notify('No working day in the selected range', 'warning');
-      res = await supabase.from('workforce_plans').insert(rows);
+      res = await db.from('workforce_plans').insert(rows);
     }
     if (res.error) return notify(errMsg(res.error), 'error');
     notify('Workforce plan saved');
@@ -286,7 +286,7 @@ export default function WorkforcePage() {
             </div>
             <DialogFooter className="sm:justify-between">
               {edit.id ? <Button variant="destructive" onClick={async () => {
-                const { error } = await supabase.from('workforce_plans').delete().eq('id', edit.id!);
+                const { error } = await db.from('workforce_plans').delete().eq('id', edit.id!);
                 if (error) return notify(errMsg(error), 'error');
                 setEdit(null); load();
               }}>Delete</Button> : <span />}

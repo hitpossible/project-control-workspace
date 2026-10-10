@@ -2,30 +2,40 @@
 
 Implementation of `../TBKK_System_Service_Project_Control_Workspace_PRD.md` — **Phase 1: Project Control Core**, **Phase 2: QA & Workflow Control** and **Phase 3: Management Intelligence**.
 
-**Stack:** Next.js 16 (App Router) · shadcn/ui (Radix + Tailwind v4, monday.com-style theme) · Supabase (Postgres + Auth + Storage + RLS) · ExcelJS · @react-pdf/renderer (Sarabun font, Thai supported) · Nodemailer
+**Stack:** Next.js 16 (App Router, API routes) · **MySQL 5.7+ / 8** (mysql2) · company **AD login** (JWT session cookie) · **MinIO** (S3-compatible evidence files) · node-cron scheduler · shadcn/ui (Radix + Tailwind v4, monday.com-style theme) · ExcelJS · @react-pdf/renderer (Sarabun font, Thai supported) · Nodemailer
+
+> Migrated from Supabase (Postgres) to MySQL — the Supabase version is preserved at git tag `supabase-phase3`.
 
 ## Run locally
 
-Requirements: Node 20+, Docker Desktop, Supabase CLI.
+Requirements: Node 20+, MySQL 5.7+ (e.g. MAMP on port 8889), Docker Desktop (MinIO + Mailpit).
 
 ```bash
-supabase start          # local Postgres / Auth / Storage / Mailpit
 npm install
-npm run db:reset        # apply migrations + seed demo users & workflow data
-npm run dev             # http://localhost:3000
+cp .env.example .env.local   # then fill in DATABASE_URL, AUTH_SECRET, MINIO_* …
+npm run services:up          # MinIO (evidence files) + Mailpit (e-mail) in Docker
+npm run db:reset             # create database, apply db/migrations, seed demo users & workflow data
+npm run dev                  # http://localhost:3000
 ```
-
-`.env.local` holds the local Supabase URL/keys (from `supabase status -o env`) and SMTP settings (Mailpit on port 54325).
 
 | Tool | URL |
 |---|---|
 | App | http://localhost:3000 |
-| Supabase Studio | http://127.0.0.1:54323 |
-| Mailpit (e-mail notifications) | http://127.0.0.1:54324 |
+| MinIO console (evidence files) | http://localhost:9101 |
+| Mailpit (e-mail notifications) | http://localhost:8025 |
+| phpMyAdmin (MAMP) | http://localhost:8888/phpMyAdmin |
+
+`npm run db:migrate` applies only new files in `db/migrations/` (tracked in `schema_migrations`) — use it on shared / production databases. `db:reset` drops the database.
+
+### Login
+
+- **Company accounts** sign in with their AD username/password. The app posts `{ username, password }` to `AD_LOGIN_URL`; HTTP 2xx (without `success:false` / `error`) = success. On first login a profile with role *Requestor* is created (`AD_AUTO_PROVISION`); an admin then assigns roles in Admin → Users.
+- **Local accounts** (rows with a password hash — demo users, break-glass admin) are checked first. Admin → Users can set a local password.
+- `AUTH_PROVIDERS` = `ad`, `local` or `ad,local`.
 
 ### Demo accounts
 
-All accounts use `@tbkk.test`. The password is `SEED_PASSWORD` in `scripts/seed.mjs`.
+Username = the name below, local password = `SEED_PASSWORD` in `scripts/seed.ts`.
 
 | Account | Roles |
 |---|---|
@@ -40,32 +50,38 @@ All accounts use `@tbkk.test`. The password is `SEED_PASSWORD` in `scripts/seed.
 | mgmt | Management / User View |
 | admin | Administrator |
 
-The seed runs the **real workflow through the RPCs**: 3 converted projects (one delayed with recovery plan, one on track, one still planning), plus requests in Approved / Waiting System Review / Waiting Requestor Approval / Draft.
+The seed runs the **real workflow through the same server functions and access policies as the API**: 3 converted projects (one delayed with recovery plan, one on track, one still planning), plus requests in Approved / Waiting System Review / Waiting Requestor Approval / Draft, QA bugs / retests, a pending baseline revision and a workforce plan.
 
 ## Architecture
 
 ```
+db/migrations/                 MySQL schema (001) + master data (002)   — npm run db:migrate
 src/
-  proxy.ts                     session refresh + redirect to /login (Next 16 "proxy" = middleware)
-  app/(app)/                   authenticated pages
-    page.tsx                   Internal Dashboard (staff) / Management Dashboard (others)
-    requests/ [id]/ new/       Project Request (FM-SYS-004) + approval + convert
-    projects/ [id]/            Project list + Workspace (Overview, User Plan, Internal Plan, Team, Baseline, Evidence, History)
-    my-tasks/ notifications/ management/ admin/
+  proxy.ts                     redirect anonymous users to /login (checks the session JWT)
+  instrumentation.ts           starts the scheduler when the Node server boots
+  app/(app)/                   authenticated pages (client components)
+  app/api/data                 generic table access for the browser query builder
+  app/api/rpc/[fn]             workflow / KPI / insight functions
+  app/api/auth/*               login (AD / local) · logout · me
+  app/api/evidence/*           upload to MinIO · permission-checked download
+  app/api/admin/users          admin creates users / sets local passwords
   app/api/notifications/dispatch   sends queued e-mails (email_outbox → SMTP)
-  app/api/admin/users              admin creates users (service role)
-  components/ui/               shadcn/ui primitives (generated — `npx shadcn@latest add <name>`)
-  components/common.tsx        app building blocks: StatusChip, Person, BoardGroup, form fields, UserSelect…
-  components/GanttChart.tsx    interactive Gantt (plan / actual / forecast-recovery / milestone / today / dependencies)
-  lib/exportExcel.ts           Excel export from master data
-supabase/migrations/
-  …01_core_tables.sql          schema
-  …02_functions_workflow.sql   workflow RPCs, triggers, audit, roll-up, notification engine, v_projects
-  …03_rls.sql                  Row Level Security + storage policies + grants
-  …04_master_data.sql          project types, templates, notification rules, code formats, pg_cron
+  lib/db/client.ts             browser query builder: db.from(t).select().eq()… / db.rpc() (supabase-js compatible subset)
+  server/
+    db.ts                      mysql2 pool, transactions (Ctx), type conversion (UTC timestamps, booleans, JSON)
+    policies.ts                row-level access per table  (was Postgres RLS)
+    data.ts                    select / insert / update / delete with policies, embeds (projects(...)), filters
+    engine.ts + hooks.ts       single write path: defaults → guards → write → audit → roll-ups / notifications  (was triggers)
+    logic/                     notification engine, numbering, progress / forecast / health roll-up, checklist
+    rpc/                       requests, baseline, qa, kpi, insights, scan                                   (was plpgsql RPCs)
+    views.ts                   v_projects (attention flags, QA counts)
+    auth.ts session.ts         AD / local login, JWT session cookie
+    storage.ts                 MinIO
+    scheduler.ts               hourly notification scan · Monday 06:00 KPI snapshot · e-mail every minute (was pg_cron)
+  components/ …                UI (shadcn/ui)
 ```
 
-**Security lives in Postgres.** Every table has RLS. Workflow state (request status, approvals, project code, baseline) can only change through `security definer` RPCs, which validate status before every update. Guard triggers block direct edits to protected fields.
+**Security lives on the server.** The browser never talks to MySQL: every `/api/data` statement is restricted by the table policy (`src/server/policies.ts`, a 1:1 port of the former RLS), column names are whitelisted from `information_schema`, and values are parameterised. Workflow state (request status, approvals, project code, baseline, bug status) can only change through the workflow functions, which validate status before every update; guards in `hooks.ts` block direct edits to protected fields.
 
 | Who | Sees |
 |---|---|
@@ -73,18 +89,18 @@ supabase/migrations/
 | System Service staff | + Internal Execution Plan, technical notes, internal comments, internal evidence, history |
 | Project Leader | manages own project (plan, team, baseline, evidence verification) |
 
-### Workflow RPCs
+### Workflow functions (`POST /api/rpc/<name>`)
 
-| RPC | Purpose |
+| Function | Purpose |
 |---|---|
 | `submit_request` | validate → Request No. → approval steps (resume same step after "More Info") |
 | `save_review` | System Service Review: type, template, leader, authority approver |
 | `act_on_approval` | approve / reject / send back / request more info (comment required except approve) |
 | `convert_request_to_project` | approved only → Project Code, project, team, activities + tasks from template |
-| `create_baseline` | V1 starts the project; V2+ need a reason; old versions never overwritten |
-| `run_notification_scan` | due-tomorrow / overdue escalation / auto-Delayed / health recompute (pg_cron hourly) |
+| `create_baseline` | V1 starts the project; V2+ only via an approved revision; old versions never overwritten |
+| scheduler: notification scan | due-tomorrow / overdue escalation / auto-Delayed / health recompute (hourly) |
 
-**Automatic calculations (triggers):**
+**Automatic calculations (`hooks.ts` / `logic/project.ts`):**
 - Sub-task → task → activity progress roll-up (activity actual dates come from its tasks)
 - Project progress (weighted by duration), forecast, schedule variance, health (green/yellow/red), and auto Delayed / At Risk
 - `audit_logs` record field old→new values with who and when (status, PIC, due date, baseline, forecast, progress, recovery, evidence, team)
@@ -118,7 +134,7 @@ supabase/migrations/
 
 Bug workflow RPCs: `report_bug`, `assign_bug`, `start_fix`, `mark_fix_ready`, `record_retest`, `cancel_bug`.
 Re-plan RPCs: `request_baseline_revision`, `decide_baseline_revision`, `cancel_baseline_revision`, `review_recovery_plan`.
-Bug status can only change through these RPCs (guard trigger).
+Bug status can only change through these functions (guard in `hooks.ts`).
 
 ## Phase 3 — Management Intelligence
 
@@ -127,13 +143,13 @@ Bug status can only change through these RPCs (guard trigger).
 | **KPI** (§23): Team KPI for a period, Project KPI (schedule variance, reschedules, waiting days from audit trail, evidence %, bug closure, retest pass), Individual KPI (on-time, avg delay, overdue, fix time, first-time pass, retest turnaround) with charts + Excel export | KPI |
 | Fair KPI: late tasks with excused delay categories (Waiting User, Vendor, Approval Delay, Requirement Change) are not counted against the person | Admin → KPI Settings |
 | Permission: Dev / QA see **own** KPI; Leader / Supervisor / Manager see everyone; Management View sees team + project summary only | `kpi_individual`, `kpi_team` |
-| KPI snapshots (weekly pg_cron + manual) → progress trend sparkline | KPI → Snapshot |
+| KPI snapshots (weekly scheduler + manual) → progress trend sparkline | KPI → Snapshot |
 | **Smart Insight** (§22): 17 rules (no target/leader/next action, waiting > X days, forecast > baseline (+ “no Recovery Plan”), overdue, stale progress, reschedules > X, critical bug, fix / retest overdue, evidence missing, member overloaded, **owner on leave on due date**…). Thresholds / severity / on-off configurable; internal rules hidden from User View | Smart Insights, Dashboard, Project Overview, Admin → Insight Rules |
 | **Workforce Plan** (§24): Office / Onsite / WFH / Customer Site / Factory Support / Training / Leave / OT, Daily · Weekly · Monthly · Team view, date-range entry, project link, workload (tasks / bugs due) and leave conflicts | Workforce Plan |
 | **PDF reports** (§25.2): Project Status (with mini timeline), User Meeting, Project Closure (baseline vs actual, checklist, sign-off), Management Report | Reports, Project → PDF Report |
 | Advanced export: KPI, Smart Insights, Workforce plan to Excel | each page |
 
-DB: `kpi_projects()`, `kpi_team(from,to)`, `kpi_individual(from,to)`, `smart_insights(project)`, `take_kpi_snapshot()`; tables `insight_rules`, `workforce_plans`, `project_kpi_snapshots`.
+Functions (`src/server/rpc/kpi.ts`, `insights.ts`): `kpi_projects`, `kpi_team(from,to)`, `kpi_individual(from,to)`, `smart_insights(project)`, KPI snapshot job; tables `insight_rules`, `workforce_plans`, `project_kpi_snapshots`.
 
 ## Assumptions for PRD §34 Open Questions
 
@@ -157,6 +173,9 @@ These defaults are confirmable/configurable:
 
 ## Production notes
 
-- Replace email/password with company SSO (Supabase Auth → Azure AD / Keycloak OIDC). `handle_new_user` creates profiles automatically.
-- Point SMTP_* to the company relay, and call `POST /api/notifications/dispatch` with header `x-cron-secret: $CRON_SECRET` from a scheduler (it is also triggered after each user action).
-- Evidence bucket limit is 50 MB per file (`storage.buckets.file_size_limit`).
+- **Database:** create an empty schema on the company MySQL server, set `DATABASE_URL`, run `npm run db:migrate`. Timestamps are stored in UTC; business dates use the app server's time zone (Asia/Bangkok). Back up with the usual `mysqldump`.
+- **Secrets:** generate a new `AUTH_SECRET` (≥ 32 chars); set `COOKIE_SECURE=true` behind HTTPS.
+- **AD:** confirm the response format of `AD_LOGIN_URL` (success flag and user fields such as name / e-mail / department) — the adapter is in `src/server/auth.ts` (`adLogin`).
+- **Scheduler:** runs inside the app (`node-cron`). With several app instances, keep it on one and set `DISABLE_SCHEDULER=true` on the others. External schedulers can also call `POST /api/notifications/dispatch` with header `x-cron-secret: $CRON_SECRET`.
+- **E-mail:** point `SMTP_*` to the company relay.
+- **Evidence files:** MinIO bucket `MINIO_BUCKET` (created automatically); 50 MB per file (`EVIDENCE_MAX_MB`). Only PDF / images / text open inline; other types download.

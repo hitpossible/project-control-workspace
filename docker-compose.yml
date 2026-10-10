@@ -1,0 +1,30 @@
+# Local dev services:  npm run services:up
+#   MinIO (evidence files)  API http://localhost:9100, console http://localhost:9101
+#   Mailpit (e-mail)        UI  http://localhost:8025, SMTP 1025
+# Credentials come from .env.local (MINIO_ACCESS_KEY / MINIO_SECRET_KEY).
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: tbkk-pcw-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?set MINIO_ACCESS_KEY in .env.local}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in .env.local}
+    ports:
+      - "9100:9000"
+      - "9101:9001"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+  # Dev mail catcher (UI http://localhost:8025, SMTP 1025). Production: point SMTP_HOST to the company relay.
+  mailpit:
+    image: public.ecr.aws/supabase/mailpit:v1.30.2
+    container_name: tbkk-pcw-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
+volumes:
+  minio-data:

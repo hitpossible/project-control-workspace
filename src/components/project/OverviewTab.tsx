@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ACTIVITY_STATUSES, MEMBER_ROLES, PRIORITIES, PROJECT_STATUSES, optLabel } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, isOverdue, nullify } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Project } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { TabProps } from './types';
@@ -126,7 +126,7 @@ export default function OverviewTab({ data, perm, reload }: TabProps) {
 }
 
 function EditProjectDialog({ project, onClose, onSaved }: { project: Project; onClose: () => void; onSaved: () => void }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [f, setF] = useState({
     leader_id: project.leader_id, sponsor: project.sponsor ?? '', priority: project.priority, target_date: project.target_date ?? '',
@@ -151,7 +151,7 @@ function EditProjectDialog({ project, onClose, onSaved }: { project: Project; on
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={async () => {
-            const { error } = await supabase.from('projects').update(nullify(f)).eq('id', project.id);
+            const { error } = await db.from('projects').update(nullify(f)).eq('id', project.id);
             if (error) return notify(errMsg(error), 'error');
             notify('Project updated');
             dispatchEmails();

@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { APPROVAL_ACTION_LABELS, REQUEST_STATUSES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { ApprovalAction, ApprovalStep, ProjectRequest, ProjectTemplate, ProjectType, Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -40,7 +40,7 @@ function StepIcon({ status }: { status: string }) {
 
 export default function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const router = useRouter();
   const { me, hasRole, profileName, notify, refreshUnread } = useApp();
   const [r, setR] = useState<ProjectRequest | null>(null);
@@ -55,7 +55,7 @@ export default function RequestDetailPage() {
   const [formKey, setFormKey] = useState(0);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from('project_requests').select('*').eq('id', id).maybeSingle();
+    const { data, error } = await db.from('project_requests').select('*').eq('id', id).maybeSingle();
     if (error || !data) return setNotFound(true);
     setR(data);
     setReview({
@@ -64,19 +64,19 @@ export default function RequestDetailPage() {
     });
     setConv((c) => ({ ...c, target: c.target || data.date_required || '' }));
     const [s, a] = await Promise.all([
-      supabase.from('approval_steps').select('*').eq('request_id', id).order('cycle').order('step_no'),
-      supabase.from('approval_actions').select('*').eq('request_id', id).order('created_at'),
+      db.from('approval_steps').select('*').eq('request_id', id).order('cycle').order('step_no'),
+      db.from('approval_actions').select('*').eq('request_id', id).order('created_at'),
     ]);
     setSteps((s.data ?? []) as ApprovalStep[]);
     setActions((a.data ?? []) as ApprovalAction[]);
-  }, [supabase, id]);
+  }, [db, id]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
     load();
-    supabase.from('project_types').select('*').eq('is_active', true).order('name').then(({ data }) => setTypes(data ?? []));
-    supabase.from('project_templates').select('*').eq('is_active', true).order('name').then(({ data }) => setTemplates(data ?? []));
-  }, [load, supabase]);
+    db.from('project_types').select('*').eq('is_active', true).order('name').then(({ data }) => setTypes(data ?? []));
+    db.from('project_templates').select('*').eq('is_active', true).order('name').then(({ data }) => setTemplates(data ?? []));
+  }, [load, db]);
 
   if (notFound) return <Alert><AlertDescription>Request not found or you do not have access.</AlertDescription></Alert>;
   if (!r || !me) return null;
@@ -91,7 +91,7 @@ export default function RequestDetailPage() {
   const canConvert = r.status === 'approved' && (hasRole('system_reviewer') || r.proposed_leader_id === me.id);
 
   const rpc = async (fn: string, args: Record<string, unknown>, ok: string) => {
-    const { data, error } = await supabase.rpc(fn, args);
+    const { data, error } = await db.rpc(fn, args);
     if (error) { notify(errMsg(error), 'error'); return null; }
     notify(ok);
     dispatchEmails();
@@ -127,7 +127,7 @@ export default function RequestDetailPage() {
           {mine && r.status === 'draft' && !r.request_no && (
             <Button variant="destructive" onClick={async () => {
               if (!confirm('Delete this draft?')) return;
-              const { error } = await supabase.from('project_requests').delete().eq('id', r.id);
+              const { error } = await db.from('project_requests').delete().eq('id', r.id);
               if (error) return notify(errMsg(error), 'error');
               router.replace('/requests');
             }}>Delete Draft</Button>

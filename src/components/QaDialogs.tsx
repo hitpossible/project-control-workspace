@@ -4,7 +4,7 @@ import { Bug as BugIcon, CircleCheck, CircleX, ExternalLink, FlaskConical, Hamme
 import { useState } from 'react';
 import { PRIORITIES, ROOT_CAUSE_CATEGORIES, SEVERITIES, BUG_STATUSES, TEST_RESULTS, TEST_ROUND_STATUSES, TEST_TYPES, optLabel } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, isOverdue, nullify } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Activity, Bug, BugFix, InternalTask, Profile, Project, Retest, TestRound } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import AuditHistory from './AuditHistory';
@@ -29,10 +29,10 @@ function DialogTabs({ value, onChange, tabs }: { value: string; onChange: (v: st
 }
 
 function useRpc(onDone: () => void) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify, refreshUnread } = useApp();
   return async (fn: string, args: Record<string, unknown>, ok: string) => {
-    const { data, error } = await supabase.rpc(fn, args);
+    const { data, error } = await db.rpc(fn, args);
     if (error) { notify(errMsg(error), 'error'); return null; }
     notify(ok);
     dispatchEmails();
@@ -104,7 +104,7 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
   project: Project; bug: Bug; rounds: TestRound[]; activities: Activity[]; tasks: InternalTask[];
   fixes: BugFix[]; retests: Retest[]; members: Profile[]; canManage: boolean; onClose: () => void; onSaved: () => void;
 }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { me, hasRole, profileName, notify } = useApp();
   const rpc = useRpc(onSaved);
   const [tab, setTab] = useState('Workflow');
@@ -128,7 +128,7 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
   const myRetests = retests.filter((x) => x.bug_id === bug.id);
 
   const saveDetails = async () => {
-    const { error } = await supabase.from('bugs').update(nullify({
+    const { error } = await db.from('bugs').update(nullify({
       title: f.title, description: f.description, steps_to_reproduce: f.steps_to_reproduce, expected_result: f.expected_result,
       actual_result: f.actual_result, severity: f.severity, priority: f.priority, root_cause: f.root_cause,
       root_cause_category: f.root_cause_category, test_round_id: f.test_round_id, activity_id: f.activity_id, task_id: f.task_id, due_date: f.due_date,
@@ -333,7 +333,7 @@ export function TestRoundDialog({ project, round, rounds, activities, bugs, memb
   project: Project; round: TestRound | null; rounds: TestRound[]; activities: Activity[]; bugs: Bug[]; members: Profile[];
   canEdit: boolean; onClose: () => void; onSaved: () => void; onOpenBug: (b: Bug) => void; onReportBug: (roundId: string) => void;
 }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { me, notify } = useApp();
   const [tab, setTab] = useState('Details');
   const last = rounds[rounds.length - 1];
@@ -356,8 +356,8 @@ export function TestRoundDialog({ project, round, rounds, activities, bugs, memb
       summary: f.summary ?? null,
     });
     const res = round
-      ? await supabase.from('test_rounds').update(payload).eq('id', round.id)
-      : await supabase.from('test_rounds').insert({ ...payload, project_id: project.id });
+      ? await db.from('test_rounds').update(payload).eq('id', round.id)
+      : await db.from('test_rounds').insert({ ...payload, project_id: project.id });
     if (res.error) return notify(errMsg(res.error), 'error');
     notify(round ? 'Test round updated' : 'Test round created');
     onSaved();

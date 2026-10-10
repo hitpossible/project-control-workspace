@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SYSTEM_STAFF_ROLES } from '@/lib/constants';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Profile, Role } from '@/lib/types';
 
 interface AppCtx {
@@ -29,24 +29,26 @@ export function useApp() {
 }
 
 export default function AppProvider({ children }: { children: React.ReactNode }) {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const router = useRouter();
   const [me, setMe] = useState<Profile | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [unread, setUnread] = useState(0);
 
   const refreshProfiles = useCallback(async () => {
-    const { data: auth } = await supabase.auth.getUser();
-    const { data } = await supabase.from('profiles').select('*').order('full_name');
+    const [auth, { data }] = await Promise.all([
+      fetch('/api/auth/me').then((r) => (r.ok ? r.json() : { data: null })).catch(() => ({ data: null })),
+      db.from('profiles').select('*').order('full_name'),
+    ]);
     const list = (data ?? []) as Profile[];
     setProfiles(list);
-    setMe(list.find((p) => p.id === auth.user?.id) ?? null);
-  }, [supabase]);
+    setMe(list.find((p) => p.id === auth.data?.id) ?? null);
+  }, [db]);
 
   const refreshUnread = useCallback(async () => {
-    const { count } = await supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('is_read', false);
+    const { count } = await db.from('notifications').select('id', { count: 'exact', head: true }).eq('is_read', false);
     setUnread(count ?? 0);
-  }, [supabase]);
+  }, [db]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load
@@ -70,12 +72,12 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       unread,
       refreshUnread,
       signOut: async () => {
-        await supabase.auth.signOut();
+        await fetch('/api/auth/logout', { method: 'POST' });
         router.replace('/login');
         router.refresh();
       },
     };
-  }, [me, profiles, unread, refreshProfiles, refreshUnread, supabase, router]);
+  }, [me, profiles, unread, refreshProfiles, refreshUnread, router]);
 
   return (
     <Ctx.Provider value={value}>

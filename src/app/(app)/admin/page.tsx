@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DELAY_CATEGORIES, INSIGHT_SEVERITIES, MEMBER_ROLES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { InsightRule, NotificationRule, Profile, ProjectTemplate, ProjectType, Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -45,22 +45,30 @@ export default function AdminPage() {
 }
 
 function UsersAdmin() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { profiles, refreshProfiles, notify } = useApp();
   const [edit, setEdit] = useState<(Partial<Profile> & { password?: string }) | null>(null);
 
   const save = async () => {
     if (!edit) return;
+    const call = async (method: 'POST' | 'PATCH', body: unknown) => {
+      const res = await fetch('/api/admin/users', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      return res.ok ? null : ((await res.json().catch(() => null))?.error?.message ?? 'Failed');
+    };
     if (!edit.id) {
-      const res = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(edit) });
-      const body = await res.json();
-      if (!res.ok) return notify(body.error ?? 'Failed', 'error');
+      const err = await call('POST', edit);
+      if (err) return notify(err, 'error');
     } else {
-      const { error } = await supabase.from('profiles').update({
+      const { error } = await db.from('profiles').update({
+        username: edit.username || null, email: edit.email || null,
         full_name: edit.full_name, employee_id: edit.employee_id, department: edit.department, section: edit.section,
         telephone: edit.telephone, extension: edit.extension, roles: edit.roles, is_active: edit.is_active,
       }).eq('id', edit.id);
       if (error) return notify(errMsg(error), 'error');
+      if (edit.password) {
+        const err = await call('PATCH', { id: edit.id, password: edit.password });
+        if (err) return notify(err, 'error');
+      }
     }
     notify('User saved');
     setEdit(null);
@@ -74,12 +82,13 @@ function UsersAdmin() {
       <BoardGroup title="Users" color="#579bfc" count={profiles.length}
         actions={<Button size="sm" onClick={() => setEdit({ roles: ['requestor'], is_active: true })}><Plus /> Add User</Button>}>
         <Table className="board-table">
-          <TableHeader><TableRow><TableHead className="text-left">Name</TableHead><TableHead>Emp. ID</TableHead><TableHead>Email</TableHead><TableHead>Department</TableHead><TableHead>Roles</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead className="text-left">Name</TableHead><TableHead>Emp. ID</TableHead><TableHead>Username</TableHead><TableHead>Email</TableHead><TableHead>Department</TableHead><TableHead>Roles</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
           <TableBody>
             {profiles.map((p) => (
               <TableRow key={p.id} className={cn('cursor-pointer', !p.is_active && 'opacity-50')} onClick={() => setEdit({ ...p })}>
                 <TableCell><Person name={p.full_name} /></TableCell>
                 <TableCell className="text-center">{p.employee_id}</TableCell>
+                <TableCell className="text-center">{p.username}</TableCell>
                 <TableCell className="text-center">{p.email}</TableCell>
                 <TableCell className="text-center">{p.department}</TableCell>
                 <TableCell className="whitespace-normal">
@@ -98,8 +107,10 @@ function UsersAdmin() {
             <div className="grid grid-cols-12 gap-3">
               <TextField className="col-span-8" label="Full Name" required value={edit.full_name} onChange={(v) => set({ full_name: v })} />
               <TextField className="col-span-4" label="Employee ID" value={edit.employee_id} onChange={(v) => set({ employee_id: v })} />
-              <TextField className="col-span-12" label="Email" required disabled={!!edit.id} value={edit.email} onChange={(v) => set({ email: v })} />
-              {!edit.id && <TextField className="col-span-12" label="Initial Password" type="password" required value={edit.password} onChange={(v) => set({ password: v })} helperText="Min 8 characters. In production use company SSO instead." />}
+              <TextField className="col-span-6" label="Username (AD)" value={edit.username} onChange={(v) => set({ username: v })} helperText="Company login name" />
+              <TextField className="col-span-6" label="Email" value={edit.email} onChange={(v) => set({ email: v })} />
+              <TextField className="col-span-12" label={edit.id ? 'Set local password' : 'Local password (optional)'} type="password" value={edit.password} onChange={(v) => set({ password: v })}
+                helperText="Leave empty for AD login. Min 8 characters — only for accounts without AD (e.g. break-glass admin)." />
               <TextField className="col-span-6" label="Department" value={edit.department} onChange={(v) => set({ department: v })} />
               <TextField className="col-span-6" label="Section" value={edit.section} onChange={(v) => set({ section: v })} />
               <TextField className="col-span-8" label="Telephone" value={edit.telephone} onChange={(v) => set({ telephone: v })} />
@@ -116,17 +127,17 @@ function UsersAdmin() {
 }
 
 function TypesAdmin() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<ProjectType[]>([]);
   const [n, setN] = useState({ code: '', name: '' });
-  const load = useCallback(async () => setRows(((await supabase.from('project_types').select('*').order('code')).data ?? []) as ProjectType[]), [supabase]);
+  const load = useCallback(async () => setRows(((await db.from('project_types').select('*').order('code')).data ?? []) as ProjectType[]), [db]);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
     load();
   }, [load]);
   const upd = async (id: number, patch: Partial<ProjectType>) => {
-    const { error } = await supabase.from('project_types').update(patch).eq('id', id);
+    const { error } = await db.from('project_types').update(patch).eq('id', id);
     if (error) notify(errMsg(error), 'error');
     load();
   };
@@ -148,7 +159,7 @@ function TypesAdmin() {
               <TableCell><Input placeholder="CODE" className="h-8" value={n.code} onChange={(e) => setN({ ...n, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} /></TableCell>
               <TableCell><Input placeholder="Name" className="h-8" value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></TableCell>
               <TableCell className="text-center"><Button size="sm" disabled={!n.code || !n.name} onClick={async () => {
-                const { error } = await supabase.from('project_types').insert(n);
+                const { error } = await db.from('project_types').insert(n);
                 if (error) return notify(errMsg(error), 'error');
                 setN({ code: '', name: '' }); load();
               }}>Add</Button></TableCell>
@@ -161,15 +172,15 @@ function TypesAdmin() {
 }
 
 function TemplatesAdmin() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<ProjectTemplate[]>([]);
   const [types, setTypes] = useState<ProjectType[]>([]);
   const [edit, setEdit] = useState<(Partial<ProjectTemplate> & { json: string; evid: string }) | null>(null);
   const load = useCallback(async () => {
-    setRows(((await supabase.from('project_templates').select('*').order('name')).data ?? []) as ProjectTemplate[]);
-    setTypes(((await supabase.from('project_types').select('*').order('name')).data ?? []) as ProjectType[]);
-  }, [supabase]);
+    setRows(((await db.from('project_templates').select('*').order('name')).data ?? []) as ProjectTemplate[]);
+    setTypes(((await db.from('project_types').select('*').order('name')).data ?? []) as ProjectType[]);
+  }, [db]);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
     load();
@@ -186,7 +197,7 @@ function TemplatesAdmin() {
       return notify(`Invalid JSON: ${errMsg(e)}`, 'error');
     }
     const payload = { code: edit.code, name: edit.name, description: edit.description ?? null, project_type_id: edit.project_type_id ?? null, default_activities: acts, evidence_checklist: evid, is_active: edit.is_active ?? true };
-    const res = edit.id ? await supabase.from('project_templates').update(payload).eq('id', edit.id) : await supabase.from('project_templates').insert(payload);
+    const res = edit.id ? await db.from('project_templates').update(payload).eq('id', edit.id) : await db.from('project_templates').insert(payload);
     if (res.error) return notify(errMsg(res.error), 'error');
     notify('Template saved');
     setEdit(null);
@@ -239,14 +250,14 @@ function TemplatesAdmin() {
 }
 
 function SettingsAdmin() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [vals, setVals] = useState<Record<string, string>>({});
   useEffect(() => {
-    supabase.from('app_settings').select('*').then(({ data }) => setVals(Object.fromEntries((data ?? []).map((s: { key: string; value: unknown }) => [s.key, String(s.value)]))));
-  }, [supabase]);
+    db.from('app_settings').select('*').then(({ data }) => setVals(Object.fromEntries((data ?? []).map((s: { key: string; value: unknown }) => [s.key, String(s.value)]))));
+  }, [db]);
   const save = async (key: string) => {
-    const { error } = await supabase.from('app_settings').update({ value: vals[key], updated_at: new Date().toISOString() }).eq('key', key);
+    const { error } = await db.from('app_settings').update({ value: vals[key], updated_at: new Date().toISOString() }).eq('key', key);
     notify(error ? errMsg(error) : 'Saved', error ? 'error' : 'success');
   };
   return (
@@ -267,16 +278,16 @@ function SettingsAdmin() {
 }
 
 function RulesAdmin() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<NotificationRule[]>([]);
-  const load = useCallback(async () => setRows(((await supabase.from('notification_rules').select('*').order('event_code')).data ?? []) as NotificationRule[]), [supabase]);
+  const load = useCallback(async () => setRows(((await db.from('notification_rules').select('*').order('event_code')).data ?? []) as NotificationRule[]), [db]);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
     load();
   }, [load]);
   const upd = async (code: string, patch: Partial<NotificationRule>) => {
-    const { error } = await supabase.from('notification_rules').update(patch).eq('event_code', code);
+    const { error } = await db.from('notification_rules').update(patch).eq('event_code', code);
     if (error) notify(errMsg(error), 'error');
     load();
   };
@@ -317,16 +328,16 @@ function RulesAdmin() {
 }
 
 function InsightRulesAdmin() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<InsightRule[]>([]);
-  const load = useCallback(async () => setRows(((await supabase.from('insight_rules').select('*').order('internal').order('code')).data ?? []) as InsightRule[]), [supabase]);
+  const load = useCallback(async () => setRows(((await db.from('insight_rules').select('*').order('internal').order('code')).data ?? []) as InsightRule[]), [db]);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
     load();
   }, [load]);
   const upd = async (code: string, patch: Partial<InsightRule>) => {
-    const { error } = await supabase.from('insight_rules').update(patch).eq('code', code);
+    const { error } = await db.from('insight_rules').update(patch).eq('code', code);
     if (error) notify(errMsg(error), 'error');
     load();
   };
@@ -356,12 +367,12 @@ function InsightRulesAdmin() {
 }
 
 function KpiSettingsAdmin() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const { notify } = useApp();
   const [cats, setCats] = useState<string[]>([]);
   useEffect(() => {
-    supabase.from('app_settings').select('value').eq('key', 'kpi_excluded_delay_categories').maybeSingle().then(({ data }) => setCats((data?.value as string[]) ?? []));
-  }, [supabase]);
+    db.from('app_settings').select('value').eq('key', 'kpi_excluded_delay_categories').maybeSingle().then(({ data }) => setCats((data?.value as string[]) ?? []));
+  }, [db]);
   return (
     <div className="max-w-2xl">
       <h3 className="mb-1 font-semibold">Fair individual KPI</h3>
@@ -371,7 +382,7 @@ function KpiSettingsAdmin() {
       </p>
       <MultiSelect label="Excused delay categories" value={cats} onChange={setCats} options={DELAY_CATEGORIES.map((c) => ({ value: c, label: c }))} />
       <Button className="mt-3" onClick={async () => {
-        const { error } = await supabase.from('app_settings').upsert({ key: 'kpi_excluded_delay_categories', value: cats, updated_at: new Date().toISOString() });
+        const { error } = await db.from('app_settings').upsert({ key: 'kpi_excluded_delay_categories', value: cats, updated_at: new Date().toISOString() });
         notify(error ? errMsg(error) : 'KPI settings saved', error ? 'error' : 'success');
       }}>Save</Button>
     </div>

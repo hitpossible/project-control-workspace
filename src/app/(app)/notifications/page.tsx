@@ -8,7 +8,7 @@ import { EmptyState, PageHeader, labelText } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fmtDateTime } from '@/lib/format';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { dbClient } from '@/lib/db/client';
 import type { Notification } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -22,19 +22,19 @@ const EVENT_COLOR: Record<string, string> = {
 };
 
 export default function NotificationsPage() {
-  const supabase = supabaseBrowser();
+  const db = dbClient();
   const router = useRouter();
   const { refreshUnread } = useApp();
   const [rows, setRows] = useState<Notification[]>([]);
   const [tab, setTab] = useState('unread');
 
   const load = useCallback(async () => {
-    let q = supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(300);
+    let q = db.from('notifications').select('*').order('created_at', { ascending: false }).limit(300);
     if (tab === 'unread') q = q.eq('is_read', false);
     const { data } = await q;
     setRows((data ?? []) as Notification[]);
     refreshUnread();
-  }, [supabase, tab, refreshUnread]);
+  }, [db, tab, refreshUnread]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
@@ -46,7 +46,7 @@ export default function NotificationsPage() {
       <PageHeader
         title="Notifications"
         subtitle="In-app notifications (also delivered by e-mail according to Notification Rules)"
-        actions={<Button variant="outline" onClick={async () => { await supabase.from('notifications').update({ is_read: true }).eq('is_read', false); load(); }}><CheckCheck /> Mark all read</Button>}
+        actions={<Button variant="outline" onClick={async () => { await db.from('notifications').update({ is_read: true }).eq('is_read', false); load(); }}><CheckCheck /> Mark all read</Button>}
       />
       <Tabs value={tab} onValueChange={setTab} className="mb-4">
         <TabsList variant="line" className="w-full justify-start border-b border-grid">
@@ -62,7 +62,7 @@ export default function NotificationsPage() {
               <button key={n.id} type="button"
                 className={cn('flex w-full gap-3 px-4 py-3 text-left hover:bg-muted', !n.is_read && 'bg-[#f0f7ff]')}
                 onClick={async () => {
-                  if (!n.is_read) await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+                  if (!n.is_read) await db.from('notifications').update({ is_read: true }).eq('id', n.id);
                   if (n.link) router.push(n.link); else load();
                 }}>
                 {!n.is_read && <span className="mt-2 size-2 shrink-0 rounded-full bg-primary" />}
