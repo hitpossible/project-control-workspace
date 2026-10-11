@@ -8,6 +8,7 @@ import { dbClient } from '@/lib/db/client';
 import type { Activity, InternalTask, Profile, Project, TaskDependency } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import AuditHistory from './AuditHistory';
+import CommentThread from './CommentThread';
 import { dispatchEmails, useApp } from './AppProvider';
 import { DateField, FormField, MultiSelect, SelectField, TextField, UserSelect } from './common';
 import { EntityEvidence } from './EvidenceChecklist';
@@ -172,14 +173,14 @@ export function ActivityDialog({ project, activity, hasTasks, canManage, canView
 // ---------------------------------------------------------------------------
 // Internal Task / Sub-task
 // ---------------------------------------------------------------------------
-export function TaskDialog({ project, task, defaults, activities, tasks, deps, canManage, members, onClose, onSaved }: {
-  project: Project; task: InternalTask | null; defaults?: Partial<InternalTask>;
+export function TaskDialog({ project, task, defaults, activities, tasks, deps, canManage, members, onClose, onSaved, initialTab }: {
+  project: Project; task: InternalTask | null; defaults?: Partial<InternalTask>; initialTab?: string;
   activities: Activity[]; tasks: InternalTask[]; deps: TaskDependency[];
   canManage: boolean; members: Profile[]; onClose: () => void; onSaved: () => void;
 }) {
   const db = dbClient();
   const { me, profileName, notify } = useApp();
-  const [tab, setTab] = useState('Details');
+  const [tab, setTab] = useState(initialTab ?? 'Details');
   const [f, setF] = useState<Partial<InternalTask>>(task ?? { name: '', task_type: 'dev', priority: 'medium', status: 'todo', progress: 0, owner_id: me?.id, ...defaults });
   const [preds, setPreds] = useState<string[]>(task ? deps.filter((d) => d.successor_id === task.id).map((d) => d.predecessor_id) : []);
   const set = <K extends keyof InternalTask>(k: K, v: InternalTask[K] | null) => setF((p) => ({ ...p, [k]: v }));
@@ -242,7 +243,7 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
             Internal Execution Plan · {project.project_code}{task && ` · updated ${fmtDateTime(task.updated_at)} by ${profileName(task.updated_by)}`}
           </DialogDescription>
         </DialogHeader>
-        {task && <DialogTabs value={tab} onChange={setTab} tabs={['Details', 'Evidence', 'History']} />}
+        {task && <DialogTabs value={tab} onChange={setTab} tabs={['Details', 'Comments', 'Evidence', 'History']} />}
 
         {tab === 'Details' && (
           <Grid>
@@ -276,6 +277,7 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
           </Grid>
         )}
         {tab === 'Evidence' && task && <EntityEvidence projectId={project.id} entityType="task" entityId={task.id} canAdd canManage={canManage} />}
+        {tab === 'Comments' && task && <CommentThread projectId={project.id} entityType="task" entityId={task.id} canModerate={canManage} />}
         {tab === 'History' && task && <AuditHistory entityId={task.id} />}
 
         <DialogFooter className="sm:justify-between">

@@ -1,4 +1,5 @@
 import { AppError, type Ctx, type Row } from './db';
+import { commentHooks } from './logic/comments';
 import { notifyEvent, fmtD, nextSequence } from './logic/common';
 import {
   activityBeforeWrite, applyTemplateChecklist, missingEvidence, openCriticalBugs, recomputeProject, rollupFromActivity, rollupFromTask, taskBeforeWrite,
@@ -143,4 +144,6 @@ export const HOOKS: Record<string, Hooks> = {
       }
     },
   },
+
+  comments: commentHooks,
 };

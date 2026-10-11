@@ -180,6 +180,19 @@ export const POLICIES: Record<string, Policy> = {
     delete: (ctx, o) => o.user_id === ctx.uid || hasRole(ctx, 'supervisor') || hasRole(ctx, 'manager'),
   },
   project_kpi_snapshots: { read: (ctx) => visibleProject(ctx) },
+
+  // Comments on internal Tasks / Bugs: internal team reads and writes; authors edit their own
+  comments: {
+    read: (ctx) => internalProject(ctx),
+    insert: async (ctx, r) => {
+      r.created_by ??= ctx.uid;
+      return r.created_by === ctx.uid && !!r.project_id && canViewInternal(ctx, pid(r));
+    },
+    update: (ctx, o) => o.created_by === ctx.uid,
+    check: (ctx, n) => n.created_by === ctx.uid,
+    delete: async (ctx, o) => o.created_by === ctx.uid || isAdmin(ctx) || (await manage(ctx, o)),
+    readonly: ['created_by', 'created_at', 'edited_at'],
+  },
 };
 
 /** Single-row visibility checks used outside list queries (file download etc.) */

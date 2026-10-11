@@ -8,6 +8,7 @@ import { dbClient } from '@/lib/db/client';
 import type { Activity, Bug, BugFix, InternalTask, Profile, Project, Retest, TestRound } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import AuditHistory from './AuditHistory';
+import CommentThread from './CommentThread';
 import { dispatchEmails, useApp } from './AppProvider';
 import { ActionButton, DateField, EmptyState, Person, SelectField, StatusChip, TextField } from './common';
 import EvidencePanel from './EvidencePanel';
@@ -100,14 +101,14 @@ export function ReportBugDialog({ project, rounds, activities, tasks, members, d
 // ---------------------------------------------------------------------------
 // Bug detail + workflow (Assign → Fix → Fix Ready → Retest → Close / Reopen)
 // ---------------------------------------------------------------------------
-export function BugDialog({ project, bug, rounds, activities, tasks, fixes, retests, members, canManage, onClose, onSaved }: {
-  project: Project; bug: Bug; rounds: TestRound[]; activities: Activity[]; tasks: InternalTask[];
+export function BugDialog({ project, bug, rounds, activities, tasks, fixes, retests, members, canManage, onClose, onSaved, initialTab }: {
+  project: Project; bug: Bug; rounds: TestRound[]; activities: Activity[]; tasks: InternalTask[]; initialTab?: string;
   fixes: BugFix[]; retests: Retest[]; members: Profile[]; canManage: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const db = dbClient();
   const { me, hasRole, profileName, notify } = useApp();
   const rpc = useRpc(onSaved);
-  const [tab, setTab] = useState('Workflow');
+  const [tab, setTab] = useState(initialTab ?? 'Workflow');
   const [f, setF] = useState<Bug>(bug);
   const [assign, setAssign] = useState({ dev: bug.assigned_dev_id, due: bug.due_date ?? '' });
   const currentFix = fixes.filter((x) => x.bug_id === bug.id).sort((a, b) => b.fix_cycle - a.fix_cycle)[0];
@@ -172,7 +173,7 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
           {step(5, 'Closed', bug.status === 'closed', false)}
         </div>
 
-        <DialogTabs value={tab} onChange={setTab} tabs={['Workflow', 'Details', 'Fix & Retest History', 'Evidence', 'History']} />
+        <DialogTabs value={tab} onChange={setTab} tabs={['Workflow', 'Details', 'Comments', 'Fix & Retest History', 'Evidence', 'History']} />
 
         {tab === 'Workflow' && (
           <div className="space-y-4">
@@ -318,6 +319,7 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
         )}
 
         {tab === 'Evidence' && <EvidencePanel entityType="bug" entityId={bug.id} projectId={project.id} canAdd canVerify={canManage} />}
+        {tab === 'Comments' && <CommentThread projectId={project.id} entityType="bug" entityId={bug.id} canModerate={canManage} />}
         {tab === 'History' && <AuditHistory entityId={bug.id} />}
 
         <DialogFooter><Button variant="outline" onClick={onClose}>Close</Button></DialogFooter>

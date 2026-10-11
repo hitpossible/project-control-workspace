@@ -155,8 +155,8 @@ function Workspace() {
 
       {tab === 'overview' && <OverviewTab {...ctx} />}
       {tab === 'plan' && <PlanTab {...ctx} />}
-      {tab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={params.get('task')} />}
-      {tab === 'qa' && perm.internal && <QaTab {...ctx} focusBug={params.get('bug')} />}
+      {tab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={params.get('task')} focusPanel={params.get('panel')} />}
+      {tab === 'qa' && perm.internal && <QaTab {...ctx} focusBug={params.get('bug')} focusPanel={params.get('panel')} />}
       {tab === 'team' && <TeamTab {...ctx} />}
       {tab === 'baseline' && <BaselineTab {...ctx} />}
       {tab === 'evidence' && <EvidenceTab {...ctx} names={names} />}

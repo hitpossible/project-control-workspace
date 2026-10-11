@@ -47,7 +47,12 @@ export async function loadSchema(ctx: Ctx): Promise<Map<string, TableMeta>> {
 }
 
 export async function tableMeta(ctx: Ctx, table: string): Promise<TableMeta> {
-  const m = (await loadSchema(ctx)).get(table);
+  let m = (await loadSchema(ctx)).get(table);
+  if (!m) {
+    // a migration may have added the table while the server was running
+    (globalThis as G).__pcwSchema = undefined;
+    m = (await loadSchema(ctx)).get(table);
+  }
   if (!m) throw new Error(`Unknown table ${table}`);
   return m;
 }

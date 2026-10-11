@@ -483,3 +483,8 @@ export interface KpiSnapshot {
   id: string; project_id: string; snapshot_date: string; progress: number; health: string; status: string;
   schedule_variance: number | null; overdue_tasks: number; open_bugs: number; evidence_completion: number | null; waiting_days: number;
 }
+
+export interface Comment {
+  id: string; project_id: string; entity_type: 'task' | 'bug'; entity_id: string; body: string;
+  mentions: string[]; created_by: string; created_at: string; edited_at: string | null;
+}

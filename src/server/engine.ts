@@ -20,6 +20,7 @@ const ME_DEFAULTS: Record<string, string[]> = {
   evidence_requirements: ['created_by'],
   baseline_revisions: ['requested_by'],
   workforce_plans: ['created_by'],
+  comments: ['created_by'],
 };
 
 /** JSON columns cannot have DB defaults in MySQL 5.7 */
@@ -28,6 +29,7 @@ const JSON_DEFAULTS: Record<string, Row> = {
   project_templates: { default_activities: [], evidence_checklist: [] },
   baseline_revisions: { plan_snapshot: [] },
   notification_rules: { recipient_roles: ['explicit'], channels: ['in_app', 'email'], escalate_roles: [] },
+  comments: { mentions: [] },
 };
 
 /** updated_at / updated_by maintained on update (was touch_updated) */
@@ -49,6 +51,7 @@ const AUDIT: Record<string, { ops: ('insert' | 'update' | 'delete')[]; fields: s
   evidence_requirements: { ops: ['insert', 'delete'], fields: [] },
   baseline_revisions: { ops: ['insert', 'update'], fields: ['status', 'decided_by', 'decision_comment'] },
   workforce_plans: { ops: ['insert', 'update', 'delete'], fields: ['work_type', 'work_date', 'project_id', 'start_time', 'end_time'] },
+  comments: { ops: ['update', 'delete'], fields: ['body'] },
 };
 
 const str = (v: unknown) => (v === null || v === undefined ? null : typeof v === 'object' ? JSON.stringify(v) : String(v));
@@ -58,6 +61,7 @@ function auditLabel(r: Row): string | null {
   for (const k of ['title', 'name', 'project_name', 'file_name', 'url', 'member_role', 'version_no']) if (r[k] != null) return String(r[k]);
   if (r.fix_cycle != null) return `cycle ${r.fix_cycle}`;
   if (r.retest_round != null) return `round ${r.retest_round}`;
+  if (r.body != null) return String(r.body).slice(0, 200);
   return str(r.reason);
 }
 

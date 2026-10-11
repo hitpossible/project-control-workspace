@@ -1,9 +1,10 @@
 'use client';
 
-import { Bug as BugIcon, FlaskConical, Plus } from 'lucide-react';
+import { Bug as BugIcon, CalendarClock, FlaskConical, Info, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { ActionButton, BoardGroup, EmptyState, Person, SelectField, StatCard, StatusChip } from '@/components/common';
+import KanbanBoard from '@/components/KanbanBoard';
 import { BugDialog, ReportBugDialog, TestRoundDialog, bugTestRoundLabel } from '@/components/QaDialogs';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -25,7 +26,7 @@ const BUG_GROUPS = [
 
 const SEV_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
-export default function QaTab({ data, perm, reload, memberProfiles, focusBug }: TabProps & { focusBug?: string | null }) {
+export default function QaTab({ data, perm, reload, memberProfiles, focusBug, focusPanel }: TabProps & { focusBug?: string | null; focusPanel?: string | null }) {
   const { me, hasRole, profileName } = useApp();
   const [view, setView] = useState('bugs');
   const [sev, setSev] = useState('');
@@ -87,8 +88,8 @@ export default function QaTab({ data, perm, reload, memberProfiles, focusBug }: 
       </div>
 
       <div className="no-print mb-5 flex flex-wrap items-end gap-3">
-        <ViewToggle value={view} onChange={setView} options={[['bugs', 'Bug Board'], ['rounds', 'Test Rounds']]} />
-        {view === 'bugs' && (
+        <ViewToggle value={view} onChange={setView} options={[['bugs', 'Bug Board'], ['kanban', 'Kanban'], ['rounds', 'Test Rounds']]} />
+        {view !== 'rounds' && (
           <>
             <SelectField className="w-40" label="Severity" value={sev} allowEmpty placeholder="All" onChange={setSev} options={SEVERITIES} />
             <SelectField className="w-48" label="Developer" value={dev} allowEmpty placeholder="All" onChange={setDev}
@@ -100,7 +101,42 @@ export default function QaTab({ data, perm, reload, memberProfiles, focusBug }: 
         <ActionButton tone="destructive" className="h-9" onClick={() => setReport({})}><BugIcon /> Report Bug</ActionButton>
       </div>
 
-      {view === 'bugs' ? (
+      {view === 'kanban' ? (
+        <>
+          <p className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Info className="size-3.5" /> View only — bug status changes through the workflow (Assign → Start Fix → Fix Ready → Retest). Open a card to act on it.
+          </p>
+          <KanbanBoard
+            columns={BUG_STATUSES.filter((c) => c.value !== 'cancelled' || bugs.some((b) => b.status === 'cancelled'))}
+            items={bugs}
+            onOpen={(b) => setOpenBug(b.id)}
+            emptyText="No bugs"
+            renderCard={(b) => {
+              const od = ['assigned', 'in_progress', 'reopened'].includes(b.status) && isOverdue(b.due_date, 'open');
+              const pending = data.retests.find((r) => r.bug_id === b.id && r.status === 'pending');
+              return (
+                <div className="space-y-2">
+                  <div>
+                    <div className="leading-snug font-medium">{b.title}</div>
+                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {b.bug_no} · {bugTestRoundLabel(data.rounds, b.test_round_id)}
+                      {b.reopen_count > 0 && <span className="ml-1 rounded bg-[#e2445c] px-1 text-[10px] text-white">↺{b.reopen_count}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20"><StatusChip list={SEVERITIES} value={b.severity} fullWidth /></div>
+                    <span className={cn('flex items-center gap-1 text-xs whitespace-nowrap', od ? 'font-semibold text-destructive' : 'text-muted-foreground')}>
+                      <CalendarClock className="size-3.5" />{od && '⚠ '}{fmtDate(b.due_date)}
+                    </span>
+                    <span className="ml-auto"><Person name={b.assigned_dev_id ? profileName(b.assigned_dev_id) : null} showName={false} size={24} /></span>
+                  </div>
+                  {pending && <div className="text-xs text-muted-foreground">Retest: {profileName(pending.tester_id)} · due {fmtDate(pending.due_date)}</div>}
+                </div>
+              );
+            }}
+          />
+        </>
+      ) : view === 'bugs' ? (
         <>
           {bugs.length === 0 && <EmptyState text="No bugs 🎉" />}
           {BUG_GROUPS.map((g) => {
@@ -164,6 +200,7 @@ export default function QaTab({ data, perm, reload, memberProfiles, focusBug }: 
       {bug && (
         <BugDialog key={`${bug.id}-${bug.status}-${bug.updated_at}`} project={data.project} bug={bug} rounds={data.rounds} activities={data.activities} tasks={data.tasks}
           fixes={data.fixes} retests={data.retests} members={memberProfiles} canManage={perm.manage}
+          initialTab={bug.id === focusBug && focusPanel === 'comments' ? 'Comments' : undefined}
           onClose={() => setOpenBug(null)} onSaved={reload} />
       )}
       {round && (

@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { ROLE_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
+import GlobalSearch from './GlobalSearch';
 import { Person, Tip } from './common';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
@@ -121,7 +122,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <header className="no-print sticky top-0 z-40 flex h-14 items-center gap-3 bg-app px-4">
         <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)}><Menu /></Button>
         <Brand />
-        <div className="flex-1" />
+        <div className="flex flex-1 justify-center px-2 md:px-6">
+          <GlobalSearch pages={[...main, ...workspace, ...intelligence].filter((n) => n.show).map(({ href, label, icon }) => ({ href, label, icon }))} />
+        </div>
         <Button variant="ghost" size="icon" className="relative rounded-full" onClick={() => router.push('/notifications')}>
           <Bell className="size-5" />
           {unread > 0 && <span className="absolute -top-0.5 -right-0.5 rounded-full bg-[#e2445c] px-1 text-[10px] leading-4 font-semibold text-white">{unread > 99 ? '99+' : unread}</span>}

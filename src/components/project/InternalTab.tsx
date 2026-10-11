@@ -18,7 +18,7 @@ import { buildGanttRows } from './ganttRows';
 import { ViewToggle } from './PlanTab';
 import type { TabProps } from './types';
 
-export default function InternalTab({ data, perm, reload, memberProfiles, focusTask }: TabProps & { focusTask?: string | null }) {
+export default function InternalTab({ data, perm, reload, memberProfiles, focusTask, focusPanel }: TabProps & { focusTask?: string | null; focusPanel?: string | null }) {
   const { me, profileName } = useApp();
   const [view, setView] = useState('table');
   const [owner, setOwner] = useState('');
@@ -151,7 +151,7 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
 
       {(edit || create) && (
         <TaskDialog
-          project={data.project} task={edit} defaults={create ?? undefined}
+          project={data.project} task={edit} defaults={create ?? undefined} initialTab={edit?.id === focusTask && focusPanel === 'comments' ? 'Comments' : undefined}
           activities={data.activities} tasks={data.tasks} deps={data.deps}
           canManage={perm.manage} members={memberProfiles}
           onClose={() => { setEdit(null); setCreate(null); }}

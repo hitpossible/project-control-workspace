@@ -132,6 +132,9 @@ src/
 | Baseline Revision: Leader requests (reason, impact, new target) → Manager / Supervisor approves → Baseline Vn+1 (old versions kept, approved_by recorded) | Project → Baseline |
 | My work: Tasks · Bugs to fix · Retest queue | My work |
 | **Kanban board** for internal tasks (@dnd-kit) — drag a card (mouse, or long-press on touch) or focus it and press Alt + ← / → to change status; server rules still apply (permissions, mandatory evidence before Done, 100% → Review) | Project → Internal Execution Plan → Kanban; My work → Kanban |
+| **Bug Kanban** (view only — status still changes through the bug workflow) | Project → QA & Bugs → Kanban |
+| **Comments with @mention** on Tasks and Bugs — mentioned people get in-app + e-mail notifications, owners / reviewers / developers get "new comment"; authors edit / delete their own | Task / Bug dialog → Comments |
+| **Global search** (Ctrl / ⌘ K): projects, requests, tasks, bugs by code or name, filtered by each user's access + quick page navigation | header search box |
 
 Bug workflow RPCs: `report_bug`, `assign_bug`, `start_fix`, `mark_fix_ready`, `record_retest`, `cancel_bug`.
 Re-plan RPCs: `request_baseline_revision`, `decide_baseline_revision`, `cancel_baseline_revision`, `review_recovery_plan`.

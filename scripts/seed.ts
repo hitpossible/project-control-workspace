@@ -285,6 +285,15 @@ async function main() {
 
   await newRequest({ project_name: 'Spare Part Min/Max Alert', description: 'Alert when spare part stock is below minimum.', priority: 'medium' }); // draft
 
+  // ---------------- Comments with @mention ----------------
+  must(await clients.leader.from('comments').insert({ project_id: pA.id, entity_type: 'task', entity_id: be.id,
+    body: '@Pim Developer the shift summary API blocks System Test — can we finish it by Friday? @Mint QA please prepare test data for night shift.',
+    mentions: [ids.dev1, ids.qa] }), 'comment 1');
+  must(await clients.dev1.from('comments').insert({ project_id: pA.id, entity_type: 'task', entity_id: be.id,
+    body: 'Yes, splitting downtime at the shift boundary now. Will mark Fix Ready for BUG-0001 at the same time.', mentions: [] }), 'comment 2');
+  must(await clients.qa.from('comments').insert({ project_id: pA.id, entity_type: 'bug', entity_id: b1.id,
+    body: '@Pim Developer reproduced on build 231 with 23:30–00:30 downtime. Retest scheduled after Fix Ready.', mentions: [ids.dev1] }), 'comment 3');
+
   // ---------------- Phase 3: Workforce plan (this week + next) ----------------
   const wf: Record<string, unknown>[] = [];
   const monday = (() => { const d = new Date(); const k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k); return d; })();

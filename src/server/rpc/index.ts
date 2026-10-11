@@ -7,6 +7,7 @@ import { kpiIndividual, kpiProjects, kpiTeam, triggerKpiSnapshot } from './kpi';
 import { assignBug, cancelBug, markFixReady, recordRetest, reportBug, startFix } from './qa';
 import { actOnApproval, cancelRequest, convertRequestToProject, saveReview, submitRequest } from './requests';
 import { triggerNotificationScan } from './scan';
+import { globalSearch } from './search';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- args come from JSON and are validated by each function */
 type Fn = (ctx: Ctx, args: any) => Promise<unknown>;
@@ -49,6 +50,7 @@ export const RPC: Record<string, Fn> = {
     if (!(await canViewProject(ctx, pid))) throw new AppError('Not allowed', 403);
     return [await projectQaStats(ctx, pid)];
   }),
+  global_search: globalSearch,
   // Permission helpers used by the UI
   has_role: async (ctx, a) => hasRole(ctx, String(a?.p_role ?? '')),
   can_view_internal: projectGuard(canViewInternal),
