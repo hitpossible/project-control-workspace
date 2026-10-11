@@ -131,7 +131,7 @@ src/
 | Structured Recovery Plan: impact, recovery owner, recovery due date, Supervisor/Manager review | Activity dialog |
 | Baseline Revision: Leader requests (reason, impact, new target) → Manager / Supervisor approves → Baseline Vn+1 (old versions kept, approved_by recorded) | Project → Baseline |
 | My work: Tasks · Bugs to fix · Retest queue | My work |
-| **Kanban board** for internal tasks — drag a card (mouse / touch) to change status; server rules still apply (permissions, mandatory evidence before Done) | Project → Internal Execution Plan → Kanban; My work → Kanban |
+| **Kanban board** for internal tasks (@dnd-kit) — drag a card (mouse, or long-press on touch) or focus it and press Alt + ← / → to change status; server rules still apply (permissions, mandatory evidence before Done, 100% → Review) | Project → Internal Execution Plan → Kanban; My work → Kanban |
 
 Bug workflow RPCs: `report_bug`, `assign_bug`, `start_fix`, `mark_fix_ready`, `record_retest`, `cancel_bug`.
 Re-plan RPCs: `request_baseline_revision`, `decide_baseline_revision`, `cancel_baseline_revision`, `review_recovery_plan`.
