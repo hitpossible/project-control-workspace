@@ -1,6 +1,6 @@
 import type { Role } from './types';
 
-type Opt = { value: string; label: string; color?: string };
+export type Opt = { value: string; label: string; color?: string };
 
 export const ROLE_LABELS: Record<Role, string> = {
   requestor: 'Requestor',

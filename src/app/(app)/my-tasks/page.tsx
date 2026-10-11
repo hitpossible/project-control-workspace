@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { BoardGroup, EmptyState, PageHeader, Person, PriorityChip, ProgressBar, SelectField, StatusChip } from '@/components/common';
 import { ViewToggle } from '@/components/project/PlanTab';
+import TaskKanban from '@/components/TaskKanban';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BUG_STATUSES, GROUP_COLORS, SEVERITIES, TASK_STATUSES } from '@/lib/constants';
@@ -30,6 +31,8 @@ function MyWork() {
   const [retests, setRetests] = useState<RetestRow[]>([]);
   const [scope, setScope] = useState(params.get('scope') ?? 'mine');
   const [filter, setFilter] = useState(params.get('filter') ?? 'open');
+  const [layout, setLayout] = useState(params.get('view') ?? 'list');
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (!me) return;
@@ -43,7 +46,7 @@ function MyWork() {
     let r = db.from('retests').select('*, projects(project_code, project_name), bugs(bug_no, title, severity)').eq('status', 'pending').order('due_date');
     if (scope !== 'all') r = r.eq('tester_id', me.id);
     r.then(({ data }) => setRetests((data ?? []) as RetestRow[]));
-  }, [db, me, scope]);
+  }, [db, me, scope, tick]);
 
   const list = rows.filter((t) => filter === 'all' || (filter === 'overdue' ? isOverdue(t.due_date, t.status) : !['completed', 'cancelled'].includes(t.status)));
   const bugList = bugs.filter((b) => filter === 'all' || (filter === 'overdue'
@@ -64,13 +67,24 @@ function MyWork() {
       </Tabs>
       <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-grid pb-4">
         <ViewToggle value={scope} onChange={setScope} options={tab === 'tasks' ? [['mine', 'Assigned to me'], ['review', 'I review'], ['all', 'All visible']] : [['mine', 'Mine'], ['all', 'All visible']]} />
+        {tab === 'tasks' && <ViewToggle value={layout} onChange={setLayout} options={[['list', 'List'], ['kanban', 'Kanban']]} />}
         {tab !== 'retests' && (
           <SelectField className="w-40" value={filter} onChange={setFilter}
             options={[{ value: 'open', label: 'Open' }, { value: 'overdue', label: '⚠ Overdue' }, { value: 'all', label: 'All' }]} />
         )}
       </div>
 
-      {tab === 'tasks' && (
+      {tab === 'tasks' && layout === 'kanban' && (
+        <TaskKanban
+          tasks={list}
+          canEdit={(t) => [t.owner_id, t.reviewer_id, t.created_by].includes(me?.id ?? '')}
+          onOpen={(t) => router.push(`/projects/${t.project_id}?tab=internal&task=${t.id}`)}
+          onChanged={() => setTick((n) => n + 1)}
+          subtitle={(t) => (t as Row).projects?.project_code}
+        />
+      )}
+
+      {tab === 'tasks' && layout === 'list' && (
         <>
           {list.length === 0 && <EmptyState text="No tasks" />}
           {projects.map(([pid, p], i) => {

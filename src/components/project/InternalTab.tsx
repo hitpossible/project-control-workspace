@@ -6,6 +6,7 @@ import { useApp } from '@/components/AppProvider';
 import { BoardGroup, EmptyState, Person, PriorityChip, ProgressBar, SelectField, StatusChip, Tip } from '@/components/common';
 import GanttChart from '@/components/GanttChart';
 import { TaskDialog } from '@/components/PlanDialogs';
+import TaskKanban from '@/components/TaskKanban';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -83,7 +84,7 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
         <AlertDescription>Internal Execution Plan — visible to the System Service team only. Technical notes and internal comments are never shown in User / Management views.</AlertDescription>
       </Alert>
       <div className="no-print mb-5 flex flex-wrap items-end gap-3">
-        <ViewToggle value={view} onChange={setView} options={[['table', 'Task List'], ['gantt', 'Gantt']]} />
+        <ViewToggle value={view} onChange={setView} options={[['table', 'Task List'], ['kanban', 'Kanban'], ['gantt', 'Gantt']]} />
         <SelectField className="w-48" label="Owner" value={owner} allowEmpty placeholder="All" onChange={setOwner}
           options={[{ value: 'me', label: 'Assigned to me' }, ...owners.map((o) => ({ value: o, label: profileName(o) }))]} />
         <SelectField className="w-44" label="Status" value={status} allowEmpty placeholder="All" onChange={setStatus}
@@ -95,7 +96,15 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
         )}
       </div>
 
-      {view === 'gantt' ? (
+      {view === 'kanban' ? (
+        <TaskKanban
+          tasks={filtered}
+          canEdit={(t) => perm.manage || [t.owner_id, t.reviewer_id, t.created_by].includes(me?.id ?? '')}
+          onOpen={setEdit}
+          onChanged={reload}
+          subtitle={(t) => data.activities.find((a) => a.id === t.activity_id)?.name}
+        />
+      ) : view === 'gantt' ? (
         <GanttChart rows={rows} deps={data.deps.map((d) => ({ from: d.predecessor_id, to: d.successor_id }))}
           onRowClick={(r) => r.level > 0 && setEdit(data.tasks.find((t) => t.id === r.id) ?? null)} />
       ) : (
