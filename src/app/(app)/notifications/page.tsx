@@ -60,7 +60,7 @@ export default function NotificationsPage() {
             const c = EVENT_COLOR[n.event_code] ?? '#c4c4c4';
             return (
               <button key={n.id} type="button"
-                className={cn('flex w-full gap-3 px-4 py-3 text-left hover:bg-muted', !n.is_read && 'bg-[#f0f7ff]')}
+                className={cn('flex w-full gap-3 px-4 py-3 text-left hover:bg-muted', !n.is_read && 'bg-[#fdf2f3]')}
                 onClick={async () => {
                   if (!n.is_read) await db.from('notifications').update({ is_read: true }).eq('id', n.id);
                   if (n.link) router.push(n.link); else load();

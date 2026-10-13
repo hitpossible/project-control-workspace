@@ -28,7 +28,7 @@ function guessType(file: File): string {
 const VERIFY_STYLE: Record<string, string> = {
   verified: 'bg-[#00c875] text-white',
   rejected: 'bg-[#e2445c] text-white',
-  pending: 'bg-[#c4c4c4] text-[#323338]',
+  pending: 'bg-[#c4c4c4] text-[#1a1a1a]',
 };
 
 export default function EvidencePanel({
@@ -164,7 +164,7 @@ export default function EvidencePanel({
                     <span className="truncate">{ev.file_name ?? ev.url}</span>
                     <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
                   </button>
-                  {ev.requirement_id && <span className="mr-1 rounded bg-[#cce5ff] px-1.5 text-[10px] text-[#0060b9]">✓ {requirements.find((r) => r.id === ev.requirement_id)?.name ?? 'Checklist'}</span>}
+                  {ev.requirement_id && <span className="mr-1 rounded bg-selected px-1.5 text-[10px] text-primary">✓ {requirements.find((r) => r.id === ev.requirement_id)?.name ?? 'Checklist'}</span>}
                   {!ev.is_internal && <span className="mr-1 rounded bg-secondary px-1.5 text-[10px]">Shared</span>}
                   {ev.description && <span className="text-xs text-muted-foreground">{ev.description}</span>}
                 </TableCell>
