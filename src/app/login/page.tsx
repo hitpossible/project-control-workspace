@@ -48,7 +48,7 @@ function LoginForm() {
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-[0_6px_20px_rgba(0,0,0,.08)]">
         <div className="mb-6 flex items-center gap-2">
           <BrandMark />
-          <span className="font-heading text-lg font-bold">TBKK <span className="font-normal">project control</span></span>
+          <span className="font-heading text-lg">project control</span>
         </div>
         <h1 className="font-heading text-2xl font-semibold">Log in to your account</h1>
         <p className="mt-1 mb-6 text-sm text-muted-foreground">Sign in with your company (AD) account</p>

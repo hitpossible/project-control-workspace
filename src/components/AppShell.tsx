@@ -13,23 +13,17 @@ import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
-/** Three-dot product mark */
-export function BrandMark({ size = 26 }: { size?: number }) {
-  const d = size / 3.2;
-  return (
-    <span className="flex items-end" style={{ gap: d * 0.25, height: size }}>
-      {['#e2445c', '#fdab3d', '#00c875'].map((c, i) => (
-        <span key={c} style={{ width: d, height: i === 2 ? d : d * 1.9, background: c, borderRadius: d, transform: i < 2 ? 'skewX(-24deg)' : undefined }} />
-      ))}
-    </span>
-  );
+/** TBK logo (public/brand/tbk-logo.png, 108 × 31) */
+export function BrandMark({ size = 24 }: { size?: number }) {
+  // eslint-disable-next-line @next/next/no-img-element -- small static logo, no optimisation needed
+  return <img src="/brand/tbk-logo.png" alt="TBK" width={Math.round((size * 108) / 31)} height={size} className="shrink-0" />;
 }
 
 export function Brand() {
   return (
-    <Link href="/" className="flex items-center gap-2">
+    <Link href="/" className="flex items-center gap-2" aria-label="Project Control — home">
       <BrandMark />
-      <span className="font-heading text-lg font-bold tracking-tight text-foreground">TBKK <span className="font-normal">project control</span></span>
+      <span className="font-heading text-lg tracking-tight text-foreground">project control</span>
     </Link>
   );
 }
