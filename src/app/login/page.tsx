@@ -47,7 +47,7 @@ function LoginForm() {
     <div className="grid min-h-screen place-items-center bg-app p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-[0_6px_20px_rgba(0,0,0,.08)]">
         <div className="mb-6 flex items-center gap-2">
-          <BrandMark />
+          <BrandMark size={40} />
           <span className="font-heading text-lg">project control</span>
         </div>
         <h1 className="font-heading text-2xl font-semibold">Log in to your account</h1>

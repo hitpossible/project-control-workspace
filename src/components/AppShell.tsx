@@ -13,10 +13,10 @@ import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 
-/** TBK logo (public/brand/tbk-logo.png, 108 × 31) */
-export function BrandMark({ size = 24 }: { size?: number }) {
+/** TBK Group logo (public/brand/tbk-group.png, 412 × 122 — keep this ratio) */
+export function BrandMark({ size = 34 }: { size?: number }) {
   // eslint-disable-next-line @next/next/no-img-element -- small static logo, no optimisation needed
-  return <img src="/brand/tbk-logo.png" alt="TBK" width={Math.round((size * 108) / 31)} height={size} className="shrink-0" />;
+  return <img src="/brand/tbk-group.png" alt="TBK Group" width={Math.round((size * 412) / 122)} height={size} className="max-w-none shrink-0" style={{ height: size, width: "auto" }} />;
 }
 
 export function Brand() {
