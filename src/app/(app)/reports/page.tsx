@@ -10,7 +10,7 @@ import type { ProjectView } from '@/lib/types';
 import type { ReportType } from '@/lib/pdf/data';
 
 const CARDS: { type: ReportType; title: string; desc: string; icon: React.ReactNode; color: string }[] = [
-  { type: 'management', title: 'Management Report', desc: 'Portfolio status, team KPI and projects needing attention for a period.', icon: <BarChart3 />, color: '#1a1a1a' },
+  { type: 'management', title: 'Management Report', desc: 'Portfolio status, team KPI and projects needing attention for a period.', icon: <BarChart3 />, color: '#0073ea' },
   { type: 'status', title: 'Project Status Report', desc: 'Status, KPI, User Control Plan timeline, delay & recovery, issues.', icon: <FileText />, color: '#00c875' },
   { type: 'meeting', title: 'User Meeting Report', desc: 'Agenda for the user progress meeting: progress, user actions, milestones, decisions.', icon: <Users />, color: '#a25ddc' },
   { type: 'closure', title: 'Project Closure Report', desc: 'Baseline vs actual, evidence checklist, quality summary and sign-off.', icon: <ClipboardCheck />, color: '#fdab3d' },

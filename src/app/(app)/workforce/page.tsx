@@ -186,7 +186,7 @@ export default function WorkforcePage() {
               <tr className="border-b border-grid">
                 <th className="sticky left-0 z-10 min-w-48 bg-white px-3 py-2 text-left font-normal text-muted-foreground">Member</th>
                 {days.map((d) => (
-                  <th key={d.toString()} className={cn('border-l border-grid px-1 py-2 text-center text-xs font-normal', (d.day() === 0 || d.day() === 6) && 'bg-[#f7f7f7] text-muted-foreground', d.isSame(dayjs(), 'day') && 'bg-[#e5f0ff] font-semibold text-primary')}
+                  <th key={d.toString()} className={cn('border-l border-grid px-1 py-2 text-center text-xs font-normal', (d.day() === 0 || d.day() === 6) && 'bg-[#f6f7fa] text-muted-foreground', d.isSame(dayjs(), 'day') && 'bg-[#e5f0ff] font-semibold text-primary')}
                     style={{ minWidth: view === 'week' ? 130 : 30 }}>
                     {view === 'week' ? d.format('ddd DD MMM') : <>{d.format('dd').charAt(0)}<br />{d.format('D')}</>}
                   </th>
@@ -206,7 +206,7 @@ export default function WorkforcePage() {
                       const leaveConflict = dd.length > 0 && items.some((i) => i.work_type === 'leave');
                       return (
                         <td key={d.toString()} onClick={() => openNew(u.id, d)}
-                          className={cn('border-l border-grid p-1 align-top', canEdit(u.id) && 'cursor-pointer hover:bg-muted', (d.day() === 0 || d.day() === 6) && 'bg-[#f7f7f7]', leaveConflict && 'ring-2 ring-[#e2445c] ring-inset')}>
+                          className={cn('border-l border-grid p-1 align-top', canEdit(u.id) && 'cursor-pointer hover:bg-muted', (d.day() === 0 || d.day() === 6) && 'bg-[#f6f7fa]', leaveConflict && 'ring-2 ring-[#e2445c] ring-inset')}>
                           {view === 'week' ? (
                             <>
                               {items.map((p) => <Chip key={p.id} p={p} projectCode={projectCode} onClick={() => canEdit(p.user_id) && setEdit({ ...p })} />)}
@@ -214,7 +214,7 @@ export default function WorkforcePage() {
                             </>
                           ) : (
                             <Tip title={items.map((p) => wt(p.work_type).label).join(', ') + (dd.length ? ` · ${dd.length} due` : '')}>
-                              <div className="relative mx-auto size-5 rounded-sm" style={{ background: items[0] ? wt(items[0].work_type).color : 'transparent', border: items[0] ? 0 : '1px dashed #d9d9d9' }}>
+                              <div className="relative mx-auto size-5 rounded-sm" style={{ background: items[0] ? wt(items[0].work_type).color : 'transparent', border: items[0] ? 0 : '1px dashed #d0d4e4' }}>
                                 {dd.length > 0 && <span className="absolute -top-1 -right-1 size-2 rounded-full bg-[#e2445c]" />}
                               </div>
                             </Tip>
@@ -245,7 +245,7 @@ export default function WorkforcePage() {
             const due = dueOn(null, d).filter((l) => people.some((x) => x.id === l.owner_id));
             const weekend = d.day() === 0 || d.day() === 6;
             return (
-              <div key={d.toString()} className={cn('grid grid-cols-12 items-center gap-4 rounded-lg border px-4 py-3', weekend && 'bg-[#f7f7f7]', d.isSame(dayjs(), 'day') && 'border-primary')}>
+              <div key={d.toString()} className={cn('grid grid-cols-12 items-center gap-4 rounded-lg border px-4 py-3', weekend && 'bg-[#f6f7fa]', d.isSame(dayjs(), 'day') && 'border-primary')}>
                 <div className="col-span-12 md:col-span-2"><div className="font-semibold">{d.format('ddd DD MMM')}</div><div className="text-xs text-muted-foreground">{dayPlans.length}/{people.length} planned</div></div>
                 <div className="col-span-12 md:col-span-6">
                   <StackBar parts={WORK_TYPES.map((t) => ({ key: t.value, label: t.label, color: t.color!, value: dayPlans.filter((p) => p.work_type === t.value).length }))} />

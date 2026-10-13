@@ -79,7 +79,7 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
 
   return (
     <div>
-      <Alert className="mb-4 border-grid bg-[#f7f7f7]">
+      <Alert className="mb-4 border-[#cce5ff] bg-[#f0f7ff]">
         <Lock />
         <AlertDescription>Internal Execution Plan — visible to the System Service team only. Technical notes and internal comments are never shown in User / Management views.</AlertDescription>
       </Alert>

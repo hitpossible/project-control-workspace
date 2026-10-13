@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 type Item = { id: string; status: string };
 
 /**
- * Generic status board built on @dnd-kit.
+ * Generic status board (monday.com style) built on @dnd-kit.
  *   mouse: drag after moving 6px (a plain click opens the card)
  *   touch: long-press 200 ms to drag, so normal swipes still scroll
  *   keyboard: focus a card, Alt + ← / → moves it one column, Enter opens it
@@ -122,7 +122,7 @@ function Column({ col, count, isTarget, emptyText, children }: {
       ref={setNodeRef}
       data-kanban-col={col.value}
       className={cn(
-        'flex max-h-[calc(100vh-16rem)] min-h-40 w-64 shrink-0 flex-col rounded-lg bg-[#f2f2f2] transition-colors',
+        'flex max-h-[calc(100vh-16rem)] min-h-40 w-64 shrink-0 flex-col rounded-lg bg-[#f5f6f8] transition-colors',
         isTarget && isOver && 'bg-selected ring-2 ring-primary/40',
       )}
     >

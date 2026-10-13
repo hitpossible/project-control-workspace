@@ -88,7 +88,7 @@ function InternalDashboard() {
   };
 
   const stats = [
-    { l: 'Total Project', v: projects.length, c: '#1a1a1a', q: '' },
+    { l: 'Total Project', v: projects.length, c: '#0073ea', q: '' },
     { l: 'Working on it', v: count('in_progress'), c: '#fdab3d', q: '?status=in_progress' },
     { l: 'Planning / Waiting', v: count('planning') + count('waiting') + count('on_hold'), c: '#a25ddc', q: '?status=active' },
     { l: 'Delayed', v: count('delayed'), c: '#e2445c', q: '?status=delayed' },

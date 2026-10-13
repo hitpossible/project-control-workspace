@@ -1,5 +1,5 @@
 // PDF reports (PRD §25.2) — generated client-side from Workspace data
-import { Document, Font, Image, Page, pdf, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Document, Font, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer';
 import dayjs from 'dayjs';
 import { ACTIVITY_STATUSES, HEALTH_COLORS, INSIGHT_SEVERITIES, MEMBER_ROLES, PROJECT_STATUSES, optColor, optLabel } from '../constants';
 import type { Activity, ProjectView } from '../types';
@@ -20,10 +20,7 @@ function registerFonts(origin: string) {
   fontsReady = true;
 }
 
-/** company logo, absolute URL set per render (like the fonts) */
-let logoSrc = '';
-
-const C = { text: '#1a1a1a', muted: '#4d4d4d', grid: '#e6e6e6', primary: '#e60012', bg: '#f2f2f2' };
+const C = { text: '#323338', muted: '#676879', grid: '#e6e9ef', primary: '#0073ea', bg: '#f5f6f8' };
 const s = StyleSheet.create({
   page: { fontFamily: ['Sarabun', 'SarabunThai'], fontSize: 9, color: C.text, paddingTop: 28, paddingBottom: 40, paddingHorizontal: 30 },
   band: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: C.primary },
@@ -65,9 +62,7 @@ function Header({ title, subtitle, meta }: { title: string; subtitle: string; me
     <>
       <View style={s.band} fixed>
         <View style={{ flex: 1 }}>
-          {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
-          {logoSrc && <Image src={logoSrc} style={{ width: 74, height: 22, marginBottom: 4 }} />}
-          <Text style={s.brand}>SYSTEM SERVICE · PROJECT CONTROL WORKSPACE</Text>
+          <Text style={s.brand}>TBKK · SYSTEM SERVICE · PROJECT CONTROL WORKSPACE</Text>
           <Text style={s.h1}>{title}</Text>
           <Text style={s.muted}>{subtitle}</Text>
         </View>
@@ -165,8 +160,8 @@ function PlanTable({ acts, name, withBars = true }: { acts: Activity[]; name: (i
             <View style={[s.td, { width: '12%' }]}><Chip list={ACTIVITY_STATUSES} value={a.status} /></View>
             {withBars ? (
               <View style={[s.td, { width: '16%', justifyContent: 'center' }]}>
-                <View style={{ height: 10, position: 'relative', backgroundColor: '#f2f2f2' }}>
-                  {a.plan_start && a.plan_finish ? <View style={{ position: 'absolute', top: 1, height: 4, left: `${pos(a.plan_start)}%`, width: `${Math.max(pos(a.plan_finish) - pos(a.plan_start), 1.5)}%`, backgroundColor: '#a0a0a0' }} /> : null}
+                <View style={{ height: 10, position: 'relative', backgroundColor: '#f5f6f8' }}>
+                  {a.plan_start && a.plan_finish ? <View style={{ position: 'absolute', top: 1, height: 4, left: `${pos(a.plan_start)}%`, width: `${Math.max(pos(a.plan_finish) - pos(a.plan_start), 1.5)}%`, backgroundColor: '#c3c6d4' }} /> : null}
                   {a.actual_start ? <View style={{ position: 'absolute', top: 5, height: 4, left: `${pos(a.actual_start)}%`, width: `${Math.max(pos(a.actual_finish ?? dayjs().format('YYYY-MM-DD')) - pos(a.actual_start), 1.5) * (a.progress / 100 || 0.05)}%`, backgroundColor: optColor(ACTIVITY_STATUSES, a.status) }} /> : null}
                   {today >= 0 && today <= 100 ? <View style={{ position: 'absolute', top: 0, bottom: 0, width: 1, left: `${today}%`, backgroundColor: C.primary }} /> : null}
                 </View>
@@ -427,7 +422,6 @@ export const REPORT_LABELS: Record<ReportType, string> = {
 
 export async function renderReport(type: ReportType, data: ProjectReportData | ManagementReportData, meta: ReportMeta, origin: string): Promise<Blob> {
   registerFonts(origin);
-  logoSrc = `${origin}/brand/tbk-group.png`;
   const doc = type === 'management' ? <ManagementReport d={data as ManagementReportData} meta={meta} />
     : type === 'meeting' ? <MeetingReport d={data as ProjectReportData} meta={meta} />
     : type === 'closure' ? <ClosureReport d={data as ProjectReportData} meta={meta} />

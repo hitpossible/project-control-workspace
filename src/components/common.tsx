@@ -36,11 +36,11 @@ export function Tip({ title, children, side }: { title: React.ReactNode; childre
 export function labelText(hex: string) {
   const h = hex.replace('#', '');
   const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.75 ? '#1a1a1a' : '#ffffff';
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.75 ? '#323338' : '#ffffff';
 }
 
 // ---------------------------------------------------------------------------
-// status labels / columns
+// monday-style labels / columns
 // ---------------------------------------------------------------------------
 export function StatusChip({ list, value, fullWidth, className }: { list: Opt[]; value: string | null | undefined; fullWidth?: boolean; className?: string }) {
   const color = optColor(list, value);
@@ -204,7 +204,7 @@ export function StatCard({ label, value, color, hint, onClick }: { label: string
       className={cn('h-full rounded-lg border bg-white px-4 py-3 transition-shadow', onClick && 'cursor-pointer hover:shadow-md')}
     >
       <div className="flex items-center gap-1.5">
-        <span className="size-2 shrink-0 rounded-full" style={{ background: color ?? '#4d4d4d' }} />
+        <span className="size-2 shrink-0 rounded-full" style={{ background: color ?? '#0073ea' }} />
         <span className="truncate text-sm text-muted-foreground">{label}</span>
       </div>
       <div className="mt-1 font-heading text-3xl leading-tight font-medium" style={{ color: color ?? undefined }}>{value}</div>
@@ -406,7 +406,7 @@ export function CommentDialog({ open, title, description, confirmLabel, required
 }
 
 const TONES: Record<string, string> = {
-  default: 'bg-primary text-white hover:bg-[#c4000f]',
+  default: 'bg-primary text-white hover:bg-[#0060b9]',
   success: 'bg-[#00854d] text-white hover:bg-[#007038]',
   destructive: 'bg-[#d83a52] text-white hover:bg-[#b63546]',
   warning: 'bg-[#d97706] text-white hover:bg-[#b45309]',
@@ -416,7 +416,7 @@ const TONES: Record<string, string> = {
 /** Solid colored action button (Approve / Reject / …) */
 export function ActionButton({ tone = 'default', outline, className, ...props }: React.ComponentProps<typeof Button> & { tone?: keyof typeof TONES | string; outline?: boolean }) {
   const solid = TONES[tone] ?? TONES.default;
-  const color = solid.match(/bg-\[(#\w+)\]/)?.[1] ?? '#e60012';
+  const color = solid.match(/bg-\[(#\w+)\]/)?.[1] ?? '#0073ea';
   return (
     <Button
       {...props}

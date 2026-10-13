@@ -33,7 +33,7 @@ export interface GanttRow {
 
 const ROW_H = 36;
 const LEFT_W = 430;
-const TODAY_COLOR = '#e60012';
+const TODAY_COLOR = '#0073ea';
 
 export default function GanttChart({ rows, deps = [], onRowClick, onToggle, height }: {
   rows: GanttRow[];
@@ -113,10 +113,10 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
           <div className="relative">
             <div className="pointer-events-none absolute top-0" style={{ left: LEFT_W, width, height: rows.length * ROW_H }}>
               {scale === 'day' && ticks.filter((t) => t.weekend).map((t) => (
-                <div key={t.left} className="absolute inset-y-0 bg-[#f7f7f7]" style={{ left: t.left, width: dayW }} />
+                <div key={t.left} className="absolute inset-y-0 bg-[#f6f7fa]" style={{ left: t.left, width: dayW }} />
               ))}
               {scale === 'week' && ticks.filter((t) => t.isWeekStart).map((t) => (
-                <div key={t.left} className="absolute inset-y-0 border-l border-[#f2f2f2]" style={{ left: t.left }} />
+                <div key={t.left} className="absolute inset-y-0 border-l border-[#f0f2f6]" style={{ left: t.left }} />
               ))}
               <div className="absolute inset-y-0 z-[2] w-0.5 opacity-90" style={{ left: x(today) + dayW / 2, background: TODAY_COLOR }} title={`Today ${today.format('DD MMM YYYY')}`} />
             </div>
@@ -126,7 +126,7 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
               const actualEnd = r.actualFinish ?? (r.actualStart ? today.format('YYYY-MM-DD') : null);
               const forecastBeyond = r.forecastFinish && r.planFinish && dayjs(r.forecastFinish).isAfter(dayjs(r.planFinish));
               return (
-                <div key={r.id} className={cn('group flex border-b border-[#f2f2f2]', r.overdue ? 'bg-[#fff1f0] hover:bg-[#ffe5e3]' : 'bg-white hover:bg-[#f2f2f2]')} style={{ height: ROW_H }}>
+                <div key={r.id} className={cn('group flex border-b border-[#f0f2f6]', r.overdue ? 'bg-[#fff1f0] hover:bg-[#ffe5e3]' : 'bg-white hover:bg-[#f5f6f8]')} style={{ height: ROW_H }}>
                   <div
                     onClick={() => onRowClick?.(r)}
                     className={cn('sticky left-0 z-[3] grid shrink-0 grid-cols-[1fr_92px_64px] items-center border-r border-grid bg-inherit px-2', onRowClick && 'cursor-pointer')}
@@ -155,7 +155,7 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
                   <div className="relative shrink-0" style={{ width }} onClick={() => onRowClick?.(r)}>
                     {hasPlan && !r.milestone && (
                       <Tip title={`Plan: ${fmtDate(r.planStart)} → ${fmtDate(r.planFinish)}`}>
-                        <div className="absolute top-1.5 z-[1] h-2.5 rounded-md border border-[#a0a0a0] bg-grid" style={{ left: x(r.planStart!), width: x(r.planFinish!) - x(r.planStart!) + dayW }} />
+                        <div className="absolute top-1.5 z-[1] h-2.5 rounded-md border border-[#c3c6d4] bg-grid" style={{ left: x(r.planStart!), width: x(r.planFinish!) - x(r.planStart!) + dayW }} />
                       </Tip>
                     )}
                     {r.milestone && r.planFinish && (
@@ -216,7 +216,7 @@ function Legend() {
   );
   return (
     <div className="flex flex-wrap gap-4">
-      {item(<span className="h-2 w-5 rounded border border-[#a0a0a0] bg-grid" />, 'Plan')}
+      {item(<span className="h-2 w-5 rounded border border-[#c3c6d4] bg-grid" />, 'Plan')}
       {item(<span className="h-2 w-5 rounded bg-[#fdab3d]" />, 'Actual (status color, progress)')}
       {item(<span className="h-2 w-5 border-[1.5px] border-dashed border-[#e2445c]" />, 'Forecast / Recovery')}
       {item(<span className="size-2.5 rotate-45 bg-[#784bd1]" />, 'Milestone')}

@@ -2,7 +2,7 @@
 
 Implementation of `../TBKK_System_Service_Project_Control_Workspace_PRD.md` — **Phase 1: Project Control Core**, **Phase 2: QA & Workflow Control** and **Phase 3: Management Intelligence**.
 
-**Stack:** Next.js 16 (App Router, API routes) · **MySQL 5.7+ / 8** (mysql2) · company **AD login** (JWT session cookie) · **MinIO** (S3-compatible evidence files) · node-cron scheduler · shadcn/ui (Radix + Tailwind v4, TBK Group corporate theme — tokens in `src/app/globals.css`, logo `public/brand/tbk-group.png`) · ExcelJS · @react-pdf/renderer (Sarabun font, Thai supported) · Nodemailer
+**Stack:** Next.js 16 (App Router, API routes) · **MySQL 5.7+ / 8** (mysql2) · company **AD login** (JWT session cookie) · **MinIO** (S3-compatible evidence files) · node-cron scheduler · shadcn/ui (Radix + Tailwind v4, monday.com-style theme) · ExcelJS · @react-pdf/renderer (Sarabun font, Thai supported) · Nodemailer
 
 > Migrated from Supabase (Postgres) to MySQL — the Supabase version is preserved at git tag `supabase-phase3`.
 

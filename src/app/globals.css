@@ -51,47 +51,42 @@
 }
 
 :root {
-    /* TBK Group corporate palette
-       Primary Red #E60012 · Charcoal Black #1A1A1A · Dark Gray #4D4D4D
-       Medium Gray #A0A0A0 · Light Gray #F2F2F2 · White #FFFFFF */
-    --brand-red: #e60012;
-    --brand-charcoal: #1a1a1a;
-    --app-bg: #f2f2f2;
-    --selected: #fde6e8;          /* light tint of Primary Red for selected rows / toggles */
-    --grid: #e6e6e6;
+    /* monday.com-inspired tokens */
+    --app-bg: #eceff8;
+    --selected: #cce5ff;
+    --grid: #e6e9ef;
     --background: #ffffff;
-    --foreground: #1a1a1a;
+    --foreground: #323338;
     --card: #ffffff;
-    --card-foreground: #1a1a1a;
+    --card-foreground: #323338;
     --popover: #ffffff;
-    --popover-foreground: #1a1a1a;
-    --primary: #e60012;
+    --popover-foreground: #323338;
+    --primary: #0073ea;
     --primary-foreground: #ffffff;
-    --secondary: #f2f2f2;
-    --secondary-foreground: #1a1a1a;
-    --muted: #f2f2f2;
-    --muted-foreground: #4d4d4d;
-    --accent: #f2f2f2;
-    --accent-foreground: #1a1a1a;
-    --destructive: #b3000e;       /* darker than Primary Red so delete ≠ primary action */
-    --border: #d9d9d9;
-    --input: #a0a0a0;
-    --ring: #e60012;
-    --chart-1: #4d4d4d;
-    --chart-2: #e60012;
-    --chart-3: #a0a0a0;
-    --chart-4: #1a1a1a;
-    --chart-5: #d9d9d9;
+    --secondary: #f5f6f8;
+    --secondary-foreground: #323338;
+    --muted: #f5f6f8;
+    --muted-foreground: #676879;
+    --accent: #f5f6f8;
+    --accent-foreground: #323338;
+    --destructive: #e2445c;
+    --border: #d0d4e4;
+    --input: #c3c6d4;
+    --ring: #0073ea;
+    --chart-1: #579bfc;
+    --chart-2: #a25ddc;
+    --chart-3: #00c875;
+    --chart-4: #fdab3d;
+    --chart-5: #e2445c;
     --radius: 0.5rem;
-    /* navigation = Charcoal Black */
-    --sidebar: #1a1a1a;
-    --sidebar-foreground: #e6e6e6;
-    --sidebar-primary: #e60012;
+    --sidebar: #eceff8;
+    --sidebar-foreground: #323338;
+    --sidebar-primary: #0073ea;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #2e2e2e;
-    --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: #333333;
-    --sidebar-ring: #e60012;
+    --sidebar-accent: #dcdfec;
+    --sidebar-accent-foreground: #323338;
+    --sidebar-border: #d0d4e4;
+    --sidebar-ring: #0073ea;
 }
 
 .dark {
@@ -142,7 +137,7 @@
     @apply font-sans;
     }
 }
-/* board grid (components layer so utilities like text-left still win) */
+/* monday board grid (components layer so utilities like text-left still win) */
 @layer components {
   .board-table th, .board-table td { border-right: 1px solid var(--grid); }
   .board-table th:last-child, .board-table td:last-child { border-right: 0; }

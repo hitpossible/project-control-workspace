@@ -194,7 +194,7 @@ export const INSIGHT_SEVERITIES: Opt[] = [
 
 export const HEALTH_COLORS: Record<string, string> = { green: '#00c875', yellow: '#fdab3d', red: '#e2445c' };
 
-// board group / avatar colors
+// monday.com group colors (board groups / avatars)
 export const GROUP_COLORS = ['#579bfc', '#a25ddc', '#00c875', '#fdab3d', '#e2445c', '#66ccff', '#ff642e', '#037f4c', '#bb3354', '#784bd1'];
 
 export const APPROVAL_ACTION_LABELS: Record<string, string> = {

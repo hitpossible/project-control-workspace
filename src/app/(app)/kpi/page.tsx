@@ -154,7 +154,7 @@ export default function KpiPage() {
 
       {tab === 'individual' && isStaff && (
         <>
-          <Alert className="mb-4 border-grid bg-[#f7f7f7]">
+          <Alert className="mb-4 border-[#cce5ff] bg-[#f0f7ff]">
             <Info />
             <AlertDescription>
               Fair KPI: late tasks whose delay category is <b>{excused.join(', ') || '—'}</b> are excused (not counted against the person). Configure in Administration → KPI Settings.
