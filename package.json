@@ -36,6 +36,7 @@
     "postcss": "^8.5.29",
     "radix-ui": "^1.7.0",
     "react": "19.3.0",
+    "react-day-picker": "^10.0.2",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
     "shadcn": "^4.21.4",

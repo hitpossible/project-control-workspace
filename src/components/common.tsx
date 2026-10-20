@@ -1,11 +1,14 @@
 'use client';
 
-import { Check, ChevronDown, ChevronRight, ChevronsUpDown, Search, X } from 'lucide-react';
+import { CalendarIcon, Check, ChevronDown, ChevronRight, ChevronsUpDown, Search, X } from 'lucide-react';
+import dayjs from 'dayjs';
 import { useState } from 'react';
+import { fmtDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { GROUP_COLORS, HEALTH_COLORS, PRIORITIES, optColor, optLabel } from '@/lib/constants';
 import type { Profile, Role } from '@/lib/types';
 import { Button } from './ui/button';
+import { Calendar } from './ui/calendar';
 import { Card, CardContent } from './ui/card';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
@@ -268,12 +271,45 @@ export function DateField({ label, value, onChange, disabled, required, helperTe
 }) {
   return (
     <FormField label={label} required={required} helperText={helperText} className={className}>
-      <Input type="date" value={value ?? ''} onChange={(e) => onChange(e.target.value)} disabled={disabled} className="h-9 bg-white" />
+      <DatePicker value={value} onChange={onChange} disabled={disabled} clearable={!required} />
     </FormField>
   );
 }
 
-/** Searchable single person picker */
+/** shadcn date picker (Popover + Calendar); value is a 'YYYY-MM-DD' string, '' when cleared */
+export function DatePicker({ value, onChange, disabled, clearable, placeholder = 'Select date', className }: {
+  value: string | null | undefined; onChange: (v: string) => void; disabled?: boolean; clearable?: boolean; placeholder?: string; className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = value ? dayjs(value).toDate() : undefined;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className={cn('relative', className)}>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" disabled={disabled}
+            className={cn('h-9 w-full justify-start bg-white px-3 font-normal', !value && 'text-muted-foreground', clearable && value && 'pr-8')}>
+            <CalendarIcon className="text-muted-foreground" />
+            <span className="truncate">{value ? fmtDate(value) : placeholder}</span>
+          </Button>
+        </PopoverTrigger>
+        {clearable && value && !disabled && (
+          <button type="button" aria-label="Clear date" onClick={() => onChange('')}
+            className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground">
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar mode="single" selected={selected} defaultMonth={selected} captionLayout="dropdown" startMonth={new Date(2015, 0)} endMonth={new Date(2040, 11)}
+          onSelect={(d) => {
+            if (d) onChange(dayjs(d).format('YYYY-MM-DD'));
+            setOpen(false);
+          }} />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function UserSelect({ label, value, onChange, roles, disabled, required, helperText, users, className }: {
   label?: string; value: string | null | undefined; onChange: (id: string | null) => void;
   roles?: Role[]; disabled?: boolean; required?: boolean; helperText?: string; users?: Profile[]; className?: string;
