@@ -85,7 +85,14 @@ export interface ProjectRequest {
   priority: string;
   date_submitted: string | null;
   date_required: string | null;
+  /** legacy free text, no longer on the form */
   benefit: string | null;
+  reduction_time_from: number | null;
+  reduction_time_to: number | null;
+  reduction_man_from: number | null;
+  reduction_man_to: number | null;
+  reduction_cost_from: number | null;
+  reduction_cost_to: number | null;
   requestor_approver_id: string | null;
   authority_approver_id: string | null;
   project_type_id: number | null;

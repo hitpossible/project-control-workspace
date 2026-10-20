@@ -9,11 +9,11 @@ import AuditHistory from '@/components/AuditHistory';
 import { dispatchEmails, useApp } from '@/components/AppProvider';
 import { ActionButton, CommentDialog, DateField, Field, PageHeader, PriorityChip, Section, SelectField, StatusChip, TextField, UserSelect } from '@/components/common';
 import EvidencePanel from '@/components/EvidencePanel';
-import RequestForm from '@/components/RequestForm';
+import RequestForm, { REDUCTION_ROWS } from '@/components/RequestForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { APPROVAL_ACTION_LABELS, REQUEST_STATUSES, ROLE_LABELS } from '@/lib/constants';
-import { errMsg, fmtDate, fmtDateTime } from '@/lib/format';
+import { errMsg, fmtDate, fmtDateTime, fmtNum } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { ApprovalAction, ApprovalStep, ProjectRequest, ProjectTemplate, ProjectType, Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -178,8 +178,18 @@ export default function RequestDetailPage() {
                   <Field label="Date Required">{fmtDate(r.date_required)}</Field>
                   <Field label="Requestor Approver">{profileName(r.requestor_approver_id)}</Field>
                 </div>
-                <Field label="Reduction / Benefit Details">{r.benefit}</Field>
               </Section>
+              {REDUCTION_ROWS.some((row) => r[row.from] != null || r[row.to] != null) && (
+                <Section title="Reduction">
+                  <div className="grid grid-cols-1 gap-x-4 md:grid-cols-3">
+                    {REDUCTION_ROWS.map((row) => (
+                      <Field key={row.label} label={row.label}>
+                        {r[row.from] != null || r[row.to] != null ? `${fmtNum(r[row.from])} → ${fmtNum(r[row.to])}` : null}
+                      </Field>
+                    ))}
+                  </div>
+                </Section>
+              )}
               {(r.project_type_id || r.scope_assessment) && (
                 <Section title="System Service Review">
                   <div className="grid grid-cols-2 gap-x-4 md:grid-cols-4">

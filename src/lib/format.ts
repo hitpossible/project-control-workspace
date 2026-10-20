@@ -15,6 +15,8 @@ export const errMsg = (e: unknown) =>
   (e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e)) || 'Unexpected error';
 
 /** Convert '' to null for nullable DB columns */
+export const fmtNum = (n: number | string | null | undefined) => (n == null || n === '' ? '-' : Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }));
+
 export function nullify<T extends Record<string, unknown>>(o: T): T {
   const out = { ...o } as Record<string, unknown>;
   for (const k of Object.keys(out)) if (out[k] === '') out[k] = null;

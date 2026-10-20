@@ -46,10 +46,11 @@ export async function loadSchema(ctx: Ctx): Promise<Map<string, TableMeta>> {
   return g.__pcwSchema;
 }
 
-export async function tableMeta(ctx: Ctx, table: string): Promise<TableMeta> {
+/** `cols`: columns the caller is about to use — a miss reloads the cache, since a migration may have run while the server was up */
+export async function tableMeta(ctx: Ctx, table: string, cols: Iterable<string> = []): Promise<TableMeta> {
+  const fresh = (m: TableMeta | undefined) => !!m && [...cols].every((c) => m.columns.has(c));
   let m = (await loadSchema(ctx)).get(table);
-  if (!m) {
-    // a migration may have added the table while the server was running
+  if (!fresh(m)) {
     (globalThis as G).__pcwSchema = undefined;
     m = (await loadSchema(ctx)).get(table);
   }

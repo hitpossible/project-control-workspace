@@ -64,8 +64,10 @@ async function readWhere(ctx: Ctx, table: string): Promise<Where> {
 // ---------------------------------------------------------------------
 // SQL filters
 // ---------------------------------------------------------------------
+const filterCols = (fs: DataFilter[]): string[] => fs.flatMap((f) => (f.op === 'or' ? filterCols(f.value) : [f.col]));
+
 async function whereSql(ctx: Ctx, table: string, filters: DataFilter[]): Promise<Where> {
-  const meta = await tableMeta(ctx, table);
+  const meta = await tableMeta(ctx, table, filterCols(filters));
   const col = (c: string) => {
     if (!meta.columns.has(c)) throw new AppError(`Unknown column ${table}.${c}`);
     return qi(c);
@@ -154,7 +156,7 @@ async function select(ctx: Ctx, q: DataQuery): Promise<{ data: unknown; count?: 
     count = rows.length;
     if (q.limit) rows = rows.slice(0, q.limit);
   } else {
-    const meta = await tableMeta(ctx, q.table);
+    const meta = await tableMeta(ctx, q.table, [...(sel.cols === '*' ? [] : sel.cols), ...(q.order ?? []).map((o) => o.col)]);
     const [pw, pp] = await readWhere(ctx, q.table);
     const [fw, fp] = await whereSql(ctx, q.table, q.filters ?? []);
     const where = `WHERE (${pw}) AND (${fw})`;
@@ -198,7 +200,7 @@ async function select(ctx: Ctx, q: DataQuery): Promise<{ data: unknown; count?: 
 // Writes
 // ---------------------------------------------------------------------
 async function cleanInput(ctx: Ctx, table: string, row: Row): Promise<Row> {
-  const meta = await tableMeta(ctx, table);
+  const meta = await tableMeta(ctx, table, Object.keys(row));
   const ro = POLICIES[table]?.readonly ?? [];
   const out: Row = {};
   for (const [k, v] of Object.entries(row)) {

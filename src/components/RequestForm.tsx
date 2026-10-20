@@ -1,7 +1,7 @@
 'use client';
 
 import { Info } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { PRIORITIES } from '@/lib/constants';
 import { errMsg, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -13,6 +13,13 @@ import { Button } from './ui/button';
 
 export type RequestDraft = Partial<ProjectRequest>;
 
+/** Reduction rows on FM-SYS-004: current (From) → expected after the project (To) */
+export const REDUCTION_ROWS = [
+  { label: 'Time (Min / Month)', from: 'reduction_time_from', to: 'reduction_time_to' },
+  { label: 'Man (Man / Month)', from: 'reduction_man_from', to: 'reduction_man_to' },
+  { label: 'Others Cost (THB)', from: 'reduction_cost_from', to: 'reduction_cost_to' },
+] as const satisfies readonly { label: string; from: keyof ProjectRequest; to: keyof ProjectRequest }[];
+
 export function emptyRequest(): RequestDraft {
   return {
     project_name: '',
@@ -21,14 +28,14 @@ export function emptyRequest(): RequestDraft {
     expectation: '',
     priority: 'medium',
     date_required: '',
-    benefit: '',
     requestor_approver_id: null,
   };
 }
 
 // Requestor Information is not sent or shown: the server stores it from the signed-in user's profile
 const EDITABLE: (keyof ProjectRequest)[] = [
-  'project_name', 'description', 'reason', 'expectation', 'priority', 'date_required', 'benefit', 'requestor_approver_id',
+  'project_name', 'description', 'reason', 'expectation', 'priority', 'date_required', 'requestor_approver_id',
+  'reduction_time_from', 'reduction_time_to', 'reduction_man_from', 'reduction_man_to', 'reduction_cost_from', 'reduction_cost_to',
 ];
 
 /** FM-SYS-004 Project Development Request Form */
@@ -45,6 +52,11 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
   const txt = (k: keyof ProjectRequest) => ({
     value: (f[k] as string | null) ?? '',
     onChange: (v: string) => set(k)(v),
+  });
+
+  const num = (k: keyof ProjectRequest) => ({
+    value: (f[k] as number | string | null) ?? '',
+    onChange: (v: string) => setF((p) => ({ ...p, [k]: v })),
   });
 
   const save = async (): Promise<ProjectRequest | null> => {
@@ -79,7 +91,21 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
           <SelectField className="col-span-12 sm:col-span-4" label="Priority" value={f.priority} onChange={set('priority')} options={PRIORITIES} required />
           <TextField className="col-span-12 sm:col-span-4" label="Date Submitted" value={f.date_submitted ?? 'Set on submit'} disabled />
           <DateField className="col-span-12 sm:col-span-4" label="Date Required" value={f.date_required} onChange={set('date_required')} required />
-          <TextField className="col-span-12" label="Reduction / Benefit Details" multiline rows={2} {...txt('benefit')} />
+        </div>
+      </Section>
+
+      <Section title="Reduction">
+        <div className="grid grid-cols-12 items-center gap-x-3 gap-y-2">
+          <div className="col-span-4 hidden sm:block" />
+          <div className="col-span-4 hidden text-xs font-medium text-muted-foreground sm:block">From</div>
+          <div className="col-span-4 hidden text-xs font-medium text-muted-foreground sm:block">To</div>
+          {REDUCTION_ROWS.map((row) => (
+            <Fragment key={row.label}>
+              <div className="col-span-12 text-sm font-medium sm:col-span-4">{row.label}</div>
+              <TextField className="col-span-6 sm:col-span-4" type="number" placeholder="From" {...num(row.from)} />
+              <TextField className="col-span-6 sm:col-span-4" type="number" placeholder="To" {...num(row.to)} />
+            </Fragment>
+          ))}
         </div>
       </Section>
 

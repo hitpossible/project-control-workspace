@@ -134,7 +134,7 @@ async function main() {
     reason: 'Downtime data is recorded on paper and summarised manually in Excel every week.',
     expectation: 'Real-time downtime dashboard per line, reason code analysis and monthly report.',
     priority: 'high', date_required: day(30),
-    benefit: 'Reduce 6 man-hours/week of manual summary; faster response to machine stops.',
+    reduction_time_from: 1440, reduction_time_to: 120, reduction_man_from: 1, reduction_man_to: 0.2,
   });
   await submit(rA);
   await fullyApprove(rA, 'WEB', 'WEB_DEV');
@@ -239,7 +239,7 @@ async function main() {
   const rB = await newRequest({
     project_name: 'Tool Crib Borrow / Return App', description: 'Small app to borrow and return tools with QR code.',
     reason: 'Tools are lost frequently; borrow book is not tracked.', expectation: 'Know who holds which tool at any time.',
-    priority: 'medium', date_required: day(25), benefit: 'Reduce tool loss cost.',
+    priority: 'medium', date_required: day(25), reduction_cost_from: 45000, reduction_cost_to: 15000,
   });
   await submit(rB);
   await fullyApprove(rB, 'APP', 'INTERNAL_APP');
@@ -260,7 +260,7 @@ async function main() {
   const rC = await newRequest({
     project_name: 'Factory Wi-Fi Coverage Upgrade', description: 'Upgrade Wi-Fi access points in Building 3 for handheld scanners.',
     reason: 'Scanners lose connection in warehouse zone C.', expectation: 'Stable coverage -67 dBm across Building 3.',
-    priority: 'critical', date_required: day(60), benefit: 'Avoid scanning re-work in warehouse.',
+    priority: 'critical', date_required: day(60), reduction_time_from: 2400, reduction_time_to: 600, reduction_man_from: 2, reduction_man_to: 1,
   });
   await submit(rC);
   await fullyApprove(rC, 'INFRA', 'INFRA');
@@ -270,7 +270,7 @@ async function main() {
   const rD = await newRequest({
     project_name: 'QC Inspection Result Digital Form', description: 'Replace paper inspection sheet with tablet form.',
     reason: 'Paper sheets are hard to search for customer claims.', expectation: 'Searchable inspection history by lot.',
-    priority: 'high', date_required: day(50), benefit: 'Faster claim investigation.',
+    priority: 'high', date_required: day(50), reduction_time_from: 900, reduction_time_to: 300,
   });
   await submit(rD);
   await fullyApprove(rD, 'WEB', 'WEB_DEV'); // approved, ready to convert
@@ -278,7 +278,7 @@ async function main() {
   const rE = await newRequest({
     project_name: 'Energy Meter Auto Reading', description: 'Collect power meter readings automatically every 15 minutes.',
     reason: 'Meter reading is manual once per day.', expectation: 'Energy dashboard per building.',
-    priority: 'medium', date_required: day(90), benefit: 'Energy saving analysis.',
+    priority: 'medium', date_required: day(90), reduction_cost_from: 120000, reduction_cost_to: 95000,
   });
   await submit(rE);
   await approve('reqmgr', rE.id, 'OK'); // waiting system review
@@ -286,7 +286,7 @@ async function main() {
   const rF = await newRequest({
     project_name: 'Overtime Request Workflow', description: 'Online OT request and approval.',
     reason: 'OT forms are paper based.', expectation: 'OT approval within the same day.',
-    priority: 'low', date_required: day(120), benefit: 'Less paper; faster approval.',
+    priority: 'low', date_required: day(120), reduction_time_from: 600, reduction_time_to: 200, reduction_cost_from: 3000, reduction_cost_to: 500,
   });
   await submit(rF); // waiting requestor approval
 
