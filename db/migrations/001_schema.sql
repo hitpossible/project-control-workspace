@@ -4,23 +4,54 @@
 --   * Status / type values are ENUMs (MySQL 5.7 ignores CHECK constraints)
 --   * JSON columns have no DB default (5.7) — defaults are applied by the app
 --   * Row-level permissions, guards, audit and roll-ups live in src/server (was RLS + triggers)
+--   * Every table has an INT AUTO_INCREMENT id (audit_logs: BIGINT)
 -- =====================================================================
 SET NAMES utf8mb4;
 
 -- ---------------------------------------------------------------------
--- Users / profiles
+-- Organisation master: departments → sections, positions (company data in 002)
+-- ---------------------------------------------------------------------
+CREATE TABLE departments (
+  id         INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  code       VARCHAR(30)  NULL,                    -- e.g. K1SS00; names can repeat across plants
+  name       VARCHAR(150) NOT NULL,
+  is_active  TINYINT(1)   NOT NULL DEFAULT 1,
+  UNIQUE KEY departments_code_uq (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE sections (
+  id             INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  department_id  INT          NOT NULL,
+  code           VARCHAR(30)  NULL,
+  name           VARCHAR(150) NOT NULL,
+  is_active      TINYINT(1)   NOT NULL DEFAULT 1,
+  UNIQUE KEY sections_dept_name_uq (department_id, name),
+  UNIQUE KEY sections_dept_code_uq (department_id, code),
+  CONSTRAINT sections_department_fk FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- approval levels come from the name (SUPERVISOR, MANAGER, GENERAL MANAGER, FACTORY MANAGER, PRESIDENT — src/lib/approval.ts)
+CREATE TABLE positions (
+  id    INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name  VARCHAR(250) NULL,
+  UNIQUE KEY positions_name_uq (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Users / profiles — department / section / position are synced from AD at login
 -- roles: requestor, requestor_approver, system_reviewer, authority_approver,
 --        project_leader, developer, qa, supervisor, manager, management_view, admin
 -- ---------------------------------------------------------------------
 CREATE TABLE profiles (
-  id             CHAR(36)     NOT NULL PRIMARY KEY,
+  id             INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
   username       VARCHAR(100) NULL,          -- AD / company login name
   password_hash  VARCHAR(100) NULL,          -- local login only (seed / break-glass accounts)
   employee_id    VARCHAR(50)  NULL,
   full_name      VARCHAR(200) NOT NULL,
   email          VARCHAR(191) NULL,
-  department     VARCHAR(150) NULL,
-  section        VARCHAR(150) NULL,
+  department_id  INT          NULL,
+  section_id     INT          NULL,
+  position_id    INT          NULL,
   telephone      VARCHAR(50)  NULL,
   extension      VARCHAR(20)  NULL,
   roles          JSON         NOT NULL,
@@ -28,7 +59,10 @@ CREATE TABLE profiles (
   last_login_at  DATETIME(3)  NULL,
   created_at     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   UNIQUE KEY profiles_username_uq (username),
-  UNIQUE KEY profiles_email_uq (email)
+  UNIQUE KEY profiles_email_uq (email),
+  CONSTRAINT profiles_department_fk FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL,
+  CONSTRAINT profiles_section_fk    FOREIGN KEY (section_id)    REFERENCES sections(id)    ON DELETE SET NULL,
+  CONSTRAINT profiles_position_fk   FOREIGN KEY (position_id)   REFERENCES positions(id)   ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
@@ -72,12 +106,12 @@ CREATE TABLE project_templates (
 -- Project Request (FM-SYS-004)
 -- ---------------------------------------------------------------------
 CREATE TABLE project_requests (
-  id                     CHAR(36)     NOT NULL PRIMARY KEY,
+  id                     INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
   request_no             VARCHAR(50)  NULL,
   status                 ENUM('draft','submitted','waiting_requestor_approval','waiting_system_review',
                               'need_more_information','waiting_authority_approval','approved','rejected',
                               'converted','cancelled') NOT NULL DEFAULT 'draft',
-  requestor_id           CHAR(36)     NOT NULL,
+  requestor_id           INT          NOT NULL,
   req_employee_id        VARCHAR(50)  NULL,
   req_full_name          VARCHAR(200) NULL,
   req_department         VARCHAR(150) NULL,
@@ -92,19 +126,25 @@ CREATE TABLE project_requests (
   priority               ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
   date_submitted         DATE         NULL,
   date_required          DATE         NULL,
-  benefit                TEXT         NULL,
-  requestor_approver_id  CHAR(36)     NULL,
-  authority_approver_id  CHAR(36)     NULL,
+  benefit                TEXT         NULL,          -- legacy free text, no longer on the form
+  reduction_time_from    DECIMAL(12,2) NULL,         -- Time (Min / Month)
+  reduction_time_to      DECIMAL(12,2) NULL,
+  reduction_man_from     DECIMAL(12,2) NULL,         -- Man (Man / Month)
+  reduction_man_to       DECIMAL(12,2) NULL,
+  reduction_cost_from    DECIMAL(14,2) NULL,         -- Others Cost (THB)
+  reduction_cost_to      DECIMAL(14,2) NULL,
+  requestor_approver_id  INT          NULL,
+  authority_approver_id  INT          NULL,
   project_type_id        INT          NULL,
   template_id            INT          NULL,
-  proposed_leader_id     CHAR(36)     NULL,
+  proposed_leader_id     INT          NULL,
   scope_assessment       TEXT         NULL,
-  reviewed_by            CHAR(36)     NULL,
-  project_id             CHAR(36)     NULL,
+  reviewed_by            INT          NULL,
+  project_id             INT          NULL,
   submitted_at           DATETIME(3)  NULL,
   created_at             DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at             DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  updated_by             CHAR(36)     NULL,
+  updated_by             INT          NULL,
   UNIQUE KEY project_requests_no_uq (request_no),
   KEY project_requests_requestor_idx (requestor_id),
   CONSTRAINT project_requests_requestor_fk FOREIGN KEY (requestor_id) REFERENCES profiles(id),
@@ -120,18 +160,20 @@ CREATE TABLE project_requests (
 -- Approval workflow
 -- ---------------------------------------------------------------------
 CREATE TABLE approval_steps (
-  id             CHAR(36)     NOT NULL PRIMARY KEY,
-  request_id     CHAR(36)     NOT NULL,
+  id             INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  request_id     INT          NOT NULL,
   cycle          INT          NOT NULL DEFAULT 1,
   step_no        INT          NOT NULL,
-  step_code      ENUM('requestor_approval','system_review','authority_approval') NOT NULL,
+  step_code      VARCHAR(30)  NOT NULL,       -- APPROVAL_ROUTE in src/lib/approval.ts
   step_name      VARCHAR(100) NOT NULL,
-  approver_id    CHAR(36)     NULL,           -- null = any user holding approver_role
-  approver_role  VARCHAR(50)  NOT NULL,
+  approver_id    INT          NULL,           -- legacy: one named approver
+  approver_role  VARCHAR(50)  NOT NULL,       -- route group name (legacy: role)
+  approver_levels      JSON         NULL,     -- position levels allowed to act
+  approver_department  VARCHAR(150) NULL,     -- department name the approver must belong to; null = any
   status         ENUM('pending','waiting','approved','rejected','sent_back','more_info','cancelled') NOT NULL DEFAULT 'pending',
   action         VARCHAR(30)  NULL,
   comment        TEXT         NULL,
-  acted_by       CHAR(36)     NULL,
+  acted_by       INT          NULL,
   acted_at       DATETIME(3)  NULL,
   created_at     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   UNIQUE KEY approval_steps_uq (request_id, cycle, step_no),
@@ -141,13 +183,13 @@ CREATE TABLE approval_steps (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE approval_actions (
-  id          CHAR(36)    NOT NULL PRIMARY KEY,
-  request_id  CHAR(36)    NOT NULL,
-  step_id     CHAR(36)    NULL,
+  id          INT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  request_id  INT         NOT NULL,
+  step_id     INT         NULL,
   step_code   VARCHAR(30) NULL,
   action      ENUM('submit','resubmit','approve','reject','send_back','request_more_info','cancel','convert') NOT NULL,
   comment     TEXT        NULL,
-  action_by   CHAR(36)    NULL,
+  action_by   INT         NULL,
   created_at  DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   KEY approval_actions_request_idx (request_id, created_at),
   CONSTRAINT approval_actions_request_fk FOREIGN KEY (request_id) REFERENCES project_requests(id) ON DELETE CASCADE,
@@ -159,13 +201,13 @@ CREATE TABLE approval_actions (
 -- Controlled Project
 -- ---------------------------------------------------------------------
 CREATE TABLE projects (
-  id                CHAR(36)     NOT NULL PRIMARY KEY,
+  id                INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
   project_code      VARCHAR(50)  NOT NULL,
   project_name      VARCHAR(300) NOT NULL,
   project_type_id   INT          NULL,
   template_id       INT          NULL,
-  request_id        CHAR(36)     NULL,
-  leader_id         CHAR(36)     NULL,
+  request_id        INT          NULL,
+  leader_id         INT          NULL,
   sponsor           VARCHAR(200) NULL,
   department        VARCHAR(150) NULL,
   priority          ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
@@ -178,10 +220,10 @@ CREATE TABLE projects (
   next_action       TEXT         NULL,
   remark            TEXT         NULL,           -- high-level remark (visible to User / Management)
   baseline_version  INT          NOT NULL DEFAULT 0,
-  created_by        CHAR(36)     NULL,
+  created_by        INT          NULL,
   created_at        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  updated_by        CHAR(36)     NULL,
+  updated_by        INT          NULL,
   UNIQUE KEY projects_code_uq (project_code),
   UNIQUE KEY projects_request_uq (request_id),
   CONSTRAINT projects_type_fk FOREIGN KEY (project_type_id) REFERENCES project_types(id),
@@ -195,9 +237,9 @@ ALTER TABLE project_requests
   ADD CONSTRAINT project_requests_project_fk FOREIGN KEY (project_id) REFERENCES projects(id);
 
 CREATE TABLE project_members (
-  id           CHAR(36)    NOT NULL PRIMARY KEY,
-  project_id   CHAR(36)    NOT NULL,
-  user_id      CHAR(36)    NOT NULL,
+  id           INT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id   INT         NOT NULL,
+  user_id      INT         NOT NULL,
   member_role  ENUM('leader','developer','qa','support','supervisor','manager','requestor_rep') NOT NULL,
   notify       TINYINT(1)  NOT NULL DEFAULT 1,
   created_at   DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -211,15 +253,15 @@ CREATE TABLE project_members (
 -- Baseline
 -- ---------------------------------------------------------------------
 CREATE TABLE project_baselines (
-  id              CHAR(36)    NOT NULL PRIMARY KEY,
-  project_id      CHAR(36)    NOT NULL,
+  id              INT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id      INT         NOT NULL,
   version_no      INT         NOT NULL,
   planned_start   DATE        NULL,
   planned_finish  DATE        NULL,
   target_date     DATE        NULL,
   reason          TEXT        NULL,
-  created_by      CHAR(36)    NULL,
-  approved_by     CHAR(36)    NULL,
+  created_by      INT         NULL,
+  approved_by     INT         NULL,
   created_at      DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   UNIQUE KEY project_baselines_uq (project_id, version_no),
   CONSTRAINT project_baselines_project_fk FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
@@ -228,9 +270,9 @@ CREATE TABLE project_baselines (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE project_baseline_items (
-  id              CHAR(36)     NOT NULL PRIMARY KEY,
-  baseline_id     CHAR(36)     NOT NULL,
-  activity_id     CHAR(36)     NULL,
+  id              INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  baseline_id     INT          NOT NULL,
+  activity_id     INT          NULL,
   seq             INT          NOT NULL DEFAULT 0,
   activity_name   VARCHAR(300) NOT NULL,
   pic             VARCHAR(200) NULL,
@@ -245,11 +287,11 @@ CREATE TABLE project_baseline_items (
 -- User Control Plan (Activity)
 -- ---------------------------------------------------------------------
 CREATE TABLE activities (
-  id                    CHAR(36)     NOT NULL PRIMARY KEY,
-  project_id            CHAR(36)     NOT NULL,
+  id                    INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id            INT          NOT NULL,
   seq                   INT          NOT NULL DEFAULT 0,
   name                  VARCHAR(300) NOT NULL,
-  pic_user_id           CHAR(36)     NULL,
+  pic_user_id           INT          NULL,
   pic_label             VARCHAR(100) NULL,          -- e.g. "System", "User", "Vendor"
   plan_start            DATE         NULL,
   plan_finish           DATE         NULL,
@@ -265,14 +307,14 @@ CREATE TABLE activities (
   delay_reason          TEXT         NULL,
   delay_impact          TEXT         NULL,
   recovery_plan         TEXT         NULL,
-  recovery_owner_id     CHAR(36)     NULL,
+  recovery_owner_id     INT          NULL,
   recovery_due_date     DATE         NULL,
-  recovery_reviewed_by  CHAR(36)     NULL,
+  recovery_reviewed_by  INT          NULL,
   recovery_reviewed_at  DATETIME(3)  NULL,
   is_milestone          TINYINT(1)   NOT NULL DEFAULT 0,
   created_at            DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at            DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  updated_by            CHAR(36)     NULL,
+  updated_by            INT          NULL,
   KEY activities_project_idx (project_id, seq),
   CONSTRAINT activities_project_fk FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   CONSTRAINT activities_pic_fk FOREIGN KEY (pic_user_id) REFERENCES profiles(id),
@@ -284,16 +326,16 @@ CREATE TABLE activities (
 -- Internal Execution Plan (Task / Sub-task)
 -- ---------------------------------------------------------------------
 CREATE TABLE internal_tasks (
-  id                CHAR(36)     NOT NULL PRIMARY KEY,
+  id                INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
   task_no           VARCHAR(20)  NULL,
-  project_id        CHAR(36)     NOT NULL,
-  activity_id       CHAR(36)     NOT NULL,
-  parent_task_id    CHAR(36)     NULL,
+  project_id        INT          NOT NULL,
+  activity_id       INT          NOT NULL,
+  parent_task_id    INT          NULL,
   seq               INT          NOT NULL DEFAULT 0,
   name              VARCHAR(300) NOT NULL,
   task_type         ENUM('design','dev','qa','review','doc','deploy','support','other') NOT NULL DEFAULT 'dev',
-  owner_id          CHAR(36)     NOT NULL,
-  reviewer_id       CHAR(36)     NULL,
+  owner_id          INT          NOT NULL,
+  reviewer_id       INT          NULL,
   priority          ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
   planned_start     DATE         NULL,
   due_date          DATE         NOT NULL,
@@ -307,10 +349,10 @@ CREATE TABLE internal_tasks (
   delay_category    VARCHAR(100) NULL,
   delay_reason      TEXT         NULL,
   recovery_action   TEXT         NULL,
-  created_by        CHAR(36)     NULL,
+  created_by        INT          NULL,
   created_at        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  updated_by        CHAR(36)     NULL,
+  updated_by        INT          NULL,
   UNIQUE KEY internal_tasks_no_uq (project_id, task_no),
   KEY internal_tasks_activity_idx (activity_id, seq),
   KEY internal_tasks_owner_idx (owner_id, status),
@@ -324,10 +366,10 @@ CREATE TABLE internal_tasks (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE task_dependencies (
-  id              CHAR(36)    NOT NULL PRIMARY KEY,
-  project_id      CHAR(36)    NOT NULL,
-  predecessor_id  CHAR(36)    NOT NULL,
-  successor_id    CHAR(36)    NOT NULL,
+  id              INT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id      INT         NOT NULL,
+  predecessor_id  INT         NOT NULL,
+  successor_id    INT         NOT NULL,
   dep_type        VARCHAR(5)  NOT NULL DEFAULT 'FS',
   created_at      DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   UNIQUE KEY task_dependencies_uq (predecessor_id, successor_id),
@@ -340,13 +382,13 @@ CREATE TABLE task_dependencies (
 -- QA: Test Round · Bug · Fix · Retest
 -- ---------------------------------------------------------------------
 CREATE TABLE test_rounds (
-  id            CHAR(36)     NOT NULL PRIMARY KEY,
-  project_id    CHAR(36)     NOT NULL,
+  id            INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id    INT          NOT NULL,
   round_no      INT          NOT NULL,
-  activity_id   CHAR(36)     NULL,
+  activity_id   INT          NULL,
   title         VARCHAR(300) NOT NULL,
   test_type     ENUM('system','integration','regression','uat','smoke','performance','other') NOT NULL DEFAULT 'system',
-  tester_id     CHAR(36)     NULL,
+  tester_id     INT          NULL,
   planned_date  DATE         NULL,
   due_date      DATE         NULL,
   actual_date   DATE         NULL,
@@ -356,10 +398,10 @@ CREATE TABLE test_rounds (
   passed_cases  INT          NULL,
   failed_cases  INT          NULL,
   summary       TEXT         NULL,
-  created_by    CHAR(36)     NULL,
+  created_by    INT          NULL,
   created_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  updated_by    CHAR(36)     NULL,
+  updated_by    INT          NULL,
   UNIQUE KEY test_rounds_uq (project_id, round_no),
   CONSTRAINT test_rounds_project_fk FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   CONSTRAINT test_rounds_activity_fk FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE SET NULL,
@@ -367,12 +409,12 @@ CREATE TABLE test_rounds (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE bugs (
-  id                   CHAR(36)     NOT NULL PRIMARY KEY,
+  id                   INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
   bug_no               VARCHAR(20)  NOT NULL,
-  project_id           CHAR(36)     NOT NULL,
-  test_round_id        CHAR(36)     NULL,
-  activity_id          CHAR(36)     NULL,
-  task_id              CHAR(36)     NULL,
+  project_id           INT          NOT NULL,
+  test_round_id        INT          NULL,
+  activity_id          INT          NULL,
+  task_id              INT          NULL,
   title                VARCHAR(300) NOT NULL,
   description          TEXT         NULL,
   steps_to_reproduce   TEXT         NULL,
@@ -380,9 +422,9 @@ CREATE TABLE bugs (
   actual_result        TEXT         NULL,
   severity             ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
   priority             ENUM('low','medium','high','critical') NOT NULL DEFAULT 'medium',
-  reporter_id          CHAR(36)     NULL,
-  assigned_dev_id      CHAR(36)     NULL,
-  supervisor_id        CHAR(36)     NULL,
+  reporter_id          INT          NULL,
+  assigned_dev_id      INT          NULL,
+  supervisor_id        INT          NULL,
   due_date             DATE         NULL,
   status               ENUM('new','assigned','in_progress','fix_ready','retest','reopened','closed','cancelled') NOT NULL DEFAULT 'new',
   root_cause           TEXT         NULL,
@@ -392,7 +434,7 @@ CREATE TABLE bugs (
   cancel_reason        TEXT         NULL,
   created_at           DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at           DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  updated_by           CHAR(36)     NULL,
+  updated_by           INT          NULL,
   UNIQUE KEY bugs_uq (project_id, bug_no),
   KEY bugs_project_idx (project_id, status),
   KEY bugs_dev_idx (assigned_dev_id, status),
@@ -406,11 +448,11 @@ CREATE TABLE bugs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE bug_fixes (
-  id                CHAR(36)     NOT NULL PRIMARY KEY,
-  bug_id            CHAR(36)     NOT NULL,
-  project_id        CHAR(36)     NOT NULL,
+  id                INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  bug_id            INT          NOT NULL,
+  project_id        INT          NOT NULL,
   fix_cycle         INT          NOT NULL,
-  fix_owner_id      CHAR(36)     NOT NULL,
+  fix_owner_id      INT          NOT NULL,
   fix_start_date    DATE         NOT NULL,
   fix_due_date      DATE         NULL,
   fix_description   TEXT         NULL,
@@ -428,12 +470,12 @@ CREATE TABLE bug_fixes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE retests (
-  id            CHAR(36)    NOT NULL PRIMARY KEY,
-  bug_id        CHAR(36)    NOT NULL,
-  project_id    CHAR(36)    NOT NULL,
-  fix_id        CHAR(36)    NULL,
+  id            INT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  bug_id        INT         NOT NULL,
+  project_id    INT         NOT NULL,
+  fix_id        INT         NULL,
   retest_round  INT         NOT NULL,
-  tester_id     CHAR(36)    NULL,
+  tester_id     INT         NULL,
   due_date      DATE        NULL,
   status        ENUM('pending','done','cancelled') NOT NULL DEFAULT 'pending',
   result        ENUM('passed','failed','partially_passed','blocked') NULL,
@@ -452,15 +494,15 @@ CREATE TABLE retests (
 -- Evidence checklist + Evidence (bound to an entity)
 -- ---------------------------------------------------------------------
 CREATE TABLE evidence_requirements (
-  id            CHAR(36)     NOT NULL PRIMARY KEY,
-  project_id    CHAR(36)     NOT NULL,
+  id            INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id    INT          NOT NULL,
   entity_type   ENUM('project','activity','task') NOT NULL,
-  entity_id     CHAR(36)     NOT NULL,
+  entity_id     INT          NOT NULL,
   name          VARCHAR(300) NOT NULL,
   description   TEXT         NULL,
   is_mandatory  TINYINT(1)   NOT NULL DEFAULT 1,
   source        ENUM('template','manual') NOT NULL DEFAULT 'manual',
-  created_by    CHAR(36)     NULL,
+  created_by    INT          NULL,
   created_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   KEY evidence_req_entity_idx (entity_type, entity_id),
   KEY evidence_req_project_idx (project_id),
@@ -468,11 +510,11 @@ CREATE TABLE evidence_requirements (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE evidence (
-  id                   CHAR(36)     NOT NULL PRIMARY KEY,
-  project_id           CHAR(36)     NULL,
-  request_id           CHAR(36)     NULL,
+  id                   INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id           INT          NULL,
+  request_id           INT          NULL,
   entity_type          ENUM('request','project','activity','task','test_round','bug','fix','retest') NOT NULL,
-  entity_id            CHAR(36)     NOT NULL,
+  entity_id            INT          NOT NULL,
   evidence_type        ENUM('document','excel','pdf','image','screenshot','log','email','meeting_note',
                             'url','sharepoint','git','build','other') NOT NULL,
   file_name            VARCHAR(500) NULL,
@@ -484,10 +526,10 @@ CREATE TABLE evidence (
   is_required          TINYINT(1)   NOT NULL DEFAULT 0,
   is_internal          TINYINT(1)   NOT NULL DEFAULT 1,
   verification_status  ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending',
-  verified_by          CHAR(36)     NULL,
+  verified_by          INT          NULL,
   verified_at          DATETIME(3)  NULL,
-  requirement_id       CHAR(36)     NULL,
-  uploaded_by          CHAR(36)     NULL,
+  requirement_id       INT          NULL,
+  uploaded_by          INT          NULL,
   uploaded_at          DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   KEY evidence_entity_idx (entity_type, entity_id),
   KEY evidence_project_idx (project_id),
@@ -504,8 +546,8 @@ CREATE TABLE evidence (
 -- Baseline revision (re-plan) requests — approved by Manager / Supervisor
 -- ---------------------------------------------------------------------
 CREATE TABLE baseline_revisions (
-  id                    CHAR(36)    NOT NULL PRIMARY KEY,
-  project_id            CHAR(36)    NOT NULL,
+  id                    INT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id            INT         NOT NULL,
   from_version          INT         NOT NULL,
   reason                TEXT        NOT NULL,
   impact                TEXT        NULL,
@@ -513,14 +555,14 @@ CREATE TABLE baseline_revisions (
   proposed_target_date  DATE        NULL,
   plan_snapshot         JSON        NOT NULL,
   status                ENUM('pending','approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
-  requested_by          CHAR(36)    NULL,
+  requested_by          INT         NULL,
   requested_at          DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  decided_by            CHAR(36)    NULL,
+  decided_by            INT         NULL,
   decided_at            DATETIME(3) NULL,
   decision_comment      TEXT        NULL,
-  baseline_id           CHAR(36)    NULL,
+  baseline_id           INT         NULL,
   -- only one pending revision per project (partial unique index emulation)
-  pending_key           CHAR(36) AS (IF(status = 'pending', project_id, NULL)) STORED,
+  pending_key           INT      AS (IF(status = 'pending', project_id, NULL)) STORED,
   UNIQUE KEY baseline_revisions_one_pending (pending_key),
   KEY baseline_revisions_project_idx (project_id),
   -- (MySQL forbids CASCADE on the base column of a stored generated column; projects are never hard-deleted)
@@ -546,11 +588,11 @@ CREATE TABLE notification_rules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE notifications (
-  id          CHAR(36)     NOT NULL PRIMARY KEY,
-  user_id     CHAR(36)     NOT NULL,
+  id          INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT          NOT NULL,
   event_code  VARCHAR(60)  NOT NULL,
-  project_id  CHAR(36)     NULL,
-  request_id  CHAR(36)     NULL,
+  project_id  INT          NULL,
+  request_id  INT          NULL,
   title       VARCHAR(500) NOT NULL,
   body        TEXT         NULL,
   link        VARCHAR(500) NULL,
@@ -565,8 +607,8 @@ CREATE TABLE notifications (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE email_outbox (
-  id               CHAR(36)     NOT NULL PRIMARY KEY,
-  notification_id  CHAR(36)     NULL,
+  id               INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  notification_id  INT          NULL,
   to_email         VARCHAR(191) NOT NULL,
   subject          VARCHAR(500) NOT NULL,
   body             TEXT         NULL,
@@ -579,19 +621,38 @@ CREATE TABLE email_outbox (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
+-- Comments with @mention on internal Tasks and Bugs
+-- ---------------------------------------------------------------------
+CREATE TABLE comments (
+  id           INT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id   INT         NOT NULL,
+  entity_type  ENUM('task','bug') NOT NULL,
+  entity_id    INT         NOT NULL,
+  body         TEXT        NOT NULL,
+  mentions     JSON        NOT NULL,          -- profile ids mentioned with @Name (JSON numbers)
+  created_by   INT         NOT NULL,
+  created_at   DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  edited_at    DATETIME(3) NULL,
+  KEY comments_entity_idx (entity_type, entity_id, created_at),
+  KEY comments_project_idx (project_id),
+  CONSTRAINT comments_project_fk FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  CONSTRAINT comments_author_fk FOREIGN KEY (created_by) REFERENCES profiles(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
 -- Audit trail
 -- ---------------------------------------------------------------------
 CREATE TABLE audit_logs (
   id           BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
   table_name   VARCHAR(60)  NOT NULL,
-  entity_id    VARCHAR(36)  NULL,
-  project_id   CHAR(36)     NULL,
-  request_id   CHAR(36)     NULL,
+  entity_id    INT          NULL,
+  project_id   INT          NULL,
+  request_id   INT          NULL,
   action       VARCHAR(10)  NOT NULL,
   field        VARCHAR(60)  NULL,
   old_value    TEXT         NULL,
   new_value    TEXT         NULL,
-  user_id      CHAR(36)     NULL,
+  user_id      INT          NULL,
   created_at   DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   KEY audit_logs_project_idx (project_id, created_at),
   KEY audit_logs_entity_idx (entity_id, created_at),
@@ -613,16 +674,16 @@ CREATE TABLE insight_rules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE workforce_plans (
-  id          CHAR(36)     NOT NULL PRIMARY KEY,
-  user_id     CHAR(36)     NOT NULL,
+  id          INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT          NOT NULL,
   work_date   DATE         NOT NULL,
   start_time  TIME         NULL,
   end_time    TIME         NULL,
   work_type   ENUM('office','onsite','wfh','customer_site','factory_support','training','leave','ot') NOT NULL DEFAULT 'office',
   location    VARCHAR(200) NULL,
-  project_id  CHAR(36)     NULL,
+  project_id  INT          NULL,
   remark      TEXT         NULL,
-  created_by  CHAR(36)     NULL,
+  created_by  INT          NULL,
   created_at  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   KEY workforce_user_date_idx (user_id, work_date),
   KEY workforce_date_idx (work_date),
@@ -631,8 +692,8 @@ CREATE TABLE workforce_plans (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE project_kpi_snapshots (
-  id                   CHAR(36)     NOT NULL PRIMARY KEY,
-  project_id           CHAR(36)     NOT NULL,
+  id                   INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id           INT          NOT NULL,
   snapshot_date        DATE         NOT NULL,
   progress             DECIMAL(5,2) NULL,
   health               VARCHAR(10)  NULL,

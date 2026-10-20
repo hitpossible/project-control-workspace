@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import AuditHistory from './AuditHistory';
 import CommentThread from './CommentThread';
 import { dispatchEmails, useApp } from './AppProvider';
-import { ActionButton, DateField, EmptyState, Person, SelectField, StatusChip, TextField } from './common';
+import { ActionButton, DateField, EmptyState, Person, SelectField, StatusChip, TextField, idValue, toId } from './common';
 import EvidencePanel from './EvidencePanel';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
@@ -48,14 +48,14 @@ function useRpc(onDone: () => void) {
 // ---------------------------------------------------------------------------
 export function ReportBugDialog({ project, rounds, activities, tasks, members, defaults, onClose, onSaved }: {
   project: Project; rounds: TestRound[]; activities: Activity[]; tasks: InternalTask[]; members: Profile[];
-  defaults?: { test_round_id?: string; task_id?: string }; onClose: () => void; onSaved: () => void;
+  defaults?: { test_round_id?: number; task_id?: number }; onClose: () => void; onSaved: () => void;
 }) {
   const rpc = useRpc(onSaved);
   const [f, setF] = useState({
-    title: '', description: '', severity: 'medium', priority: '', test_round_id: defaults?.test_round_id ?? '', activity_id: '', task_id: defaults?.task_id ?? '',
-    steps: '', expected: '', actual: '', dev: null as string | null, due: '',
+    title: '', description: '', severity: 'medium', priority: '', test_round_id: defaults?.test_round_id ?? null, activity_id: null as number | null, task_id: defaults?.task_id ?? null,
+    steps: '', expected: '', actual: '', dev: null as number | null, due: '',
   });
-  const set = (k: keyof typeof f) => (v: string | null) => setF((p) => ({ ...p, [k]: v }));
+  const set = (k: keyof typeof f) => (v: string | number | null) => setF((p) => ({ ...p, [k]: v }));
   const devs = members.filter((m) => m.roles.some((r) => ['developer', 'project_leader'].includes(r)));
 
   return (
@@ -69,12 +69,12 @@ export function ReportBugDialog({ project, rounds, activities, tasks, members, d
           <TextField className="col-span-12" label="Title" required value={f.title} onChange={set('title')} />
           <SelectField className={col('sm:col-span-3')} label="Severity" required value={f.severity} onChange={set('severity')} options={SEVERITIES} />
           <SelectField className={col('sm:col-span-3')} label="Priority" allowEmpty placeholder="= severity" value={f.priority} onChange={set('priority')} options={PRIORITIES} />
-          <SelectField className={col('sm:col-span-6')} label="Test Round" allowEmpty value={f.test_round_id} onChange={set('test_round_id')}
-            options={rounds.map((r) => ({ value: r.id, label: `Round ${r.round_no} — ${r.title}` }))} />
-          <SelectField className={col('sm:col-span-6')} label="Related Activity" allowEmpty placeholder="(from test round)" value={f.activity_id} onChange={set('activity_id')}
-            options={activities.map((a) => ({ value: a.id, label: a.name }))} />
-          <SelectField className={col('sm:col-span-6')} label="Related Task" allowEmpty value={f.task_id} onChange={set('task_id')}
-            options={tasks.map((t) => ({ value: t.id, label: `${t.task_no} ${t.name}` }))} />
+          <SelectField className={col('sm:col-span-6')} label="Test Round" allowEmpty value={idValue(f.test_round_id)} onChange={(v) => setF((p) => ({ ...p, test_round_id: toId(v) }))}
+            options={rounds.map((r) => ({ value: String(r.id), label: `Round ${r.round_no} — ${r.title}` }))} />
+          <SelectField className={col('sm:col-span-6')} label="Related Activity" allowEmpty placeholder="(from test round)" value={idValue(f.activity_id)} onChange={(v) => setF((p) => ({ ...p, activity_id: toId(v) }))}
+            options={activities.map((a) => ({ value: String(a.id), label: a.name }))} />
+          <SelectField className={col('sm:col-span-6')} label="Related Task" allowEmpty value={idValue(f.task_id)} onChange={(v) => setF((p) => ({ ...p, task_id: toId(v) }))}
+            options={tasks.map((t) => ({ value: String(t.id), label: `${t.task_no} ${t.name}` }))} />
           <TextField className="col-span-12" label="Description" multiline rows={2} value={f.description} onChange={set('description')} />
           <TextField className="col-span-12" label="Steps to reproduce" multiline rows={3} value={f.steps} onChange={set('steps')} />
           <TextField className={col('sm:col-span-6')} label="Expected result" multiline rows={2} value={f.expected} onChange={set('expected')} />
@@ -112,7 +112,7 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
   const [f, setF] = useState<Bug>(bug);
   const [assign, setAssign] = useState({ dev: bug.assigned_dev_id, due: bug.due_date ?? '' });
   const currentFix = fixes.filter((x) => x.bug_id === bug.id).sort((a, b) => b.fix_cycle - a.fix_cycle)[0];
-  const [fix, setFix] = useState({ description: currentFix?.fix_description ?? '', unit: currentFix?.unit_test_result ?? '', note: currentFix?.technical_note ?? '', build: currentFix?.build_link ?? '', commit: currentFix?.commit_link ?? '', tester: null as string | null });
+  const [fix, setFix] = useState({ description: currentFix?.fix_description ?? '', unit: currentFix?.unit_test_result ?? '', note: currentFix?.technical_note ?? '', build: currentFix?.build_link ?? '', commit: currentFix?.commit_link ?? '', tester: null as number | null });
   const pendingRetest = retests.find((r) => r.bug_id === bug.id && r.status === 'pending');
   const [retest, setRetest] = useState({ result: 'passed', comment: '' });
   const [cancelReason, setCancelReason] = useState('');
@@ -267,12 +267,12 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
             <TextField className="col-span-12" label="Title" value={f.title} onChange={set('title')} disabled={!canEdit} />
             <SelectField className={col('sm:col-span-3')} label="Severity" value={f.severity} onChange={set('severity')} options={SEVERITIES} disabled={!canEdit} />
             <SelectField className={col('sm:col-span-3')} label="Priority" value={f.priority} onChange={set('priority')} options={PRIORITIES} disabled={!canEdit} />
-            <SelectField className={col('sm:col-span-6')} label="Test Round" allowEmpty value={f.test_round_id} onChange={set('test_round_id')} disabled={!canEdit}
-              options={rounds.map((r) => ({ value: r.id, label: `Round ${r.round_no} — ${r.title}` }))} />
-            <SelectField className={col('sm:col-span-6')} label="Related Activity" allowEmpty value={f.activity_id} onChange={set('activity_id')} disabled={!canEdit}
-              options={activities.map((a) => ({ value: a.id, label: a.name }))} />
-            <SelectField className={col('sm:col-span-6')} label="Related Task" allowEmpty value={f.task_id} onChange={set('task_id')} disabled={!canEdit}
-              options={tasks.map((t) => ({ value: t.id, label: `${t.task_no} ${t.name}` }))} />
+            <SelectField className={col('sm:col-span-6')} label="Test Round" allowEmpty value={idValue(f.test_round_id)} onChange={(v) => setF((p) => ({ ...p, test_round_id: toId(v) }))} disabled={!canEdit}
+              options={rounds.map((r) => ({ value: String(r.id), label: `Round ${r.round_no} — ${r.title}` }))} />
+            <SelectField className={col('sm:col-span-6')} label="Related Activity" allowEmpty value={idValue(f.activity_id)} onChange={(v) => setF((p) => ({ ...p, activity_id: toId(v) }))} disabled={!canEdit}
+              options={activities.map((a) => ({ value: String(a.id), label: a.name }))} />
+            <SelectField className={col('sm:col-span-6')} label="Related Task" allowEmpty value={idValue(f.task_id)} onChange={(v) => setF((p) => ({ ...p, task_id: toId(v) }))} disabled={!canEdit}
+              options={tasks.map((t) => ({ value: String(t.id), label: `${t.task_no} ${t.name}` }))} />
             <TextField className="col-span-12" label="Description" multiline rows={2} value={f.description} onChange={set('description')} disabled={!canEdit} />
             <TextField className="col-span-12" label="Steps to reproduce" multiline rows={3} value={f.steps_to_reproduce} onChange={set('steps_to_reproduce')} disabled={!canEdit} />
             <TextField className={col('sm:col-span-6')} label="Expected result" multiline rows={2} value={f.expected_result} onChange={set('expected_result')} disabled={!canEdit} />
@@ -320,7 +320,7 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
 
         {tab === 'Evidence' && <EvidencePanel entityType="bug" entityId={bug.id} projectId={project.id} canAdd canVerify={canManage} />}
         {tab === 'Comments' && <CommentThread projectId={project.id} entityType="bug" entityId={bug.id} canModerate={canManage} />}
-        {tab === 'History' && <AuditHistory entityId={bug.id} />}
+        {tab === 'History' && <AuditHistory entity={{ table: 'bugs', id: bug.id }} />}
 
         <DialogFooter><Button variant="outline" onClick={onClose}>Close</Button></DialogFooter>
       </DialogContent>
@@ -333,7 +333,7 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
 // ---------------------------------------------------------------------------
 export function TestRoundDialog({ project, round, rounds, activities, bugs, members, canEdit, onClose, onSaved, onOpenBug, onReportBug }: {
   project: Project; round: TestRound | null; rounds: TestRound[]; activities: Activity[]; bugs: Bug[]; members: Profile[];
-  canEdit: boolean; onClose: () => void; onSaved: () => void; onOpenBug: (b: Bug) => void; onReportBug: (roundId: string) => void;
+  canEdit: boolean; onClose: () => void; onSaved: () => void; onOpenBug: (b: Bug) => void; onReportBug: (roundId: number) => void;
 }) {
   const db = dbClient();
   const { me, notify } = useApp();
@@ -379,9 +379,9 @@ export function TestRoundDialog({ project, round, rounds, activities, bugs, memb
           <div className="grid grid-cols-12 gap-3">
             <TextField className={col('sm:col-span-8')} label="Title" required value={f.title} onChange={set('title')} disabled={!canEdit} />
             <SelectField className={col('sm:col-span-4')} label="Test Type" value={f.test_type} onChange={set('test_type')} options={TEST_TYPES} disabled={!canEdit} />
-            <SelectField className={col('sm:col-span-6')} label="Related Activity" allowEmpty value={f.activity_id} onChange={set('activity_id')} disabled={!canEdit}
-              options={activities.map((a) => ({ value: a.id, label: a.name }))} />
-            <UserSelect className={col('sm:col-span-6')} label="Tester" value={f.tester_id} onChange={set('tester_id')} users={qas} disabled={!canEdit} />
+            <SelectField className={col('sm:col-span-6')} label="Related Activity" allowEmpty value={idValue(f.activity_id)} onChange={(v) => setF((p) => ({ ...p, activity_id: toId(v) }))} disabled={!canEdit}
+              options={activities.map((a) => ({ value: String(a.id), label: a.name }))} />
+            <UserSelect className={col('sm:col-span-6')} label="Tester" value={f.tester_id} onChange={(v) => setF((p) => ({ ...p, tester_id: v }))} users={qas} disabled={!canEdit} />
             <DateField className={col('col-span-4')} label="Planned Date" value={f.planned_date} onChange={set('planned_date')} disabled={!canEdit} />
             <DateField className={col('col-span-4')} label="Due Date" value={f.due_date} onChange={set('due_date')} disabled={!canEdit} />
             <DateField className={col('col-span-4')} label="Actual Date" value={f.actual_date} onChange={set('actual_date')} disabled={!canEdit} />
@@ -412,7 +412,7 @@ export function TestRoundDialog({ project, round, rounds, activities, bugs, memb
           </div>
         )}
         {tab === 'Evidence' && round && <EvidencePanel entityType="test_round" entityId={round.id} projectId={project.id} canAdd={canEdit} canVerify={canEdit} />}
-        {tab === 'History' && round && <AuditHistory entityId={round.id} />}
+        {tab === 'History' && round && <AuditHistory entity={{ table: 'test_rounds', id: round.id }} />}
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Close</Button>
@@ -423,7 +423,7 @@ export function TestRoundDialog({ project, round, rounds, activities, bugs, memb
   );
 }
 
-export const bugTestRoundLabel = (rounds: TestRound[], id: string | null) => {
+export const bugTestRoundLabel = (rounds: TestRound[], id: number | null) => {
   const r = rounds.find((x) => x.id === id);
   return r ? `R${r.round_no} ${optLabel(TEST_TYPES, r.test_type)}` : '-';
 };

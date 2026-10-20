@@ -5,7 +5,7 @@ import type { Profile } from '@/lib/types';
  * MySQL access. Conventions (mirrors what the UI got from PostgREST before):
  *   DATE      → 'YYYY-MM-DD' string
  *   DATETIME  → ISO string in UTC ('…Z'); the session runs in UTC
- *   TINYINT(1)→ boolean, DECIMAL → number, JSON → parsed value
+ *   TINYINT(1)→ boolean, DECIMAL → number, JSON → parsed value, ids → number (INT AUTO_INCREMENT)
  */
 type G = typeof globalThis & { __pcwPool?: Pool };
 
@@ -93,7 +93,7 @@ export class Ctx {
 
   constructor(public conn: PoolConnection, public me: Profile | null) {}
 
-  get uid(): string | null {
+  get uid(): number | null {
     return this.me?.id ?? null;
   }
 
@@ -162,7 +162,6 @@ export async function withCtx<T>(me: Profile | null, fn: (ctx: Ctx) => Promise<T
   }
 }
 
-export const uuid = () => crypto.randomUUID();
 
 /** 'a','b' → '?,?' + params; empty list → a never-true placeholder */
 export function inList(values: readonly unknown[]): [string, unknown[]] {

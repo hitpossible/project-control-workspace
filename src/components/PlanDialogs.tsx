@@ -156,7 +156,7 @@ export function ActivityDialog({ project, activity, hasTasks, canManage, canView
         {tab === 'Evidence' && activity && (
           <EntityEvidence projectId={project.id} entityType="activity" entityId={activity.id} canAdd={canViewInternal} canManage={canManage} allowPublicToggle />
         )}
-        {tab === 'History' && activity && <AuditHistory entityId={activity.id} />}
+        {tab === 'History' && activity && <AuditHistory entity={{ table: 'activities', id: activity.id }} />}
 
         <DialogFooter className="sm:justify-between">
           {activity && canManage ? <Button variant="destructive" onClick={remove}>Delete</Button> : <span />}
@@ -182,13 +182,14 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
   const { me, profileName, notify } = useApp();
   const [tab, setTab] = useState(initialTab ?? 'Details');
   const [f, setF] = useState<Partial<InternalTask>>(task ?? { name: '', task_type: 'dev', priority: 'medium', status: 'todo', progress: 0, owner_id: me?.id, ...defaults });
-  const [preds, setPreds] = useState<string[]>(task ? deps.filter((d) => d.successor_id === task.id).map((d) => d.predecessor_id) : []);
+  // MultiSelect works with string values
+  const [preds, setPreds] = useState<string[]>(task ? deps.filter((d) => d.successor_id === task.id).map((d) => String(d.predecessor_id)) : []);
   const set = <K extends keyof InternalTask>(k: K, v: InternalTask[K] | null) => setF((p) => ({ ...p, [k]: v }));
-  const editable = !task || canManage || [task.owner_id, task.reviewer_id, task.created_by].includes(me?.id ?? '');
+  const editable = !task || canManage || [task.owner_id, task.reviewer_id, task.created_by].includes(me?.id ?? -1);
   const hasChildren = !!task && tasks.some((t) => t.parent_task_id === task.id);
   const overdue = isOverdue(f.due_date, f.status ?? '');
   const parentOptions = tasks.filter((t) => !t.parent_task_id && t.id !== task?.id && t.activity_id === f.activity_id);
-  const predOptions = tasks.filter((t) => t.id !== task?.id).map((t) => ({ value: t.id, label: `${t.task_no} ${t.name}` }));
+  const predOptions = tasks.filter((t) => t.id !== task?.id).map((t) => ({ value: String(t.id), label: `${t.task_no} ${t.name}` }));
 
   const save = async () => {
     if (!f.name?.trim() || !f.owner_id || !f.due_date || !f.activity_id) {
@@ -209,12 +210,13 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
       ? await db.from('internal_tasks').update(payload).eq('id', task.id).select().single()
       : await db.from('internal_tasks').insert({ ...payload, project_id: project.id }).select().single();
     if (res.error) return notify(errMsg(res.error), 'error');
-    const id = res.data.id as string;
+    const id = res.data.id as number;
 
     if (canManage) {
       const current = deps.filter((d) => d.successor_id === id).map((d) => d.predecessor_id);
-      const add = preds.filter((p) => !current.includes(p));
-      const del = current.filter((p) => !preds.includes(p));
+      const picked = preds.map(Number);
+      const add = picked.filter((p) => !current.includes(p));
+      const del = current.filter((p) => !picked.includes(p));
       if (del.length) await db.from('task_dependencies').delete().eq('successor_id', id).in('predecessor_id', del);
       if (add.length) {
         const r = await db.from('task_dependencies').insert(add.map((p) => ({ project_id: project.id, predecessor_id: p, successor_id: id, dep_type: 'FS' })));
@@ -251,12 +253,12 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
             <TextField className={col('sm:col-span-8')} label="Task Name" required value={f.name} onChange={(v) => set('name', v)} disabled={!editable} />
             <SelectField className={col('col-span-6 sm:col-span-2')} label="Type" value={f.task_type} onChange={(v) => set('task_type', v)} options={TASK_TYPES} disabled={!editable} />
             <SelectField className={col('col-span-6 sm:col-span-2')} label="Priority" value={f.priority} onChange={(v) => set('priority', v)} options={PRIORITIES} disabled={!editable} />
-            <SelectField className={col('sm:col-span-6')} label="Parent Activity" required value={f.activity_id}
-              onChange={(v) => setF((p) => ({ ...p, activity_id: v, parent_task_id: null }))}
-              options={activities.map((a) => ({ value: a.id, label: a.name }))} disabled={!editable || !!task?.parent_task_id} />
-            <SelectField className={col('sm:col-span-6')} label="Parent Task (for sub-task)" allowEmpty value={f.parent_task_id} onChange={(v) => set('parent_task_id', v || null)}
-              options={parentOptions.map((t) => ({ value: t.id, label: `${t.task_no} ${t.name}` }))} disabled={!editable || hasChildren} />
-            <UserSelect className={col('sm:col-span-6')} label="Owner" required value={f.owner_id} onChange={(v) => set('owner_id', v as string)} users={members} disabled={!canManage && !!task} />
+            <SelectField className={col('sm:col-span-6')} label="Parent Activity" required value={f.activity_id?.toString()}
+              onChange={(v) => setF((p) => ({ ...p, activity_id: Number(v), parent_task_id: null }))}
+              options={activities.map((a) => ({ value: String(a.id), label: a.name }))} disabled={!editable || !!task?.parent_task_id} />
+            <SelectField className={col('sm:col-span-6')} label="Parent Task (for sub-task)" allowEmpty value={f.parent_task_id?.toString()} onChange={(v) => set('parent_task_id', v ? Number(v) : null)}
+              options={parentOptions.map((t) => ({ value: String(t.id), label: `${t.task_no} ${t.name}` }))} disabled={!editable || hasChildren} />
+            <UserSelect className={col('sm:col-span-6')} label="Owner" required value={f.owner_id} onChange={(v) => set('owner_id', v as number)} users={members} disabled={!canManage && !!task} />
             <UserSelect className={col('sm:col-span-6')} label="Reviewer" value={f.reviewer_id} onChange={(v) => set('reviewer_id', v)} users={members} disabled={!editable} />
             <DateField className={col('col-span-6 sm:col-span-3')} label="Planned Start" value={f.planned_start} onChange={(v) => set('planned_start', v)} disabled={!editable} />
             <DateField className={col('col-span-6 sm:col-span-3')} label="Due Date" required value={f.due_date} onChange={(v) => set('due_date', v)} disabled={!canManage && !!task} />
@@ -278,7 +280,7 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
         )}
         {tab === 'Evidence' && task && <EntityEvidence projectId={project.id} entityType="task" entityId={task.id} canAdd canManage={canManage} />}
         {tab === 'Comments' && task && <CommentThread projectId={project.id} entityType="task" entityId={task.id} canModerate={canManage} />}
-        {tab === 'History' && task && <AuditHistory entityId={task.id} />}
+        {tab === 'History' && task && <AuditHistory entity={{ table: 'internal_tasks', id: task.id }} />}
 
         <DialogFooter className="sm:justify-between">
           {task && (canManage || (task.created_by === me?.id && task.status === 'todo')) ? <Button variant="destructive" onClick={remove}>Delete</Button> : <span />}

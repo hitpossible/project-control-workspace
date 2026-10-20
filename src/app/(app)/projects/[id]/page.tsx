@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import AuditHistory from '@/components/AuditHistory';
 import { useApp } from '@/components/AppProvider';
-import { HealthDot, PageHeader, PriorityChip, StatusChip } from '@/components/common';
+import { HealthDot, PageHeader, PriorityChip, StatusChip, entityKey, toId } from '@/components/common';
 import ReportButton from '@/components/ReportButton';
 import BaselineTab from '@/components/project/BaselineTab';
 import EvidenceTab from '@/components/project/EvidenceTab';
@@ -112,12 +112,13 @@ function Workspace() {
     ...(perm.internal ? [{ v: 'history', l: 'History' }] : []),
   ];
 
+  // keyed by entityKey(): ids are per table, so activity 5 and task 5 are different things
   const names: Record<string, string> = Object.fromEntries([
-    ...data.activities.map((a) => [a.id, a.name]),
-    ...data.tasks.map((t) => [t.id, `${t.task_no} ${t.name}`]),
-    ...data.bugs.map((b) => [b.id, `${b.bug_no} ${b.title}`]),
-    ...data.rounds.map((r) => [r.id, `Round ${r.round_no} ${r.title}`]),
-    [p.id, p.project_code],
+    ...data.activities.map((a) => [entityKey('activity', a.id), a.name]),
+    ...data.tasks.map((t) => [entityKey('task', t.id), `${t.task_no} ${t.name}`]),
+    ...data.bugs.map((b) => [entityKey('bug', b.id), `${b.bug_no} ${b.title}`]),
+    ...data.rounds.map((r) => [entityKey('test_round', r.id), `Round ${r.round_no} ${r.title}`]),
+    [entityKey('project', p.id), p.project_code],
   ]);
 
   const ctx = { data, perm, reload: load, memberProfiles };
@@ -155,8 +156,8 @@ function Workspace() {
 
       {tab === 'overview' && <OverviewTab {...ctx} />}
       {tab === 'plan' && <PlanTab {...ctx} />}
-      {tab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={params.get('task')} focusPanel={params.get('panel')} />}
-      {tab === 'qa' && perm.internal && <QaTab {...ctx} focusBug={params.get('bug')} focusPanel={params.get('panel')} />}
+      {tab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={toId(params.get('task'))} focusPanel={params.get('panel')} />}
+      {tab === 'qa' && perm.internal && <QaTab {...ctx} focusBug={toId(params.get('bug'))} focusPanel={params.get('panel')} />}
       {tab === 'team' && <TeamTab {...ctx} />}
       {tab === 'baseline' && <BaselineTab {...ctx} />}
       {tab === 'evidence' && <EvidenceTab {...ctx} names={names} />}

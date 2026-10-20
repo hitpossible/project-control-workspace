@@ -26,13 +26,13 @@ const BUG_GROUPS = [
 
 const SEV_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
-export default function QaTab({ data, perm, reload, memberProfiles, focusBug, focusPanel }: TabProps & { focusBug?: string | null; focusPanel?: string | null }) {
+export default function QaTab({ data, perm, reload, memberProfiles, focusBug, focusPanel }: TabProps & { focusBug?: number | null; focusPanel?: string | null }) {
   const { me, hasRole, profileName } = useApp();
   const [view, setView] = useState('bugs');
   const [sev, setSev] = useState('');
   const [dev, setDev] = useState('');
-  const [openBug, setOpenBug] = useState<string | null>(null);
-  const [report, setReport] = useState<{ test_round_id?: string } | null>(null);
+  const [openBug, setOpenBug] = useState<number | null>(null);
+  const [report, setReport] = useState<{ test_round_id?: number } | null>(null);
   const [round, setRound] = useState<TestRound | 'new' | null>(null);
   const canQa = hasRole('qa') || perm.manage || data.members.some((m) => m.user_id === me?.id && ['qa', 'leader'].includes(m.member_role));
 
@@ -42,10 +42,10 @@ export default function QaTab({ data, perm, reload, memberProfiles, focusBug, fo
   }, [focusBug]);
 
   const bugs = data.bugs
-    .filter((b) => (!sev || b.severity === sev) && (dev === 'me' ? b.assigned_dev_id === me?.id : !dev || b.assigned_dev_id === dev))
+    .filter((b) => (!sev || b.severity === sev) && (dev === 'me' ? b.assigned_dev_id === me?.id : !dev || b.assigned_dev_id === Number(dev)))
     .sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || (a.due_date ?? '').localeCompare(b.due_date ?? ''));
   const openBugs = data.bugs.filter((b) => !['closed', 'cancelled'].includes(b.status));
-  const devs = [...new Set(data.bugs.map((b) => b.assigned_dev_id).filter(Boolean))] as string[];
+  const devs = [...new Set(data.bugs.map((b) => b.assigned_dev_id).filter(Boolean))] as number[];
   const bug = data.bugs.find((b) => b.id === openBug);
   const reopenRate = data.bugs.length ? Math.round((data.bugs.filter((b) => b.reopen_count > 0).length / data.bugs.length) * 100) : 0;
   const passRate = (() => {
@@ -93,7 +93,7 @@ export default function QaTab({ data, perm, reload, memberProfiles, focusBug, fo
           <>
             <SelectField className="w-40" label="Severity" value={sev} allowEmpty placeholder="All" onChange={setSev} options={SEVERITIES} />
             <SelectField className="w-48" label="Developer" value={dev} allowEmpty placeholder="All" onChange={setDev}
-              options={[{ value: 'me', label: 'Assigned to me' }, ...devs.map((d) => ({ value: d, label: profileName(d) }))]} />
+              options={[{ value: 'me', label: 'Assigned to me' }, ...devs.map((d) => ({ value: String(d), label: profileName(d) }))]} />
           </>
         )}
         <div className="flex-1" />

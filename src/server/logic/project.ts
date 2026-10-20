@@ -26,14 +26,14 @@ export const blank = (s: unknown) => !s || String(s).trim() === '';
 // ---------------------------------------------------------------------
 const HAS_EVIDENCE = `EXISTS (SELECT 1 FROM evidence e WHERE e.requirement_id = r.id AND e.verification_status <> 'rejected')`;
 
-export async function missingEvidence(ctx: Ctx, entityType: string, entityId: string): Promise<string[]> {
+export async function missingEvidence(ctx: Ctx, entityType: string, entityId: number): Promise<string[]> {
   return (await ctx.q<{ name: string }>(
     `SELECT r.name FROM evidence_requirements r
       WHERE r.entity_type = ? AND r.entity_id = ? AND r.is_mandatory = 1 AND NOT ${HAS_EVIDENCE}
       ORDER BY r.created_at`, [entityType, entityId])).map((r) => r.name);
 }
 
-export async function openCriticalBugs(ctx: Ctx, projectId: string): Promise<number> {
+export async function openCriticalBugs(ctx: Ctx, projectId: number): Promise<number> {
   return Number(await ctx.val(`SELECT COUNT(*) FROM bugs WHERE project_id = ? AND severity = 'critical' AND status NOT IN ('closed','cancelled')`, [projectId]));
 }
 
@@ -49,7 +49,7 @@ export const EVIDENCE_MISSING_SQL = `
           OR (a.id IS NOT NULL AND (a.progress >= 100 OR a.plan_finish < ?) AND a.status <> 'cancelled')
           OR (t.id IS NOT NULL AND (t.progress >= 100 OR t.due_date < ?) AND t.status <> 'cancelled'))`;
 
-export async function projectQaStats(ctx: Ctx, projectId: string): Promise<QaStats> {
+export async function projectQaStats(ctx: Ctx, projectId: number): Promise<QaStats> {
   const t = ctx.today;
   const row = await ctx.one<Row>(`
     SELECT
@@ -67,7 +67,7 @@ export async function projectQaStats(ctx: Ctx, projectId: string): Promise<QaSta
 // ---------------------------------------------------------------------
 // Recompute project progress / forecast / health / auto status (was recompute_project)
 // ---------------------------------------------------------------------
-export async function recomputeProject(ctx: Ctx, projectId: string) {
+export async function recomputeProject(ctx: Ctx, projectId: number) {
   const p = await ctx.one<Project>('SELECT * FROM projects WHERE id = ?', [projectId]);
   if (!p) return;
   const today = ctx.today;
@@ -122,7 +122,7 @@ export async function recomputeProject(ctx: Ctx, projectId: string) {
 // Evidence checklist from the template (was apply_template_checklist)
 //   item: "name" (project level) or {"name","activity","mandatory"}
 // ---------------------------------------------------------------------
-export async function applyTemplateChecklist(ctx: Ctx, projectId: string): Promise<number> {
+export async function applyTemplateChecklist(ctx: Ctx, projectId: number): Promise<number> {
   const tpl = await ctx.one<{ evidence_checklist: unknown[] }>(
     'SELECT t.evidence_checklist FROM projects p JOIN project_templates t ON t.id = p.template_id WHERE p.id = ?', [projectId]);
   let n = 0;
@@ -149,8 +149,8 @@ export async function applyTemplateChecklist(ctx: Ctx, projectId: string): Promi
 // ---------------------------------------------------------------------
 export async function activityBeforeWrite(ctx: Ctx, n: Row, old: Row | null) {
   if (old && n.status === 'completed' && old.status !== 'completed') {
-    const missing = await missingEvidence(ctx, 'activity', String(n.id));
-    const crit = n.is_milestone ? await openCriticalBugs(ctx, String(n.project_id)) : 0;
+    const missing = await missingEvidence(ctx, 'activity', Number(n.id));
+    const crit = n.is_milestone ? await openCriticalBugs(ctx, Number(n.project_id)) : 0;
     if (missing.length || crit > 0) {
       if (ctx.depth > 0) n.status = ['not_started', 'completed'].includes(String(old.status)) ? 'in_progress' : old.status;
       else if (missing.length) throw new AppError(`Cannot complete "${n.name}": mandatory evidence missing — ${missing.join(', ')}`);
@@ -175,7 +175,7 @@ export async function activityBeforeWrite(ctx: Ctx, n: Row, old: Row | null) {
 
 export async function taskBeforeWrite(ctx: Ctx, n: Row, old: Row | null) {
   if (old && n.status === 'completed' && old.status !== 'completed') {
-    const missing = await missingEvidence(ctx, 'task', String(n.id));
+    const missing = await missingEvidence(ctx, 'task', Number(n.id));
     if (missing.length) {
       if (ctx.depth > 0) n.status = 'review';
       else throw new AppError(`Cannot complete "${n.name}": mandatory evidence missing — ${missing.join(', ')}`);
@@ -231,16 +231,16 @@ export async function rollupFromTask(ctx: Ctx, r: Row) {
       });
     }
   }
-  await recomputeProject(ctx, String(r.project_id));
+  await recomputeProject(ctx, Number(r.project_id));
 }
 
 /** Activity changes: recompute project; Activity Delayed → Leader / PIC / Supervisor (was rollup_from_activity) */
 export async function rollupFromActivity(ctx: Ctx, r: Row, old: Row | null, op: 'insert' | 'update' | 'delete') {
   if (ctx.depth > 8) return;
-  await recomputeProject(ctx, String(r.project_id));
+  await recomputeProject(ctx, Number(r.project_id));
   if (op === 'update' && r.status === 'delayed' && old?.status !== 'delayed') {
     await notifyEvent(ctx, {
-      event: 'activity_delayed', projectId: String(r.project_id), explicit: [r.pic_user_id as string | null],
+      event: 'activity_delayed', projectId: Number(r.project_id), explicit: [r.pic_user_id as number | null],
       title: `Activity delayed: ${r.name}`, body: `Reason: ${r.delay_reason ?? '(not provided)'}`,
       link: `/projects/${r.project_id}?tab=plan`, dedupe: `activity_delayed:${r.id}:${ctx.today}`,
     });

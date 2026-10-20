@@ -59,7 +59,7 @@ export default function KpiPage() {
 
   const active = projects.filter((p) => !['completed', 'cancelled'].includes(p.status));
   const statusParts = useMemo(() => PROJECT_STATUSES.map((s) => ({ key: s.value, label: s.label, color: s.color!, value: projects.filter((p) => p.status === s.value).length })), [projects]);
-  const trend = (id: string, k: 'progress' | 'open_bugs' | 'schedule_variance') => snaps.filter((s) => s.project_id === id).map((s) => Number(s[k] ?? 0));
+  const trend = (id: number, k: 'progress' | 'open_bugs' | 'schedule_variance') => snaps.filter((s) => s.project_id === id).map((s) => Number(s[k] ?? 0));
 
   return (
     <>

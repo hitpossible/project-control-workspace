@@ -1,5 +1,5 @@
 import type { KpiIndividual, KpiProject, KpiTeam } from '@/lib/types';
-import { AppError, type Ctx, dateOf, daysBetween, inList, uuid } from '../db';
+import { AppError, type Ctx, dateOf, daysBetween, inList } from '../db';
 import { settingValue } from '../logic/common';
 import { canViewKpiAll, canViewInternal, hasRole, isStaff, visibleProjectIds } from '../perms';
 
@@ -16,11 +16,11 @@ function group<T, K>(rows: T[], key: (r: T) => K): Map<K, T[]> {
 }
 
 /** Days spent in 'waiting' (activities) from the audit trail, per project */
-export async function projectWaitingDays(ctx: Ctx, projectIds: string[]): Promise<Map<string, number>> {
-  const out = new Map<string, number>(projectIds.map((id) => [id, 0]));
+export async function projectWaitingDays(ctx: Ctx, projectIds: number[]): Promise<Map<number, number>> {
+  const out = new Map<number, number>(projectIds.map((id) => [id, 0]));
   if (!projectIds.length) return out;
   const [ph, params] = inList(projectIds);
-  const logs = await ctx.q<{ project_id: string; entity_id: string; created_at: string; new_value: string | null }>(
+  const logs = await ctx.q<{ project_id: number; entity_id: number; created_at: string; new_value: string | null }>(
     `SELECT project_id, entity_id, created_at, new_value FROM audit_logs
       WHERE project_id IN (${ph}) AND table_name = 'activities' AND field = 'status' ORDER BY entity_id, created_at, id`, params);
   const now = new Date().toISOString();
@@ -41,7 +41,7 @@ export async function projectWaitingDays(ctx: Ctx, projectIds: string[]): Promis
 export async function kpiProjects(ctx: Ctx): Promise<KpiProject[]> {
   const vis = await visibleProjectIds(ctx);
   const [ph, params] = vis === null ? ['', []] : inList(vis);
-  const projects = await ctx.q<KpiProject & { id: string; baseline_version: number }>(
+  const projects = await ctx.q<KpiProject & { id: number; baseline_version: number }>(
     `SELECT p.id, p.project_code, p.project_name, l.full_name leader_name, p.status, p.health, p.progress, p.start_date, p.target_date,
             p.forecast_date, p.baseline_version,
             (SELECT b.planned_finish FROM project_baselines b WHERE b.project_id = p.id ORDER BY b.version_no DESC LIMIT 1) baseline_finish,
@@ -55,13 +55,13 @@ export async function kpiProjects(ctx: Ctx): Promise<KpiProject[]> {
   const [iph, ip] = inList(ids);
   const today = ctx.today;
 
-  const tasks = group(await ctx.q<{ project_id: string; status: string; due_date: string; actual_finish: string | null }>(
+  const tasks = group(await ctx.q<{ project_id: number; status: string; due_date: string; actual_finish: string | null }>(
     `SELECT project_id, status, due_date, actual_finish FROM internal_tasks WHERE project_id IN (${iph}) AND status <> 'cancelled'`, ip), (t) => t.project_id);
-  const reqs = group(await ctx.q<{ project_id: string; done: number }>(
+  const reqs = group(await ctx.q<{ project_id: number; done: number }>(
     `SELECT r.project_id, EXISTS (SELECT 1 FROM evidence e WHERE e.requirement_id = r.id AND e.verification_status <> 'rejected') done
        FROM evidence_requirements r WHERE r.project_id IN (${iph}) AND r.is_mandatory = 1`, ip), (r) => r.project_id);
-  const bugs = group(await ctx.q<{ project_id: string; status: string }>(`SELECT project_id, status FROM bugs WHERE project_id IN (${iph})`, ip), (b) => b.project_id);
-  const rts = group(await ctx.q<{ project_id: string; status: string; result: string | null }>(
+  const bugs = group(await ctx.q<{ project_id: number; status: string }>(`SELECT project_id, status FROM bugs WHERE project_id IN (${iph})`, ip), (b) => b.project_id);
+  const rts = group(await ctx.q<{ project_id: number; status: string; result: string | null }>(
     `SELECT project_id, status, result FROM retests WHERE project_id IN (${iph})`, ip), (r) => r.project_id);
   const waiting = await projectWaitingDays(ctx, ids);
 
@@ -149,21 +149,21 @@ export async function kpiIndividual(ctx: Ctx, a: { p_from: string; p_to: string 
   const { p_from: from, p_to: to } = a;
   const excluded = await settingValue<string[]>(ctx, 'kpi_excluded_delay_categories', []);
   const all = canViewKpiAll(ctx);
-  const people = (await ctx.q<{ id: string; full_name: string; roles: string[] }>('SELECT id, full_name, roles FROM profiles WHERE is_active = 1 ORDER BY full_name'))
+  const people = (await ctx.q<{ id: number; full_name: string; roles: string[] }>('SELECT id, full_name, roles FROM profiles WHERE is_active = 1 ORDER BY full_name'))
     .filter((p) => p.roles.some((r) => ['developer', 'qa', 'project_leader', 'support'].includes(r)) && (all || p.id === ctx.uid));
   if (!people.length) return [];
 
-  type T = { owner_id: string; status: string; due_date: string; actual_finish: string | null; delay_category: string | null };
+  type T = { owner_id: number; status: string; due_date: string; actual_finish: string | null; delay_category: string | null };
   const tasks = group(await ctx.q<T>(
     `SELECT t.owner_id, t.status, t.due_date, t.actual_finish, t.delay_category FROM internal_tasks t JOIN projects p ON p.id = t.project_id
       WHERE p.status <> 'cancelled' AND t.status <> 'cancelled'`), (t) => t.owner_id);
-  const bugs = group(await ctx.q<{ assigned_dev_id: string; created_at: string }>('SELECT assigned_dev_id, created_at FROM bugs WHERE assigned_dev_id IS NOT NULL'), (b) => b.assigned_dev_id);
-  const fixes = group(await ctx.q<{ fix_owner_id: string; bug_id: string; fix_cycle: number; status: string; fix_ready_at: string | null; created_at: string }>(
+  const bugs = group(await ctx.q<{ assigned_dev_id: number; created_at: string }>('SELECT assigned_dev_id, created_at FROM bugs WHERE assigned_dev_id IS NOT NULL'), (b) => b.assigned_dev_id);
+  const fixes = group(await ctx.q<{ fix_owner_id: number; bug_id: number; fix_cycle: number; status: string; fix_ready_at: string | null; created_at: string }>(
     'SELECT fix_owner_id, bug_id, fix_cycle, status, fix_ready_at, created_at FROM bug_fixes'), (f) => f.fix_owner_id);
-  const evid = group(await ctx.q<{ owner_id: string; done: number }>(
+  const evid = group(await ctx.q<{ owner_id: number; done: number }>(
     `SELECT it.owner_id, EXISTS (SELECT 1 FROM evidence e WHERE e.requirement_id = r.id AND e.verification_status <> 'rejected') done
        FROM evidence_requirements r JOIN internal_tasks it ON r.entity_type = 'task' AND it.id = r.entity_id WHERE r.is_mandatory = 1`), (r) => r.owner_id);
-  const rts = group(await ctx.q<{ tester_id: string; tested_at: string | null; created_at: string }>(
+  const rts = group(await ctx.q<{ tester_id: number; tested_at: string | null; created_at: string }>(
     `SELECT tester_id, tested_at, created_at FROM retests WHERE status = 'done' AND tester_id IS NOT NULL`), (r) => r.tester_id);
 
   return people.map((pe) => {
@@ -203,7 +203,7 @@ export async function kpiIndividual(ctx: Ctx, a: { p_from: string; p_to: string 
 // KPI snapshots (trend) — weekly scheduler job
 // ---------------------------------------------------------------------
 export async function takeKpiSnapshot(ctx: Ctx): Promise<number> {
-  const projects = await ctx.q<{ id: string; progress: number; health: string; status: string; forecast_date: string | null }>(
+  const projects = await ctx.q<{ id: number; progress: number; health: string; status: string; forecast_date: string | null }>(
     `SELECT id, progress, health, status, forecast_date FROM projects WHERE status NOT IN ('cancelled','draft')`);
   const waiting = await projectWaitingDays(ctx, projects.map((p) => p.id));
   for (const p of projects) {
@@ -214,11 +214,11 @@ export async function takeKpiSnapshot(ctx: Ctx): Promise<number> {
       `SELECT COUNT(*) total, COALESCE(SUM(EXISTS (SELECT 1 FROM evidence e WHERE e.requirement_id = r.id AND e.verification_status <> 'rejected')), 0) done
          FROM evidence_requirements r WHERE r.project_id = ? AND r.is_mandatory = 1`, [p.id]);
     await ctx.exec(
-      `INSERT INTO project_kpi_snapshots(id, project_id, snapshot_date, progress, health, status, schedule_variance, overdue_tasks, open_bugs, evidence_completion, waiting_days)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      `INSERT INTO project_kpi_snapshots(project_id, snapshot_date, progress, health, status, schedule_variance, overdue_tasks, open_bugs, evidence_completion, waiting_days)
+       VALUES (?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE progress = VALUES(progress), health = VALUES(health), status = VALUES(status), schedule_variance = VALUES(schedule_variance),
          overdue_tasks = VALUES(overdue_tasks), open_bugs = VALUES(open_bugs), evidence_completion = VALUES(evidence_completion), waiting_days = VALUES(waiting_days)`,
-      [uuid(), p.id, ctx.today, p.progress, p.health, p.status, base && p.forecast_date ? daysBetween(base, p.forecast_date) : null,
+      [p.id, ctx.today, p.progress, p.health, p.status, base && p.forecast_date ? daysBetween(base, p.forecast_date) : null,
         overdue, openBugs, pct(Number(ev?.done ?? 0), Number(ev?.total ?? 0)), waiting.get(p.id) ?? 0]);
   }
   return projects.length;

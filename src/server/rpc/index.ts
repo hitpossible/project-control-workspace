@@ -12,9 +12,9 @@ import { globalSearch } from './search';
 /* eslint-disable @typescript-eslint/no-explicit-any -- args come from JSON and are validated by each function */
 type Fn = (ctx: Ctx, args: any) => Promise<unknown>;
 
-const projectGuard = (fn: (ctx: Ctx, pid: string) => Promise<unknown>): Fn => async (ctx, a) => {
+const projectGuard = (fn: (ctx: Ctx, pid: number) => Promise<unknown>): Fn => async (ctx, a) => {
   if (!a?.p_project_id) throw new AppError('p_project_id is required');
-  return fn(ctx, a.p_project_id);
+  return fn(ctx, Number(a.p_project_id));
 };
 
 /** Functions callable from the browser via POST /api/rpc/<name> (same names / args as the former Postgres RPCs) */
@@ -57,5 +57,5 @@ export const RPC: Record<string, Fn> = {
   can_manage_project: projectGuard(canManageProject),
   can_qa: projectGuard(canQa),
   can_approve_baseline: projectGuard(canApproveBaseline),
-  missing_evidence: async (ctx, a) => missingEvidence(ctx, String(a.p_entity_type), String(a.p_entity_id)),
+  missing_evidence: async (ctx, a) => missingEvidence(ctx, String(a.p_entity_type), Number(a.p_entity_id)),
 };

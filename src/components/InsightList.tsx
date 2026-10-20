@@ -16,7 +16,7 @@ const ICON = {
   info: <Info className="size-4 shrink-0 text-[#579bfc]" />,
 };
 
-export function useInsights(projectId?: string | null) {
+export function useInsights(projectId?: number | null) {
   const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<Insight[] | null>(null);
@@ -47,7 +47,7 @@ export function InsightRow({ i, showProject = true }: { i: Insight; showProject?
 }
 
 /** Compact insight list for dashboards / project overview */
-export default function InsightList({ projectId, limit, showProject = true }: { projectId?: string | null; limit?: number; showProject?: boolean }) {
+export default function InsightList({ projectId, limit, showProject = true }: { projectId?: number | null; limit?: number; showProject?: boolean }) {
   const rows = useInsights(projectId);
   if (rows === null) return <EmptyState text="Analysing…" />;
   if (rows.length === 0) return <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"><Lightbulb className="size-4" /> No insights — everything looks on track</div>;

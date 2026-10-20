@@ -34,7 +34,7 @@ const VERIFY_STYLE: Record<string, string> = {
 export default function EvidencePanel({
   entityType, entityId, projectId, requestId, canAdd, canVerify, defaultInternal = true, allowPublicToggle = false, onChange, compact, requirements = [], reloadKey,
 }: {
-  entityType: EntityType; entityId: string; projectId?: string | null; requestId?: string | null;
+  entityType: EntityType; entityId: number; projectId?: number | null; requestId?: number | null;
   canAdd: boolean; canVerify?: boolean; defaultInternal?: boolean; allowPublicToggle?: boolean;
   onChange?: () => void; compact?: boolean;
   /** checklist items this evidence can satisfy */
@@ -63,7 +63,7 @@ export default function EvidencePanel({
     entity_type: entityType, entity_id: entityId,
     project_id: projectId ?? null, request_id: requestId ?? null,
     uploaded_by: me?.id, is_internal: allowPublicToggle ? internal : defaultInternal,
-    is_required: !!reqId, verification_status: 'pending', requirement_id: reqId || null,
+    is_required: !!reqId, verification_status: 'pending', requirement_id: reqId ? Number(reqId) : null,
   };
 
   const upload = async (files: FileList | null) => {
@@ -125,7 +125,7 @@ export default function EvidencePanel({
         <div className="no-print mb-2 flex flex-wrap items-center gap-2">
           {requirements.length > 0 && (
             <SelectField className="w-64" value={reqId} allowEmpty placeholder="Satisfies checklist item…" onChange={setReqId}
-              options={requirements.map((r) => ({ value: r.id, label: `${r.is_mandatory ? '★ ' : ''}${r.name}` }))} />
+              options={requirements.map((r) => ({ value: String(r.id), label: `${r.is_mandatory ? '★ ' : ''}${r.name}` }))} />
           )}
           <Button variant="outline" size="sm" asChild disabled={busy}>
             <label className="cursor-pointer">

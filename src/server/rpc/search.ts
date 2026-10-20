@@ -3,7 +3,7 @@ import { POLICIES, type Where } from '../policies';
 
 export type SearchHit = {
   type: 'project' | 'request' | 'task' | 'bug';
-  id: string;
+  id: number;
   title: string;
   code: string | null;
   subtitle: string | null;
@@ -30,7 +30,7 @@ export async function globalSearch(ctx: Ctx, a: { q?: string }): Promise<SearchH
 
   const pw = await where(ctx, 'projects');
   if (pw) {
-    for (const p of await ctx.q<{ id: string; project_code: string; project_name: string; status: string; leader: string | null }>(
+    for (const p of await ctx.q<{ id: number; project_code: string; project_name: string; status: string; leader: string | null }>(
       `SELECT p.id, p.project_code, p.project_name, p.status, l.full_name leader FROM projects p LEFT JOIN profiles l ON l.id = p.leader_id
         WHERE p.id IN (SELECT id FROM projects WHERE ${pw[0]}) AND (p.project_code LIKE ? OR p.project_name LIKE ?)
         ORDER BY p.project_code DESC LIMIT ${LIMIT}`, [...pw[1], t, t])) {
@@ -40,7 +40,7 @@ export async function globalSearch(ctx: Ctx, a: { q?: string }): Promise<SearchH
 
   const rw = await where(ctx, 'project_requests');
   if (rw) {
-    for (const r of await ctx.q<{ id: string; request_no: string | null; project_name: string; status: string; req_full_name: string | null; req_department: string | null }>(
+    for (const r of await ctx.q<{ id: number; request_no: string | null; project_name: string; status: string; req_full_name: string | null; req_department: string | null }>(
       `SELECT id, request_no, project_name, status, req_full_name, req_department FROM project_requests
         WHERE (${rw[0]}) AND (request_no LIKE ? OR project_name LIKE ? OR req_full_name LIKE ?)
         ORDER BY created_at DESC LIMIT ${LIMIT}`, [...rw[1], t, t, t])) {
@@ -51,7 +51,7 @@ export async function globalSearch(ctx: Ctx, a: { q?: string }): Promise<SearchH
 
   const tw = await where(ctx, 'internal_tasks');
   if (tw) {
-    for (const x of await ctx.q<{ id: string; project_id: string; task_no: string; name: string; status: string; project_code: string; owner: string | null }>(
+    for (const x of await ctx.q<{ id: number; project_id: number; task_no: string; name: string; status: string; project_code: string; owner: string | null }>(
       `SELECT t.id, t.project_id, t.task_no, t.name, t.status, p.project_code, o.full_name owner
          FROM internal_tasks t JOIN projects p ON p.id = t.project_id LEFT JOIN profiles o ON o.id = t.owner_id
         WHERE t.id IN (SELECT id FROM internal_tasks WHERE ${tw[0]}) AND (t.task_no LIKE ? OR t.name LIKE ?)
@@ -63,7 +63,7 @@ export async function globalSearch(ctx: Ctx, a: { q?: string }): Promise<SearchH
 
   const bw = await where(ctx, 'bugs');
   if (bw) {
-    for (const b of await ctx.q<{ id: string; project_id: string; bug_no: string; title: string; status: string; project_code: string; severity: string }>(
+    for (const b of await ctx.q<{ id: number; project_id: number; bug_no: string; title: string; status: string; project_code: string; severity: string }>(
       `SELECT b.id, b.project_id, b.bug_no, b.title, b.status, b.severity, p.project_code
          FROM bugs b JOIN projects p ON p.id = b.project_id
         WHERE b.id IN (SELECT id FROM bugs WHERE ${bw[0]}) AND (b.bug_no LIKE ? OR b.title LIKE ?)

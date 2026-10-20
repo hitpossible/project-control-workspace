@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import type { Profile } from '@/lib/types';
-import { AppError, pool, uuid } from './db';
+import { AppError, pool } from './db';
 import { SESSION_COOKIE, sessionSecret, verifySession } from './session';
 import { loadProfile } from './users';
 
@@ -47,6 +47,37 @@ const pick = (o: Record<string, unknown>, ...keys: string[]) => {
   return null;
 };
 
+const lookupId = async (sql: string, params: unknown[]) => {
+  const [rows] = await pool().query(sql, params);
+  return ((rows as { id: number }[])[0]?.id) ?? null;
+};
+
+/**
+ * Department / Section / Position from AD → ids in the master tables (matched by name, case-insensitive).
+ * Department names can repeat across plants, so the section picks the department when both are sent.
+ * A key AD does not send is left alone; a name that is not in the table becomes null.
+ */
+export async function adMasterIds(info: Record<string, unknown>) {
+  const out: Record<string, number | null> = {};
+  const dept = pick(info, 'department', 'dept')?.trim() ?? null;
+  const section = pick(info, 'section', 'division')?.trim() ?? null;
+  const position = pick(info, 'position')?.trim() ?? null;
+  if (dept !== null) {
+    const [rows] = section !== null
+      ? await pool().query(
+        'SELECT s.id section_id, s.department_id FROM sections s JOIN departments d ON d.id = s.department_id WHERE d.name = ? AND s.name = ? ORDER BY d.id LIMIT 1',
+        [dept, section])
+      : [[]];
+    const hit = (rows as { section_id: number; department_id: number }[])[0];
+    out.department_id = hit?.department_id ?? await lookupId('SELECT id FROM departments WHERE name = ? ORDER BY id LIMIT 1', [dept]);
+    if (section !== null) out.section_id = hit?.section_id ?? null;
+  } else if (section !== null) {
+    out.section_id = await lookupId('SELECT id FROM sections WHERE name = ? ORDER BY id LIMIT 1', [section]);
+  }
+  if (position !== null) out.position_id = await lookupId('SELECT id FROM positions WHERE name = ? ORDER BY id LIMIT 1', [position]);
+  return out;
+}
+
 export async function authenticate(loginRaw: string, password: string): Promise<Profile> {
   const login = loginRaw.trim();
   if (!login || !password) throw new AppError('Enter username and password', 400);
@@ -61,14 +92,19 @@ export async function authenticate(loginRaw: string, password: string): Promise<
     const ad = await adLogin(username, password);
     if (ad.ok) {
       if (!profile) profile = await findProfile(username);
+      const ids = await adMasterIds(ad.info);
       if (!profile) {
         if (process.env.AD_AUTO_PROVISION === 'false') throw new AppError('Your account is not registered in Project Control. Please contact the administrator.', 403);
         await pool().query(
-          'INSERT INTO profiles(id, username, full_name, email, employee_id, department, section, roles) VALUES (?,?,?,?,?,?,?,?)',
-          [uuid(), username, pick(ad.info, 'full_name', 'fullName', 'fullname', 'displayName', 'display_name', 'name') ?? username,
+          'INSERT INTO profiles(username, full_name, email, employee_id, department_id, section_id, position_id, roles) VALUES (?,?,?,?,?,?,?,?)',
+          [username, pick(ad.info, 'full_name', 'fullName', 'fullname', 'displayName', 'display_name', 'name') ?? username,
             pick(ad.info, 'email', 'mail', 'userPrincipalName'), pick(ad.info, 'employee_id', 'employeeId', 'employeeID', 'emp_id'),
-            pick(ad.info, 'department', 'dept'), pick(ad.info, 'section', 'division'), JSON.stringify(['requestor'])]);
+            ids.department_id ?? null, ids.section_id ?? null, ids.position_id ?? null, JSON.stringify(['requestor'])]);
         profile = await findProfile(username);
+      } else if (Object.keys(ids).length) {
+        // keep department / section / position in step with AD on every login
+        const cols = Object.keys(ids);
+        await pool().query(`UPDATE profiles SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`, [...cols.map((c) => ids[c]), profile.id]);
       }
       return finish(profile!);
     }
@@ -83,8 +119,8 @@ async function finish(p: DbProfile): Promise<Profile> {
   return (await loadProfile(p.id))!;
 }
 
-export async function createSession(userId: string): Promise<{ name: string; value: string; maxAge: number }> {
-  const value = await new SignJWT({}).setProtectedHeader({ alg: 'HS256' }).setSubject(userId)
+export async function createSession(userId: number): Promise<{ name: string; value: string; maxAge: number }> {
+  const value = await new SignJWT({}).setProtectedHeader({ alg: 'HS256' }).setSubject(String(userId))
     .setIssuedAt().setExpirationTime(`${SESSION_HOURS}h`).sign(sessionSecret());
   return { name: SESSION_COOKIE, value, maxAge: SESSION_HOURS * 3600 };
 }

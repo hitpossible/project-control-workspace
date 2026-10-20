@@ -9,7 +9,10 @@ import { Tip } from './common';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 
 export interface GanttRow {
+  /** unique across the chart: entityKey('activity' | 'task', id) */
   id: string;
+  /** id of the activity / task the row shows */
+  entityId: number;
   level: number;               // 0 = activity, 1 = task, 2 = sub-task
   label: string;
   code?: string | null;

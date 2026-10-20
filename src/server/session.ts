@@ -9,11 +9,12 @@ export function sessionSecret(): Uint8Array {
   return new TextEncoder().encode(s);
 }
 
-export async function verifySession(token: string | undefined): Promise<string | null> {
+/** user id from the session, or null (sessions from before the INT ids carry a UUID and are rejected) */
+export async function verifySession(token: string | undefined): Promise<number | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, sessionSecret());
-    return payload.sub ?? null;
+    return payload.sub && /^\d+$/.test(payload.sub) ? Number(payload.sub) : null;
   } catch {
     return null;
   }

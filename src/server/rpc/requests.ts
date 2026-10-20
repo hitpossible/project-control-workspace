@@ -1,3 +1,4 @@
+import { APPROVAL_ROUTE, RECEIVE_STEPS, canActOnStep, positionsForLevels } from '@/lib/approval';
 import type { ApprovalStep, ProjectRequest } from '@/lib/types';
 import { AppError, type Ctx, type Row, addDays } from '../db';
 import { getRow, insertRow, updateRow } from '../engine';
@@ -8,16 +9,39 @@ import { hasRole, invalidatePerms } from '../perms';
 const blank = (s: unknown) => !s || String(s).trim() === '';
 
 const STATUS_FOR_STEP: Record<string, ProjectRequest['status']> = {
+  requestor_check: 'waiting_requestor_approval',
+  requestor_approve: 'waiting_requestor_approval',
+  ss_receive: 'waiting_system_review',
+  ss_gm_approve: 'waiting_authority_approval',
+  ss_fm_approve: 'waiting_authority_approval',
+  final_approve: 'waiting_authority_approval',
+  // steps created before the fixed route
   requestor_approval: 'waiting_requestor_approval',
   system_review: 'waiting_system_review',
   authority_approval: 'waiting_authority_approval',
 };
 
+/** Active users who may act on a step (the requestor never approves their own request) */
+async function stepApprovers(ctx: Ctx, step: Pick<ApprovalStep, 'approver_id' | 'approver_role' | 'approver_levels' | 'approver_department'>, requestorId: number) {
+  if (step.approver_levels) {
+    const positions = positionsForLevels(step.approver_levels);
+    if (!positions.length) return [];
+    const rows = await ctx.q<{ id: number }>(
+      `SELECT CAST(p.id AS CHAR) id FROM profiles p
+         JOIN positions o ON o.id = p.position_id
+         LEFT JOIN departments d ON d.id = p.department_id
+        WHERE p.is_active = 1 AND p.id <> ? AND o.name IN (${positions.map(() => '?').join(',')}) AND (? IS NULL OR d.name = ?)`,
+      [requestorId, ...positions, step.approver_department, step.approver_department]);
+    return rows.map((p) => p.id);
+  }
+  return step.approver_id
+    ? [step.approver_id]
+    : (await ctx.q<{ id: number }>('SELECT id FROM profiles WHERE is_active = 1 AND JSON_CONTAINS(roles, JSON_QUOTE(?))', [step.approver_role])).map((p) => p.id);
+}
+
 async function notifyStepWaiting(ctx: Ctx, step: ApprovalStep) {
   const r = (await getRow(ctx, 'project_requests', step.request_id)) as unknown as ProjectRequest;
-  const users = step.approver_id
-    ? [step.approver_id]
-    : (await ctx.q<{ id: string }>('SELECT id FROM profiles WHERE is_active = 1 AND JSON_CONTAINS(roles, JSON_QUOTE(?))', [step.approver_role])).map((p) => p.id);
+  const users = await stepApprovers(ctx, step, r.requestor_id);
   await notifyEvent(ctx, {
     event: 'approval_waiting', requestId: r.id, explicit: users,
     title: `Approval required: ${r.request_no}`, body: `${step.step_name} — ${r.project_name}`,
@@ -25,13 +49,13 @@ async function notifyStepWaiting(ctx: Ctx, step: ApprovalStep) {
   });
 }
 
-async function lockRequest(ctx: Ctx, id: string): Promise<ProjectRequest> {
+async function lockRequest(ctx: Ctx, id: number): Promise<ProjectRequest> {
   const r = await getRow(ctx, 'project_requests', id, true);
   if (!r) throw new AppError('Request not found', 404);
   return r as unknown as ProjectRequest;
 }
 
-export async function submitRequest(ctx: Ctx, a: { p_request_id: string }) {
+export async function submitRequest(ctx: Ctx, a: { p_request_id: number }) {
   let r = await lockRequest(ctx, a.p_request_id);
   if (r.requestor_id !== ctx.uid) throw new AppError('Only the requestor can submit this request', 403);
   if (!['draft', 'need_more_information'].includes(r.status)) throw new AppError(`Request cannot be submitted from status ${r.status}`);
@@ -41,11 +65,27 @@ export async function submitRequest(ctx: Ctx, a: { p_request_id: string }) {
   if (blank(r.description)) missing.push('Brief Description');
   if (blank(r.reason)) missing.push('Reason for Request');
   if (!r.date_required) missing.push('Date Required');
-  if (!r.requestor_approver_id) missing.push('Requestor Approver');
   if (missing.length) throw new AppError(`Missing required fields: ${missing.join(', ')}`);
   if (blank(r.req_full_name) || blank(r.req_department)) {
     throw new AppError('Your user profile has no name or department — ask an administrator to update it in Admin → Users');
   }
+
+  const ssDept = (await settingValue<string>(ctx, 'system_service_department', '')).trim();
+  if (!ssDept) throw new AppError('System Service department is not set — ask an administrator to set it in Admin → Numbering & Route');
+  const steps: Row[] = APPROVAL_ROUTE.map((s, i) => ({
+    step_no: i + 1, step_code: s.step_code, step_name: s.step_name, approver_id: null, approver_role: s.group,
+    approver_levels: s.levels,
+    approver_department: s.department === 'requestor' ? r.req_department : s.department === 'system_service' ? ssDept : null,
+    status: i === 0 ? 'waiting' : 'pending',
+  }));
+  // Every step needs someone who can act on it, otherwise the request gets stuck
+  const nobody: string[] = [];
+  for (const s of steps) {
+    if (!(await stepApprovers(ctx, s as unknown as ApprovalStep, r.requestor_id)).length) {
+      nobody.push(`${s.step_name} (${(s.approver_levels as string[]).join('/')}${s.approver_department ? ` in ${s.approver_department}` : ''})`);
+    }
+  }
+  if (nobody.length) throw new AppError(`No approver found for: ${nobody.join(', ')} — ask an administrator to check Position / Department in Admin → Users`);
 
   return ctx.asWorkflow(async () => {
     // Resume after "Request More Information": same step goes back to waiting
@@ -62,11 +102,6 @@ export async function submitRequest(ctx: Ctx, a: { p_request_id: string }) {
 
     const cycle = Number(await ctx.val('SELECT COALESCE(MAX(cycle), 0) + 1 FROM approval_steps WHERE request_id = ?', [r.id]));
     await ctx.exec(`UPDATE approval_steps SET status = 'cancelled' WHERE request_id = ? AND status IN ('pending','waiting')`, [r.id]);
-    const steps: Row[] = [
-      { step_no: 1, step_code: 'requestor_approval', step_name: 'Requestor Approval', approver_id: r.requestor_approver_id, approver_role: 'requestor_approver', status: 'waiting' },
-      { step_no: 2, step_code: 'system_review', step_name: 'System Service Review', approver_id: null, approver_role: 'system_reviewer', status: 'pending' },
-      { step_no: 3, step_code: 'authority_approval', step_name: 'Authority Approval', approver_id: r.authority_approver_id, approver_role: 'authority_approver', status: 'pending' },
-    ];
     let first: ApprovalStep | null = null;
     for (const s of steps) {
       const row = (await insertRow(ctx, 'approval_steps', { request_id: r.id, cycle, ...s })) as unknown as ApprovalStep;
@@ -84,27 +119,33 @@ export async function submitRequest(ctx: Ctx, a: { p_request_id: string }) {
   });
 }
 
-/** System Service Review data (only while the review step is waiting) */
+/** System Service review data — filled in by whoever receives the request (only while that step is waiting) */
 export async function saveReview(ctx: Ctx, a: {
-  p_request_id: string; p_project_type_id: number | null; p_template_id: number | null;
-  p_proposed_leader_id: string | null; p_authority_approver_id: string | null; p_scope_assessment: string | null;
+  p_request_id: number; p_project_type_id: number | null; p_template_id: number | null;
+  p_proposed_leader_id: number | null; p_authority_approver_id?: number | null; p_scope_assessment: string | null;
 }) {
-  if (!hasRole(ctx, 'system_reviewer')) throw new AppError('Only System Service Reviewer can review requests', 403);
-  const waiting = await ctx.val(`SELECT 1 FROM approval_steps WHERE request_id = ? AND step_code = 'system_review' AND status = 'waiting' LIMIT 1`, [a.p_request_id]);
-  if (!waiting) throw new AppError('Request is not waiting for System Service Review');
+  const r = await lockRequest(ctx, a.p_request_id);
+  const s = await ctx.one<ApprovalStep>(
+    `SELECT * FROM approval_steps WHERE request_id = ? AND status = 'waiting' AND step_code IN (${RECEIVE_STEPS.map(() => '?').join(',')}) LIMIT 1`,
+    [r.id, ...RECEIVE_STEPS]);
+  if (!s) throw new AppError('Request is not waiting to be received by System Service');
+  if (!canActOnStep(s, ctx.me, r.requestor_id)) throw new AppError(`You cannot act on ${s.step_name}`, 403);
   return ctx.asWorkflow(async () => {
-    const r = await updateRow(ctx, 'project_requests', a.p_request_id, {
+    const patch: Row = {
       project_type_id: a.p_project_type_id, template_id: a.p_template_id, proposed_leader_id: a.p_proposed_leader_id,
-      authority_approver_id: a.p_authority_approver_id, scope_assessment: a.p_scope_assessment, reviewed_by: ctx.uid,
-    });
-    // keep authority step approver in sync
-    await ctx.exec(`UPDATE approval_steps SET approver_id = ? WHERE request_id = ? AND step_code = 'authority_approval' AND status = 'pending'`,
-      [a.p_authority_approver_id, a.p_request_id]);
-    return r;
+      scope_assessment: a.p_scope_assessment, reviewed_by: ctx.uid,
+    };
+    // legacy route: the reviewer still picks the Authority Approver
+    if (s.step_code === 'system_review') {
+      patch.authority_approver_id = a.p_authority_approver_id ?? null;
+      await ctx.exec(`UPDATE approval_steps SET approver_id = ? WHERE request_id = ? AND step_code = 'authority_approval' AND status = 'pending'`,
+        [a.p_authority_approver_id ?? null, r.id]);
+    }
+    return updateRow(ctx, 'project_requests', r.id, patch);
   });
 }
 
-export async function actOnApproval(ctx: Ctx, a: { p_step_id: string; p_action: string; p_comment?: string | null }) {
+export async function actOnApproval(ctx: Ctx, a: { p_step_id: number; p_action: string; p_comment?: string | null }) {
   const s = (await getRow(ctx, 'approval_steps', a.p_step_id, true)) as unknown as ApprovalStep | null;
   if (!s) throw new AppError('Approval step not found', 404);
   let r = await lockRequest(ctx, s.request_id);
@@ -112,12 +153,12 @@ export async function actOnApproval(ctx: Ctx, a: { p_step_id: string; p_action: 
   // Validate status before update (never skip approval)
   if (s.status !== 'waiting') throw new AppError(`This step is not waiting for action (status: ${s.status})`);
   if (r.status !== STATUS_FOR_STEP[s.step_code]) throw new AppError(`Request status ${r.status} does not match step ${s.step_code}`);
-  if (s.approver_id && s.approver_id !== ctx.uid) throw new AppError('You are not the assigned approver for this step', 403);
-  if (!s.approver_id && !ctx.me?.roles.includes(s.approver_role as never)) throw new AppError(`You need role ${s.approver_role} to act on this step`, 403);
+  if (!canActOnStep(s, ctx.me, r.requestor_id)) throw new AppError(`You are not an approver for ${s.step_name}`, 403);
   if (!['approve', 'reject', 'send_back', 'request_more_info'].includes(a.p_action)) throw new AppError(`Unsupported action ${a.p_action}`);
   if (a.p_action !== 'approve' && blank(a.p_comment)) throw new AppError(`A comment is required for ${a.p_action.replaceAll('_', ' ')}`);
-  if (a.p_action === 'approve' && s.step_code === 'system_review' && (!r.project_type_id || !r.proposed_leader_id || !r.authority_approver_id)) {
-    throw new AppError('Complete the review (Project Type, Project Leader, Authority Approver) before approving');
+  if (a.p_action === 'approve' && RECEIVE_STEPS.includes(s.step_code)
+    && (!r.project_type_id || !r.proposed_leader_id || (s.step_code === 'system_review' && !r.authority_approver_id))) {
+    throw new AppError('Complete the review (Project Type, Project Leader) before approving');
   }
 
   return ctx.asWorkflow(async () => {
@@ -158,7 +199,7 @@ export async function actOnApproval(ctx: Ctx, a: { p_step_id: string; p_action: 
   });
 }
 
-export async function cancelRequest(ctx: Ctx, a: { p_request_id: string; p_comment?: string | null }) {
+export async function cancelRequest(ctx: Ctx, a: { p_request_id: number; p_comment?: string | null }) {
   const r = await lockRequest(ctx, a.p_request_id);
   if (r.requestor_id !== ctx.uid && !hasRole(ctx, 'admin')) throw new AppError('Only the requestor can cancel', 403);
   if (!['draft', 'need_more_information', 'waiting_requestor_approval'].includes(r.status)) throw new AppError(`Request cannot be cancelled from status ${r.status}`);
@@ -173,12 +214,12 @@ export async function cancelRequest(ctx: Ctx, a: { p_request_id: string; p_comme
 type TplActivity = { name: string; pic_label?: string; duration_days?: number; is_milestone?: boolean; tasks?: { name: string; task_type?: string; duration_days?: number }[] };
 
 /** Convert approved request → Controlled Project */
-export async function convertRequestToProject(ctx: Ctx, a: { p_request_id: string; p_start_date: string; p_target_date: string; p_sponsor?: string | null }) {
+export async function convertRequestToProject(ctx: Ctx, a: { p_request_id: number; p_start_date: string; p_target_date: string; p_sponsor?: string | null }) {
   const r = await lockRequest(ctx, a.p_request_id);
   // Business rule 1: only approved requests can be converted
   if (r.status !== 'approved') throw new AppError(`Only approved requests can be converted (status: ${r.status})`);
-  if (!(hasRole(ctx, 'system_reviewer') || r.proposed_leader_id === ctx.uid)) {
-    throw new AppError('Only System Service Reviewer or the assigned Project Leader can convert', 403);
+  if (!(hasRole(ctx, 'system_reviewer') || r.proposed_leader_id === ctx.uid || r.reviewed_by === ctx.uid)) {
+    throw new AppError('Only System Service (the receiver or a reviewer) or the assigned Project Leader can convert', 403);
   }
   if (!a.p_start_date || !a.p_target_date || a.p_target_date < a.p_start_date) throw new AppError('Valid start and target dates are required');
 
@@ -190,10 +231,10 @@ export async function convertRequestToProject(ctx: Ctx, a: { p_request_id: strin
       leader_id: r.proposed_leader_id, sponsor: a.p_sponsor ?? null, department: r.req_department, priority: r.priority,
       start_date: a.p_start_date, target_date: a.p_target_date, status: 'planning', next_action: 'Prepare project plan and set Baseline V1',
     });
-    const pid = String(p.id);
+    const pid = Number(p.id);
 
     // Project Team
-    const addMember = async (userId: string | null, role: string) => {
+    const addMember = async (userId: number | null, role: string) => {
       if (userId && !(await ctx.val('SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ? AND member_role = ?', [pid, userId, role]))) {
         await insertRow(ctx, 'project_members', { project_id: pid, user_id: userId, member_role: role });
       }

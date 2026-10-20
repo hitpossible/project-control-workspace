@@ -26,10 +26,10 @@ export default function BaselineTab({ data, perm, reload }: TabProps) {
   const db = dbClient();
   const { me, hasRole, profileName, notify } = useApp();
   const latestId = data.baselines[0]?.id ?? null;
-  const [picked, setPicked] = useState<{ id: string | null; latest: string | null }>({ id: latestId, latest: latestId });
+  const [picked, setPicked] = useState<{ id: number | null; latest: number | null }>({ id: latestId, latest: latestId });
   // jump to the newest version whenever a new baseline appears
   const sel = picked.latest === latestId ? picked.id : latestId;
-  const setSel = (id: string) => setPicked({ id, latest: latestId });
+  const setSel = (id: number) => setPicked({ id, latest: latestId });
   const [dialog, setDialog] = useState(false);
   const [revOpen, setRevOpen] = useState(false);
   const [rev, setRev] = useState({ reason: '', impact: '', target: data.project.target_date ?? '' });

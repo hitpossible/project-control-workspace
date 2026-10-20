@@ -9,7 +9,7 @@ const SEV_ORDER = { critical: 0, warning: 1, info: 2 } as const;
 const words = (s: string) => s.replaceAll('_', ' ');
 
 /** Smart Insight (§22) — rule based, thresholds from insight_rules */
-export async function smartInsights(ctx: Ctx, a: { p_project_id?: string | null }): Promise<Insight[]> {
+export async function smartInsights(ctx: Ctx, a: { p_project_id?: number | null }): Promise<Insight[]> {
   const projectId = a.p_project_id ?? null;
   const staff = isStaff(ctx);
   const today = ctx.today;
@@ -23,14 +23,14 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: string | null 
   if (vis !== null) { const [ph, p] = inList(vis); where.push(`id IN (${ph})`); params.push(...p); }
   const pj = await ctx.q<Project>(`SELECT * FROM projects WHERE ${where.join(' AND ')}`, params);
   const found: Found[] = [];
-  const add = (p: Pick<Project, 'id' | 'project_code'>, rule_code: string, title: string, detail: string, entity_type: string, entity_id: string, lnk = '') =>
+  const add = (p: Pick<Project, 'id' | 'project_code'>, rule_code: string, title: string, detail: string, entity_type: string, entity_id: number, lnk = '') =>
     found.push({ project_id: p.id, project_code: p.project_code, rule_code, title, detail, entity_type, entity_id, lnk });
 
   if (pj.length) {
     const [ph, ids] = inList(pj.map((p) => p.id));
     const byId = new Map(pj.map((p) => [p.id, p]));
     const acts = await ctx.q<Activity>(`SELECT * FROM activities WHERE project_id IN (${ph}) AND status <> 'cancelled' ORDER BY seq`, ids);
-    const bl = new Map((await ctx.q<{ project_id: string; planned_finish: string | null }>(
+    const bl = new Map((await ctx.q<{ project_id: number; planned_finish: string | null }>(
       `SELECT b.project_id, b.planned_finish FROM project_baselines b
         WHERE b.project_id IN (${ph}) AND b.version_no = (SELECT MAX(x.version_no) FROM project_baselines x WHERE x.project_id = b.project_id)`, ids))
       .map((b) => [b.project_id, b.planned_finish]));
@@ -67,12 +67,12 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: string | null 
     }
 
     // activity level
-    const waitingSince = new Map<string, string>();
+    const waitingSince = new Map<number, string>();
     const waitingActs = acts.filter((x) => x.status === 'waiting');
     if (waitingActs.length) {
       const [wph, wids] = inList(waitingActs.map((x) => x.id));
-      for (const l of await ctx.q<{ entity_id: string; at: string }>(
-        `SELECT entity_id, MAX(created_at) at FROM audit_logs WHERE entity_id IN (${wph}) AND field = 'status' AND new_value = 'waiting' GROUP BY entity_id`, wids)) {
+      for (const l of await ctx.q<{ entity_id: number; at: string }>(
+        `SELECT entity_id, MAX(created_at) at FROM audit_logs WHERE table_name = 'activities' AND entity_id IN (${wph}) AND field = 'status' AND new_value = 'waiting' GROUP BY entity_id`, wids)) {
         waitingSince.set(l.entity_id, dateOf(l.at)!);
       }
     }
@@ -105,7 +105,7 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: string | null 
     }
 
     // mandatory evidence missing on finished / overdue items (grouped per project)
-    const miss = await ctx.q<{ project_id: string; name: string }>(
+    const miss = await ctx.q<{ project_id: number; name: string }>(
       `SELECT x.project_id, x.name FROM evidence_requirements x
          LEFT JOIN activities ea ON x.entity_type = 'activity' AND ea.id = x.entity_id
          LEFT JOIN internal_tasks et ON x.entity_type = 'task' AND et.id = x.entity_id
@@ -113,7 +113,7 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: string | null 
           AND NOT EXISTS (SELECT 1 FROM evidence e WHERE e.requirement_id = x.id AND e.verification_status <> 'rejected')
           AND ((ea.id IS NOT NULL AND ea.status <> 'cancelled' AND (ea.progress >= 100 OR ea.plan_finish < ?))
             OR (et.id IS NOT NULL AND et.status <> 'cancelled' AND (et.progress >= 100 OR et.due_date < ?)))`, [...ids, today, today]);
-    const missBy = new Map<string, string[]>();
+    const missBy = new Map<number, string[]>();
     for (const m of miss) missBy.set(m.project_id, [...(missBy.get(m.project_id) ?? []), m.name]);
     for (const [pid, names] of missBy) {
       add(byId.get(pid)!, 'evidence_missing', `Mandatory evidence missing (${names.length})`, `Missing: ${names.sort().join(', ')}`, 'project', pid, '?tab=evidence');
@@ -121,8 +121,8 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: string | null 
 
     // internal (QA / people)
     if (staff) {
-      const name = new Map((await ctx.q<{ id: string; full_name: string }>('SELECT id, full_name FROM profiles')).map((u) => [u.id, u.full_name]));
-      for (const b of await ctx.q<{ id: string; project_id: string; bug_no: string; title: string; status: string; severity: string; assigned_dev_id: string | null; due_date: string | null }>(
+      const name = new Map((await ctx.q<{ id: number; full_name: string }>('SELECT id, full_name FROM profiles')).map((u) => [u.id, u.full_name]));
+      for (const b of await ctx.q<{ id: number; project_id: number; bug_no: string; title: string; status: string; severity: string; assigned_dev_id: number | null; due_date: string | null }>(
         `SELECT id, project_id, bug_no, title, status, severity, assigned_dev_id, due_date FROM bugs WHERE project_id IN (${ph}) AND status NOT IN ('closed','cancelled') ORDER BY bug_no`, ids)) {
         const p = byId.get(b.project_id)!;
         if (b.severity === 'critical') {
@@ -133,13 +133,13 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: string | null 
           add(p, 'fix_overdue', `Bug fix overdue: ${b.bug_no}`, `${b.title} — due ${fmtD(b.due_date, false)} (${daysBetween(b.due_date, today)} day(s) late).`, 'bug', b.id, `?tab=qa&bug=${b.id}`);
         }
       }
-      for (const r of await ctx.q<{ project_id: string; tester_id: string | null; due_date: string; bug_id: string; bug_no: string }>(
+      for (const r of await ctx.q<{ project_id: number; tester_id: number | null; due_date: string; bug_id: number; bug_no: string }>(
         `SELECT r.project_id, r.tester_id, r.due_date, b.id bug_id, b.bug_no FROM retests r JOIN bugs b ON b.id = r.bug_id
           WHERE r.project_id IN (${ph}) AND r.status = 'pending' AND r.due_date < ?`, [...ids, today])) {
         add(byId.get(r.project_id)!, 'retest_overdue', `Retest overdue: ${r.bug_no}`,
           `Waiting for ${(r.tester_id && name.get(r.tester_id)) || 'QA'} since ${fmtD(r.due_date, false)}.`, 'bug', r.bug_id, `?tab=qa&bug=${r.bug_id}`);
       }
-      for (const t of await ctx.q<{ id: string; project_id: string; task_no: string; name: string; due_date: string; owner_name: string }>(
+      for (const t of await ctx.q<{ id: number; project_id: number; task_no: string; name: string; due_date: string; owner_name: string }>(
         `SELECT t.id, t.project_id, t.task_no, t.name, t.due_date, pr.full_name owner_name FROM internal_tasks t JOIN profiles pr ON pr.id = t.owner_id
           WHERE t.project_id IN (${ph}) AND t.status NOT IN ('completed','cancelled') AND t.due_date BETWEEN ? AND ?
             AND EXISTS (SELECT 1 FROM workforce_plans w WHERE w.user_id = t.owner_id AND w.work_date = t.due_date AND w.work_type = 'leave')`,
@@ -161,8 +161,8 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: string | null 
   // team level: overloaded members (no project)
   const ov = rules.get('member_overloaded');
   if (!projectId && staff && ov?.is_active) {
-    for (const u of await ctx.q<{ id: string; full_name: string; tasks: number; bugs: number }>(
-      `SELECT pr.id, pr.full_name,
+    for (const u of await ctx.q<{ id: number; full_name: string; tasks: number; bugs: number }>(
+      `SELECT CAST(pr.id AS CHAR) id, pr.full_name,
               (SELECT COUNT(*) FROM internal_tasks t JOIN projects p ON p.id = t.project_id
                 WHERE t.owner_id = pr.id AND t.status NOT IN ('completed','cancelled') AND p.status NOT IN ('completed','cancelled')) tasks,
               (SELECT COUNT(*) FROM bugs b WHERE b.assigned_dev_id = pr.id AND b.status NOT IN ('closed','cancelled')) bugs

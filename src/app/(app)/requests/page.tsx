@@ -9,6 +9,7 @@ import { BoardGroup, EmptyState, PageHeader, Person, PriorityChip, SearchBox, Se
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { canActOnStep } from '@/lib/approval';
 import { REQUEST_STATUSES } from '@/lib/constants';
 import { fmtDate } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -38,9 +39,10 @@ export default function RequestsPage() {
     db.from('approval_steps').select('*').eq('status', 'waiting').then(({ data }) => setSteps(data ?? []));
   }, [db]);
 
-  const myActionIds = useMemo(() => new Set(
-    steps.filter((s) => (s.approver_id ? s.approver_id === me?.id : me?.roles.includes(s.approver_role as never))).map((s) => s.request_id),
-  ), [steps, me]);
+  const myActionIds = useMemo(() => {
+    const requestor = new Map(rows.map((r) => [r.id, r.requestor_id]));
+    return new Set(steps.filter((s) => canActOnStep(s, me, requestor.get(s.request_id))).map((s) => s.request_id));
+  }, [rows, steps, me]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- default tab once data is known

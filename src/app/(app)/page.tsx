@@ -12,6 +12,7 @@ import ManagementDashboard from '@/components/ManagementDashboard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { canActOnStep } from '@/lib/approval';
 import { PROJECT_STATUSES, TASK_STATUSES, WORK_TYPES, optColor, optLabel } from '@/lib/constants';
 import { errMsg, fmtDate, isOverdue } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -34,23 +35,26 @@ function InternalDashboard() {
   const [projects, setProjects] = useState<ProjectView[]>([]);
   const [tasks, setTasks] = useState<InternalTask[]>([]);
   const [steps, setSteps] = useState<ApprovalStep[]>([]);
+  const [myRequests, setMyRequests] = useState<Set<number>>(new Set());
   const [pendingEvidence, setPendingEvidence] = useState(0);
   const [today, setToday] = useState<WorkforcePlan[]>([]);
 
   const load = useCallback(async () => {
-    const [p, t, s, e] = await Promise.all([
+    const [p, t, s, e, mine] = await Promise.all([
       db.from('v_projects').select('*').order('project_code'),
       db.from('internal_tasks').select('*').not('status', 'in', '(completed,cancelled)'),
       db.from('approval_steps').select('*').eq('status', 'waiting'),
       db.from('evidence').select('id', { count: 'exact', head: true }).eq('verification_status', 'pending').not('project_id', 'is', null),
+      db.from('project_requests').select('id').eq('requestor_id', me?.id ?? 0),
     ]);
+    setMyRequests(new Set(((mine.data ?? []) as { id: number }[]).map((r) => r.id)));
     setProjects((p.data ?? []) as ProjectView[]);
     setTasks((t.data ?? []) as InternalTask[]);
     setSteps((s.data ?? []) as ApprovalStep[]);
     setPendingEvidence(e.count ?? 0);
     const w = await db.from('workforce_plans').select('*').eq('work_date', dayjs().format('YYYY-MM-DD')).order('start_time');
     setToday((w.data ?? []) as WorkforcePlan[]);
-  }, [db]);
+  }, [db, me?.id]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
@@ -61,13 +65,13 @@ function InternalDashboard() {
   const attention = active.filter((p) => p.attention.length > 0 || p.health === 'red');
   const overdue = tasks.filter((t) => isOverdue(t.due_date, t.status));
   const upcoming = tasks.filter((t) => !isOverdue(t.due_date, t.status) && dayjs(t.due_date).diff(dayjs(), 'day') <= 7).sort((a, b) => a.due_date.localeCompare(b.due_date));
-  const myApprovals = steps.filter((s) => (s.approver_id ? s.approver_id === me?.id : me?.roles.includes(s.approver_role as never)));
-  const projectCode = (id: string) => projects.find((p) => p.id === id)?.project_code ?? '';
+  const myApprovals = steps.filter((s) => !myRequests.has(s.request_id) && canActOnStep(s, me));
+  const projectCode = (id: number) => projects.find((p) => p.id === id)?.project_code ?? '';
   const count = (s: string) => projects.filter((p) => p.status === s).length;
   const sum = (k: 'open_bugs' | 'critical_bugs' | 'fix_overdue' | 'retest_pending' | 'retest_overdue' | 'evidence_missing') => active.reduce((a, p) => a + (p[k] ?? 0), 0);
 
   const workload = useMemo(() => {
-    const m = new Map<string, { open: number; overdue: number }>();
+    const m = new Map<number, { open: number; overdue: number }>();
     tasks.forEach((t) => {
       const w = m.get(t.owner_id) ?? { open: 0, overdue: 0 };
       if (isOverdue(t.due_date, t.status)) w.overdue++;

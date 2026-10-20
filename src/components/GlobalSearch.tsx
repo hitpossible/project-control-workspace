@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { StatusChip } from './common';
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 
-type Hit = { type: 'project' | 'request' | 'task' | 'bug'; id: string; title: string; code: string | null; subtitle: string | null; status: string; link: string };
+type Hit = { type: 'project' | 'request' | 'task' | 'bug'; id: number; title: string; code: string | null; subtitle: string | null; status: string; link: string };
 export type QuickLink = { href: string; label: string; icon: React.ReactNode };
 
 const GROUPS: { type: Hit['type']; heading: string; icon: React.ReactNode; statuses: Opt[] }[] = [

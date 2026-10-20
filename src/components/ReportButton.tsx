@@ -15,7 +15,7 @@ export function useReport() {
   const db = dbClient();
   const { me, profileName, notify } = useApp();
   const [busy, setBusy] = useState(false);
-  const generate = async (type: ReportType, opts: { projectId?: string; from?: string; to?: string; code?: string }) => {
+  const generate = async (type: ReportType, opts: { projectId?: number; from?: string; to?: string; code?: string }) => {
     setBusy(true);
     try {
       const [{ loadManagementReport, loadProjectReport }, { renderReport, downloadBlob }] = await Promise.all([import('@/lib/pdf/data'), import('@/lib/pdf/reports')]);
@@ -35,7 +35,7 @@ export function useReport() {
   return { generate, busy };
 }
 
-export default function ReportButton({ projectId, code }: { projectId: string; code: string }) {
+export default function ReportButton({ projectId, code }: { projectId: number; code: string }) {
   const { generate, busy } = useReport();
   return (
     <DropdownMenu>

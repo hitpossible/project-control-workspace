@@ -159,7 +159,7 @@ export const db = {
   ...createDb(httpExec, <T = any>(fn: string, args: Record<string, unknown> = {}) => post<T>(`/api/rpc/${fn}`, args)),
   uploadEvidence,
   /** permission-checked download / preview URL for an uploaded evidence file */
-  evidenceFileUrl: (evidenceId: string) => `/api/evidence/${evidenceId}/file`,
+  evidenceFileUrl: (evidenceId: number) => `/api/evidence/${evidenceId}/file`,
 };
 export type DbClient = typeof db;
 export type { DbError };

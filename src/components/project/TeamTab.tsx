@@ -15,7 +15,7 @@ import type { TabProps } from './types';
 export default function TeamTab({ data, perm, reload }: TabProps) {
   const db = dbClient();
   const { profiles, notify } = useApp();
-  const [user, setUser] = useState<string | null>(null);
+  const [user, setUser] = useState<number | null>(null);
   const [role, setRole] = useState('developer');
 
   const add = async () => {

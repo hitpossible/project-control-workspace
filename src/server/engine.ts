@@ -1,4 +1,4 @@
-import { AppError, type Ctx, type Row, uuid } from './db';
+import { AppError, type Ctx, type Row } from './db';
 import { HOOKS } from './hooks';
 import { dbValues, qi, tableMeta, toDb } from './schema';
 
@@ -117,7 +117,6 @@ export async function insertRow(ctx: Ctx, table: string, input: Row): Promise<Ro
   const meta = await tableMeta(ctx, table);
   const row: Row = { ...JSON_DEFAULTS[table] };
   for (const [k, v] of Object.entries(input)) if (v !== undefined && meta.columns.has(k)) row[k] = v;
-  if (!meta.autoPk && meta.pk === 'id' && !row.id) row.id = uuid();
   for (const c of ME_DEFAULTS[table] ?? []) if (row[c] === undefined) row[c] = ctx.uid;
 
   await HOOKS[table]?.beforeInsert?.(ctx, row);

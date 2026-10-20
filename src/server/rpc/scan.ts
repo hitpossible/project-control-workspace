@@ -17,7 +17,7 @@ export async function runNotificationScan(ctx: Ctx) {
   };
 
   // Task due tomorrow → Owner (+ roles per rule)
-  for (const t of await ctx.q<{ id: string; project_id: string; owner_id: string; task_no: string; name: string; due_date: string; project_code: string }>(
+  for (const t of await ctx.q<{ id: number; project_id: number; owner_id: number; task_no: string; name: string; due_date: string; project_code: string }>(
     `SELECT it.id, it.project_id, it.owner_id, it.task_no, it.name, it.due_date, p.project_code FROM internal_tasks it JOIN projects p ON p.id = it.project_id
       WHERE it.due_date = ? AND it.status NOT IN ('completed','cancelled') AND p.status NOT IN ('completed','cancelled','on_hold')`, [tomorrow])) {
     due += await notifyEvent(ctx, {
@@ -28,7 +28,7 @@ export async function runNotificationScan(ctx: Ctx) {
 
   // Task overdue → repeat every escalation_days; escalate after N days
   const tr = await rule('task_overdue');
-  for (const t of await ctx.q<{ id: string; project_id: string; owner_id: string; task_no: string; name: string; due_date: string; project_code: string }>(
+  for (const t of await ctx.q<{ id: number; project_id: number; owner_id: number; task_no: string; name: string; due_date: string; project_code: string }>(
     `SELECT it.id, it.project_id, it.owner_id, it.task_no, it.name, it.due_date, p.project_code FROM internal_tasks it JOIN projects p ON p.id = it.project_id
       WHERE it.due_date < ? AND it.status NOT IN ('completed','cancelled') AND p.status NOT IN ('completed','cancelled','on_hold')`, [today])) {
     const days = daysBetween(t.due_date, today);
@@ -40,7 +40,7 @@ export async function runNotificationScan(ctx: Ctx) {
   }
 
   // Fix due tomorrow → Developer (+ Supervisor)
-  type B = { id: string; project_id: string; assigned_dev_id: string | null; supervisor_id: string | null; bug_no: string; title: string; severity: string; due_date: string; project_code: string };
+  type B = { id: number; project_id: number; assigned_dev_id: number | null; supervisor_id: number | null; bug_no: string; title: string; severity: string; due_date: string; project_code: string };
   for (const b of await ctx.q<B>(
     `SELECT b.id, b.project_id, b.assigned_dev_id, b.supervisor_id, b.bug_no, b.title, b.severity, b.due_date, p.project_code
        FROM bugs b JOIN projects p ON p.id = b.project_id WHERE b.due_date = ? AND b.status IN ('assigned','in_progress','reopened')`, [tomorrow])) {
@@ -66,7 +66,7 @@ export async function runNotificationScan(ctx: Ctx) {
   }
 
   // Retest due (tomorrow / overdue) → Tester
-  for (const r of await ctx.q<{ id: string; project_id: string; bug_id: string; tester_id: string | null; due_date: string; bug_no: string; title: string; project_code: string }>(
+  for (const r of await ctx.q<{ id: number; project_id: number; bug_id: number; tester_id: number | null; due_date: string; bug_no: string; title: string; project_code: string }>(
     `SELECT r.id, r.project_id, r.bug_id, r.tester_id, r.due_date, b.bug_no, b.title, p.project_code FROM retests r
        JOIN bugs b ON b.id = r.bug_id JOIN projects p ON p.id = r.project_id WHERE r.status = 'pending' AND r.due_date <= ?`, [tomorrow])) {
     ret += await notifyEvent(ctx, {
@@ -78,7 +78,7 @@ export async function runNotificationScan(ctx: Ctx) {
 
   // Evidence missing → Owner / PIC (activity / task due within 2 days or done-but-blocked); repeats every 3 days
   const soon = addDays(today, 2);
-  for (const e of await ctx.q<{ id: string; project_id: string; name: string; owner: string | null; item: string; project_code: string }>(
+  for (const e of await ctx.q<{ id: number; project_id: number; name: string; owner: number | null; item: string; project_code: string }>(
     `SELECT r.id, r.project_id, r.name, COALESCE(ea.pic_user_id, et.owner_id, ep.leader_id) owner,
             COALESCE(ea.name, et.name, ep.project_name) item, ep.project_code
        FROM evidence_requirements r
@@ -98,14 +98,14 @@ export async function runNotificationScan(ctx: Ctx) {
 
   // Overdue activities become Delayed (triggers activity_delayed notification)
   await ctx.asWorkflow(async () => {
-    for (const a of await ctx.q<{ id: string }>(
+    for (const a of await ctx.q<{ id: number }>(
       `SELECT ac.id FROM activities ac JOIN projects p ON p.id = ac.project_id
         WHERE ac.plan_finish < ? AND ac.status IN ('not_started','in_progress','at_risk')
           AND p.status NOT IN ('completed','cancelled','on_hold','planning','draft')`, [today])) {
       await updateRow(ctx, 'activities', a.id, { status: 'delayed' });
       delayed++;
     }
-    for (const p of await ctx.q<{ id: string }>(`SELECT id FROM projects WHERE status NOT IN ('completed','cancelled')`)) {
+    for (const p of await ctx.q<{ id: number }>(`SELECT id FROM projects WHERE status NOT IN ('completed','cancelled')`)) {
       await recomputeProject(ctx, p.id);
     }
   });

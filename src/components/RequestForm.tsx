@@ -2,12 +2,13 @@
 
 import { Info } from 'lucide-react';
 import { Fragment, useState } from 'react';
+import { APPROVAL_ROUTE, stepAudience } from '@/lib/approval';
 import { PRIORITIES } from '@/lib/constants';
 import { errMsg, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { ProjectRequest } from '@/lib/types';
 import { useApp } from './AppProvider';
-import { DateField, Section, SelectField, TextField, UserSelect } from './common';
+import { DateField, Section, SelectField, TextField } from './common';
 import { Alert, AlertDescription } from './ui/alert';
 import { Button } from './ui/button';
 
@@ -28,13 +29,12 @@ export function emptyRequest(): RequestDraft {
     expectation: '',
     priority: 'medium',
     date_required: '',
-    requestor_approver_id: null,
   };
 }
 
 // Requestor Information is not sent or shown: the server stores it from the signed-in user's profile
 const EDITABLE: (keyof ProjectRequest)[] = [
-  'project_name', 'description', 'reason', 'expectation', 'priority', 'date_required', 'requestor_approver_id',
+  'project_name', 'description', 'reason', 'expectation', 'priority', 'date_required',
   'reduction_time_from', 'reduction_time_to', 'reduction_man_from', 'reduction_man_to', 'reduction_cost_from', 'reduction_cost_to',
 ];
 
@@ -110,12 +110,7 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
       </Section>
 
       <Section title="Approval Route">
-        <div className="grid grid-cols-12 items-end gap-3">
-          <UserSelect className="col-span-12 md:col-span-6" label="Requestor Approver (your manager)" value={f.requestor_approver_id} onChange={set('requestor_approver_id')} roles={['requestor_approver']} required />
-          <p className="col-span-12 text-sm text-muted-foreground md:col-span-6">
-            Route: Requestor Approval → System Service Review → Authority Approval → Convert to Controlled Project
-          </p>
-        </div>
+        <ApprovalRoutePreview department={me?.department ?? null} />
       </Section>
 
       {!f.id && (
@@ -138,6 +133,35 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
           }}>Submit for Approval</Button>
         )}
       </div>
+    </div>
+  );
+}
+
+/** The fixed route a request follows once submitted — approvers are matched by Position Level, not picked */
+export function ApprovalRoutePreview({ department }: { department: string | null }) {
+  const groups = [...new Set(APPROVAL_ROUTE.map((s) => s.group))];
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {groups.map((g, gi) => (
+        <div key={g}>
+          <div className="mb-2 text-sm font-semibold">{gi + 1}. {g}</div>
+          <ol className="space-y-1.5">
+            {APPROVAL_ROUTE.filter((s) => s.group === g).map((s) => (
+              <li key={s.step_code} className="flex items-baseline gap-2 text-sm">
+                <span className="size-1.5 shrink-0 translate-y-[-2px] rounded-full bg-muted-foreground/50" />
+                <span>
+                  {s.step_name}{' '}
+                  <span className="text-muted-foreground">
+                    ({stepAudience({ approver_levels: s.levels, approver_department: s.department === 'requestor' ? department : null })}
+                    {s.department === 'system_service' ? ' · System Service' : ''})
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+      <p className="text-xs text-muted-foreground md:col-span-2">Approved requests are then converted to a Controlled Project.</p>
     </div>
   );
 }

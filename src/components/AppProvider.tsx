@@ -10,7 +10,7 @@ import type { Profile, Role } from '@/lib/types';
 interface AppCtx {
   me: Profile | null;
   profiles: Profile[];
-  profileName: (id: string | null | undefined) => string;
+  profileName: (id: number | null | undefined) => string;
   hasRole: (...roles: Role[]) => boolean;
   isStaff: boolean;
   notify: (message: string, severity?: 'success' | 'error' | 'info' | 'warning') => void;
@@ -43,7 +43,13 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       }).catch(() => ({ data: null })),
       db.from('profiles').select('*').order('full_name'),
     ]);
-    const list = (data ?? []) as Profile[];
+    // profiles store ids — add the names the UI shows
+    const [d, s, p] = await Promise.all([db.from('departments').select('id,name'), db.from('sections').select('id,name'), db.from('positions').select('id,name')]);
+    const names = (rows: { id: number; name: string }[] | null) => new Map((rows ?? []).map((r) => [r.id, r.name]));
+    const [dn, sn, pn] = [names(d.data), names(s.data), names(p.data)];
+    const list = ((data ?? []) as Profile[]).map((x) => ({
+      ...x, department: dn.get(x.department_id!) ?? null, section: sn.get(x.section_id!) ?? null, position: pn.get(x.position_id!) ?? null,
+    }));
     setProfiles(list);
     setMe(list.find((p) => p.id === auth.data?.id) ?? null);
   }, [db]);

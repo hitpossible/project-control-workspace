@@ -77,7 +77,7 @@ function MyWork() {
       {tab === 'tasks' && layout === 'kanban' && (
         <TaskKanban
           tasks={list}
-          canEdit={(t) => [t.owner_id, t.reviewer_id, t.created_by].includes(me?.id ?? '')}
+          canEdit={(t) => [t.owner_id, t.reviewer_id, t.created_by].includes(me?.id ?? -1)}
           onOpen={(t) => router.push(`/projects/${t.project_id}?tab=internal&task=${t.id}`)}
           onChanged={() => setTick((n) => n + 1)}
           subtitle={(t) => (t as Row).projects?.project_code}

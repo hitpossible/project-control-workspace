@@ -27,7 +27,7 @@ export default function ReportsPage() {
     db.from('v_projects').select('*').order('project_code').then(({ data }) => setProjects((data ?? []) as ProjectView[]));
   }, [db]);
 
-  const sel = projects.find((p) => p.id === project);
+  const sel = projects.find((p) => p.id === Number(project));
 
   return (
     <>
@@ -41,9 +41,9 @@ export default function ReportsPage() {
               {c.type === 'management'
                 ? <PeriodPicker value={period} onChange={setPeriod} />
                 : <SelectField className="w-80" label="Project" value={project} onChange={setProject} placeholder="Choose project…"
-                    options={projects.map((p) => ({ value: p.id, label: `${p.project_code} — ${p.project_name}` }))} />}
+                    options={projects.map((p) => ({ value: String(p.id), label: `${p.project_code} — ${p.project_name}` }))} />}
               <Button disabled={busy || (c.type !== 'management' && !project)} className="h-9"
-                onClick={() => generate(c.type, c.type === 'management' ? { from: period.from, to: period.to } : { projectId: project, code: sel?.project_code })}>
+                onClick={() => generate(c.type, c.type === 'management' ? { from: period.from, to: period.to } : { projectId: Number(project), code: sel?.project_code })}>
                 <Presentation /> {busy ? 'Generating…' : 'Generate PDF'}
               </Button>
             </div>

@@ -8,7 +8,7 @@ import { canApproveBaseline, canManageProject, hasRole } from '../perms';
 const blank = (s: unknown) => !s || String(s).trim() === '';
 
 /** Freeze the current User Control Plan as a new baseline version (never overwrites old ones) */
-async function freezeBaseline(ctx: Ctx, projectId: string, reason: string | null, approvedBy: string | null) {
+async function freezeBaseline(ctx: Ctx, projectId: number, reason: string | null, approvedBy: number | null) {
   const p = (await getRow(ctx, 'projects', projectId, true)) as unknown as Project;
   const acts = await ctx.q<Activity & { pic_name: string | null }>(
     `SELECT a.*, pr.full_name pic_name FROM activities a LEFT JOIN profiles pr ON pr.id = a.pic_user_id
@@ -46,7 +46,7 @@ async function freezeBaseline(ctx: Ctx, projectId: string, reason: string | null
 }
 
 /** V1 by the leader; V2+ only via an approved revision */
-export async function createBaseline(ctx: Ctx, a: { p_project_id: string; p_reason?: string | null }) {
+export async function createBaseline(ctx: Ctx, a: { p_project_id: number; p_reason?: string | null }) {
   const p = (await getRow(ctx, 'projects', a.p_project_id)) as unknown as Project | null;
   if (!p) throw new AppError('Project not found', 404);
   if (!(await canManageProject(ctx, a.p_project_id))) throw new AppError('Only the Project Leader can manage the baseline', 403);
@@ -54,7 +54,7 @@ export async function createBaseline(ctx: Ctx, a: { p_project_id: string; p_reas
   return freezeBaseline(ctx, a.p_project_id, a.p_reason ?? null, null);
 }
 
-export async function requestBaselineRevision(ctx: Ctx, a: { p_project_id: string; p_reason: string; p_impact?: string | null; p_new_target?: string | null }) {
+export async function requestBaselineRevision(ctx: Ctx, a: { p_project_id: number; p_reason: string; p_impact?: string | null; p_new_target?: string | null }) {
   const p = (await getRow(ctx, 'projects', a.p_project_id)) as unknown as Project | null;
   if (!p) throw new AppError('Project not found', 404);
   if (!(await canManageProject(ctx, a.p_project_id))) throw new AppError('Only the Project Leader can request a baseline revision', 403);
@@ -69,7 +69,7 @@ export async function requestBaselineRevision(ctx: Ctx, a: { p_project_id: strin
     project_id: a.p_project_id, from_version: p.baseline_version, reason: a.p_reason.trim(), impact: a.p_impact ?? null,
     previous_target_date: p.target_date, proposed_target_date: a.p_new_target ?? p.target_date, plan_snapshot: snapshot,
   });
-  const approvers = (await ctx.q<{ id: string }>(`SELECT id FROM profiles WHERE is_active = 1 AND JSON_CONTAINS(roles, '"manager"')`)).map((x) => x.id);
+  const approvers = (await ctx.q<{ id: number }>(`SELECT id FROM profiles WHERE is_active = 1 AND JSON_CONTAINS(roles, '"manager"')`)).map((x) => x.id);
   await notifyEvent(ctx, {
     event: 'baseline_revision_requested', projectId: a.p_project_id, explicit: approvers,
     title: `Baseline revision requested: ${p.project_code} V${p.baseline_version} → V${p.baseline_version + 1}`,
@@ -78,7 +78,7 @@ export async function requestBaselineRevision(ctx: Ctx, a: { p_project_id: strin
   return r;
 }
 
-export async function decideBaselineRevision(ctx: Ctx, a: { p_revision_id: string; p_approve: boolean; p_comment?: string | null }) {
+export async function decideBaselineRevision(ctx: Ctx, a: { p_revision_id: number; p_approve: boolean; p_comment?: string | null }) {
   let r = (await getRow(ctx, 'baseline_revisions', a.p_revision_id, true)) as unknown as BaselineRevision | null;
   if (!r) throw new AppError('Revision request not found', 404);
   if (r.status !== 'pending') throw new AppError(`Request is already ${r.status}`);
@@ -104,7 +104,7 @@ export async function decideBaselineRevision(ctx: Ctx, a: { p_revision_id: strin
   return r;
 }
 
-export async function cancelBaselineRevision(ctx: Ctx, a: { p_revision_id: string }) {
+export async function cancelBaselineRevision(ctx: Ctx, a: { p_revision_id: number }) {
   const r = (await getRow(ctx, 'baseline_revisions', a.p_revision_id, true)) as unknown as BaselineRevision | null;
   if (!r) throw new AppError('Revision request not found', 404);
   if (r.status !== 'pending') throw new AppError(`Request is already ${r.status}`);
@@ -113,7 +113,7 @@ export async function cancelBaselineRevision(ctx: Ctx, a: { p_revision_id: strin
 }
 
 /** Supervisor / Manager reviews a Recovery Plan */
-export async function reviewRecoveryPlan(ctx: Ctx, a: { p_activity_id: string }) {
+export async function reviewRecoveryPlan(ctx: Ctx, a: { p_activity_id: number }) {
   const act = (await getRow(ctx, 'activities', a.p_activity_id, true)) as unknown as Activity | null;
   if (!act) throw new AppError('Activity not found', 404);
   if (!(await canApproveBaseline(ctx, act.project_id))) throw new AppError('Only a Supervisor / Manager can review recovery plans', 403);

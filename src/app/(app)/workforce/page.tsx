@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Download, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { StackBar } from '@/components/charts';
-import { DateField, EmptyState, FormField, PageHeader, Person, SelectField, TextField, Tip, UserSelect } from '@/components/common';
+import { DateField, EmptyState, FormField, PageHeader, Person, SelectField, TextField, Tip, UserSelect, idValue, toId } from '@/components/common';
 import { ViewToggle } from '@/components/project/PlanTab';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,12 +19,12 @@ import type { Project, WorkforcePlan } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 type View = 'day' | 'week' | 'month' | 'team';
-type Load = { owner_id: string; due_date: string; kind: 'task' | 'bug' };
+type Load = { owner_id: number; due_date: string; kind: 'task' | 'bug' };
 
 const STAFF = ['developer', 'qa', 'project_leader', 'supervisor', 'support', 'system_reviewer'];
 const wt = (v: string) => WORK_TYPES.find((w) => w.value === v)!;
 
-function Chip({ p, projectCode, onClick, compact }: { p: WorkforcePlan; projectCode: (id: string | null) => string; onClick?: () => void; compact?: boolean }) {
+function Chip({ p, projectCode, onClick, compact }: { p: WorkforcePlan; projectCode: (id: number | null) => string; onClick?: () => void; compact?: boolean }) {
   const t = wt(p.work_type);
   const time = p.start_time ? `${p.start_time.slice(0, 5)}–${p.end_time?.slice(0, 5) ?? ''}` : '';
   return (
@@ -73,8 +73,8 @@ export default function WorkforcePage() {
     ]);
     setPlans((w.data ?? []) as WorkforcePlan[]);
     setLoads([
-      ...((t.data ?? []) as { owner_id: string; due_date: string }[]).map((x) => ({ ...x, kind: 'task' as const })),
-      ...((b.data ?? []) as { assigned_dev_id: string; due_date: string }[]).filter((x) => x.assigned_dev_id).map((x) => ({ owner_id: x.assigned_dev_id, due_date: x.due_date, kind: 'bug' as const })),
+      ...((t.data ?? []) as { owner_id: number; due_date: string }[]).map((x) => ({ ...x, kind: 'task' as const })),
+      ...((b.data ?? []) as { assigned_dev_id: number; due_date: string }[]).filter((x) => x.assigned_dev_id).map((x) => ({ owner_id: x.assigned_dev_id, due_date: x.due_date, kind: 'bug' as const })),
     ]);
     setProjects((p.data ?? []) as Project[]);
   }, [db, fromS, toS]);
@@ -86,13 +86,13 @@ export default function WorkforcePage() {
 
   const people = profiles.filter((p) => p.is_active && p.roles.some((r) => STAFF.includes(r)) && (!section || p.section === section));
   const sections = [...new Set(profiles.filter((p) => p.roles.some((r) => STAFF.includes(r))).map((p) => p.section).filter(Boolean))] as string[];
-  const projectCode = (id: string | null) => projects.find((p) => p.id === id)?.project_code ?? '';
-  const cell = (uid: string, d: Dayjs) => plans.filter((p) => p.user_id === uid && p.work_date === d.format('YYYY-MM-DD'));
-  const dueOn = (uid: string | null, d: Dayjs) => loads.filter((l) => (!uid || l.owner_id === uid) && l.due_date === d.format('YYYY-MM-DD'));
-  const canEdit = (uid: string) => canAll || uid === me?.id;
+  const projectCode = (id: number | null) => projects.find((p) => p.id === id)?.project_code ?? '';
+  const cell = (uid: number, d: Dayjs) => plans.filter((p) => p.user_id === uid && p.work_date === d.format('YYYY-MM-DD'));
+  const dueOn = (uid: number | null, d: Dayjs) => loads.filter((l) => (!uid || l.owner_id === uid) && l.due_date === d.format('YYYY-MM-DD'));
+  const canEdit = (uid: number) => canAll || uid === me?.id;
   const step = (n: number) => setAnchor(anchor.add(n, view === 'month' ? 'month' : view === 'day' ? 'day' : 'week'));
 
-  const openNew = (uid?: string, d?: Dayjs) => {
+  const openNew = (uid?: number, d?: Dayjs) => {
     if (uid && !canEdit(uid)) return;
     const date = (d ?? dayjs()).format('YYYY-MM-DD');
     setEdit({ user_id: uid ?? me?.id, work_date: date, to: date, work_type: 'office', start_time: '08:00', end_time: '17:00', location: 'HQ Building 1', skipWeekend: true });
@@ -280,8 +280,8 @@ export default function WorkforcePage() {
                 <FormField className="col-span-6" label="End"><Input type="time" className="h-9" value={edit.end_time?.slice(0, 5) ?? ''} onChange={(e) => setEdit({ ...edit, end_time: e.target.value })} /></FormField>
               </>}
               <TextField className="col-span-12" label="Location" value={edit.location} onChange={(v) => setEdit({ ...edit, location: v })} />
-              <SelectField className="col-span-12" label="Project (optional)" allowEmpty value={edit.project_id} onChange={(v) => setEdit({ ...edit, project_id: v || null })}
-                options={projects.map((p) => ({ value: p.id, label: `${p.project_code} — ${p.project_name}` }))} />
+              <SelectField className="col-span-12" label="Project (optional)" allowEmpty value={idValue(edit.project_id)} onChange={(v) => setEdit({ ...edit, project_id: toId(v) })}
+                options={projects.map((p) => ({ value: String(p.id), label: `${p.project_code} — ${p.project_name}` }))} />
               <TextField className="col-span-12" label="Remark" value={edit.remark} onChange={(v) => setEdit({ ...edit, remark: v })} />
             </div>
             <DialogFooter className="sm:justify-between">

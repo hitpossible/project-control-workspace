@@ -9,9 +9,10 @@ import AuditHistory from '@/components/AuditHistory';
 import { dispatchEmails, useApp } from '@/components/AppProvider';
 import { ActionButton, CommentDialog, DateField, Field, PageHeader, PriorityChip, Section, SelectField, StatusChip, TextField, UserSelect } from '@/components/common';
 import EvidencePanel from '@/components/EvidencePanel';
-import RequestForm, { REDUCTION_ROWS } from '@/components/RequestForm';
+import RequestForm, { ApprovalRoutePreview, REDUCTION_ROWS } from '@/components/RequestForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { RECEIVE_STEPS, canActOnStep, routeGroup, stepAudience } from '@/lib/approval';
 import { APPROVAL_ACTION_LABELS, REQUEST_STATUSES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, fmtNum } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -49,7 +50,7 @@ export default function RequestDetailPage() {
   const [types, setTypes] = useState<ProjectType[]>([]);
   const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
   const [dialog, setDialog] = useState<Act | null>(null);
-  const [review, setReview] = useState({ project_type_id: '', template_id: '', proposed_leader_id: null as string | null, authority_approver_id: null as string | null, scope_assessment: '' });
+  const [review, setReview] = useState({ project_type_id: '', template_id: '', proposed_leader_id: null as number | null, authority_approver_id: null as number | null, scope_assessment: '' });
   const [conv, setConv] = useState({ start: dayjs().format('YYYY-MM-DD'), target: '', sponsor: '' });
   const [notFound, setNotFound] = useState(false);
   const [formKey, setFormKey] = useState(0);
@@ -86,9 +87,10 @@ export default function RequestDetailPage() {
   const cycle = Math.max(0, ...steps.map((s) => s.cycle));
   const current = steps.filter((s) => s.cycle === cycle);
   const waiting = current.find((s) => s.status === 'waiting');
-  const canAct = !!waiting && (waiting.approver_id ? waiting.approver_id === me.id : me.roles.includes(waiting.approver_role as never));
-  const isReview = canAct && waiting?.step_code === 'system_review';
-  const canConvert = r.status === 'approved' && (hasRole('system_reviewer') || r.proposed_leader_id === me.id);
+  const canAct = !!waiting && canActOnStep(waiting, me, r.requestor_id);
+  const isReview = canAct && !!waiting && RECEIVE_STEPS.includes(waiting.step_code);
+  const legacyReview = waiting?.step_code === 'system_review';
+  const canConvert = r.status === 'approved' && (hasRole('system_reviewer') || r.proposed_leader_id === me.id || r.reviewed_by === me.id);
 
   const rpc = async (fn: string, args: Record<string, unknown>, ok: string) => {
     const { data, error } = await db.rpc(fn, args);
@@ -176,7 +178,7 @@ export default function RequestDetailPage() {
                 <div className="grid grid-cols-3 gap-x-4">
                   <Field label="Date Submitted">{fmtDate(r.date_submitted)}</Field>
                   <Field label="Date Required">{fmtDate(r.date_required)}</Field>
-                  <Field label="Requestor Approver">{profileName(r.requestor_approver_id)}</Field>
+                  {r.requestor_approver_id && <Field label="Requestor Approver">{profileName(r.requestor_approver_id)}</Field>}
                 </div>
               </Section>
               {REDUCTION_ROWS.some((row) => r[row.from] != null || r[row.to] != null) && (
@@ -191,12 +193,12 @@ export default function RequestDetailPage() {
                 </Section>
               )}
               {(r.project_type_id || r.scope_assessment) && (
-                <Section title="System Service Review">
+                <Section title="System Service — Received Request">
                   <div className="grid grid-cols-2 gap-x-4 md:grid-cols-4">
                     <Field label="Project Type">{types.find((t) => t.id === r.project_type_id)?.name}</Field>
                     <Field label="Template">{templates.find((t) => t.id === r.template_id)?.name}</Field>
                     <Field label="Project Leader">{profileName(r.proposed_leader_id)}</Field>
-                    <Field label="Authority Approver">{profileName(r.authority_approver_id)}</Field>
+                    {r.authority_approver_id && <Field label="Authority Approver">{profileName(r.authority_approver_id)}</Field>}
                   </div>
                   <Field label="Scope Assessment">{r.scope_assessment}</Field>
                 </Section>
@@ -212,7 +214,10 @@ export default function RequestDetailPage() {
         <div className="col-span-12 xl:col-span-4">
           <Section title="Approval Route">
             {current.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Not submitted yet.</p>
+              <>
+                <p className="mb-3 text-sm text-muted-foreground">Not submitted yet. Once submitted it follows:</p>
+                <ApprovalRoutePreview department={r.req_department} />
+              </>
             ) : (
               <ol className="relative space-y-4">
                 {current.map((s, i) => (
@@ -220,9 +225,12 @@ export default function RequestDetailPage() {
                     {i < current.length - 1 && <span className="absolute top-6 left-[9px] h-[calc(100%-4px)] w-px bg-border" />}
                     <StepIcon status={s.status} />
                     <div className="min-w-0">
+                      {routeGroup(s.step_code) && routeGroup(s.step_code) !== routeGroup(current[i - 1]?.step_code ?? '') && (
+                        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{routeGroup(s.step_code)}</div>
+                      )}
                       <div className={cn('text-sm font-semibold', s.status === 'waiting' && 'text-[#d97706]')}>{s.step_name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {s.approver_id ? profileName(s.approver_id) : `Any ${ROLE_LABELS[s.approver_role as Role] ?? s.approver_role}`} · {s.status.replace('_', ' ')}
+                        {s.approver_levels ? stepAudience(s) : s.approver_id ? profileName(s.approver_id) : `Any ${ROLE_LABELS[s.approver_role as Role] ?? s.approver_role}`} · {s.status.replace('_', ' ')}
                       </div>
                       {s.acted_at && <div className="text-xs">{profileName(s.acted_by)} · {fmtDateTime(s.acted_at)}</div>}
                       {s.comment && <div className="text-sm italic">“{s.comment}”</div>}
@@ -234,7 +242,7 @@ export default function RequestDetailPage() {
           </Section>
 
           {isReview && (
-            <Section title="System Service Review" className="ring-2 ring-[#fdab3d]">
+            <Section title={`System Service — ${waiting?.step_name}`} className="ring-2 ring-[#fdab3d]">
               <div className="space-y-3">
                 <SelectField label="Project Type" required value={review.project_type_id} onChange={(v) => {
                   const tpl = templates.find((t) => t.project_type_id === Number(v));
@@ -242,7 +250,7 @@ export default function RequestDetailPage() {
                 }} options={types.map((t) => ({ value: t.id.toString(), label: t.name }))} />
                 <SelectField label="Project Template" allowEmpty value={review.template_id} onChange={(v) => setReview({ ...review, template_id: v })} options={templates.map((t) => ({ value: t.id.toString(), label: t.name }))} />
                 <UserSelect label="Project Leader" required roles={['project_leader']} value={review.proposed_leader_id} onChange={(v) => setReview({ ...review, proposed_leader_id: v })} />
-                <UserSelect label="Authority Approver" required roles={['authority_approver']} value={review.authority_approver_id} onChange={(v) => setReview({ ...review, authority_approver_id: v })} />
+                {legacyReview && <UserSelect label="Authority Approver" required roles={['authority_approver']} value={review.authority_approver_id} onChange={(v) => setReview({ ...review, authority_approver_id: v })} />}
                 <TextField label="Scope Assessment" multiline value={review.scope_assessment} onChange={(v) => setReview({ ...review, scope_assessment: v })} />
                 <Button variant="outline" className="w-full" onClick={saveReview}>Save Review</Button>
               </div>
@@ -274,7 +282,7 @@ export default function RequestDetailPage() {
                 <TextField label="Sponsor" value={conv.sponsor} onChange={(v) => setConv({ ...conv, sponsor: v })} />
                 <ActionButton tone="success" className="h-9 w-full" disabled={!conv.start || !conv.target} onClick={async () => {
                   const p = await rpc('convert_request_to_project', { p_request_id: r.id, p_start_date: conv.start, p_target_date: conv.target, p_sponsor: conv.sponsor || null }, 'Project created');
-                  if (p) router.push(`/projects/${(p as { id: string }).id}`);
+                  if (p) router.push(`/projects/${(p as { id: number }).id}`);
                 }}>Convert to Project</ActionButton>
               </div>
             </Section>
@@ -287,7 +295,7 @@ export default function RequestDetailPage() {
                   <div key={a.id} className="py-2">
                     <div className="text-sm font-semibold">
                       {APPROVAL_ACTION_LABELS[a.action] ?? a.action}
-                      {a.step_code && <span className="text-xs font-normal text-muted-foreground"> · {a.step_code.replace('_', ' ')}</span>}
+                      {a.step_code && <span className="text-xs font-normal text-muted-foreground"> · {steps.find((s) => s.id === a.step_id)?.step_name ?? a.step_code.replace('_', ' ')}</span>}
                     </div>
                     <div className="text-xs text-muted-foreground">{profileName(a.action_by)} · {fmtDateTime(a.created_at)}</div>
                     {a.comment && <div className="text-sm italic">“{a.comment}”</div>}
@@ -298,7 +306,7 @@ export default function RequestDetailPage() {
           </Section>
 
           <Section title="Change History">
-            <AuditHistory requestId={r.id} entityId={r.id} />
+            <AuditHistory requestId={r.id} entity={{ table: 'project_requests', id: r.id }} />
           </Section>
         </div>
       </div>

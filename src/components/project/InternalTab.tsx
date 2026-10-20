@@ -14,11 +14,11 @@ import { GROUP_COLORS, TASK_STATUSES, TASK_TYPES, optLabel } from '@/lib/constan
 import { fmtDate, isOverdue } from '@/lib/format';
 import type { InternalTask } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { buildGanttRows } from './ganttRows';
+import { allGanttKeys, buildGanttRows, ganttDeps } from './ganttRows';
 import { ViewToggle } from './PlanTab';
 import type { TabProps } from './types';
 
-export default function InternalTab({ data, perm, reload, memberProfiles, focusTask, focusPanel }: TabProps & { focusTask?: string | null; focusPanel?: string | null }) {
+export default function InternalTab({ data, perm, reload, memberProfiles, focusTask, focusPanel }: TabProps & { focusTask?: number | null; focusPanel?: string | null }) {
   const { me, profileName } = useApp();
   const [view, setView] = useState('table');
   const [owner, setOwner] = useState('');
@@ -33,14 +33,14 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
   }, [focusTask, data.tasks]);
 
   const filter = (t: InternalTask) => {
-    if (owner === 'me' ? t.owner_id !== me?.id : owner && t.owner_id !== owner) return false;
+    if (owner === 'me' ? t.owner_id !== me?.id : owner && t.owner_id !== Number(owner)) return false;
     if (status === 'overdue') return isOverdue(t.due_date, t.status);
     if (status === 'open') return !['completed', 'cancelled'].includes(t.status);
     return !status || t.status === status;
   };
   const filtered = data.tasks.filter(filter);
   const owners = useMemo(() => [...new Set(data.tasks.map((t) => t.owner_id))], [data.tasks]);
-  const all = new Set([...data.activities.map((a) => a.id), ...data.tasks.map((t) => t.id)]);
+  const all = allGanttKeys(data.activities, data.tasks);
   const rows = buildGanttRows({ activities: data.activities, tasks: data.tasks, expanded: all, name: profileName, showTasks: true, taskFilter: filter });
 
   const taskRow = (t: InternalTask, level: number) => {
@@ -86,7 +86,7 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
       <div className="no-print mb-5 flex flex-wrap items-end gap-3">
         <ViewToggle value={view} onChange={setView} options={[['table', 'Task List'], ['kanban', 'Kanban'], ['gantt', 'Gantt']]} />
         <SelectField className="w-48" label="Owner" value={owner} allowEmpty placeholder="All" onChange={setOwner}
-          options={[{ value: 'me', label: 'Assigned to me' }, ...owners.map((o) => ({ value: o, label: profileName(o) }))]} />
+          options={[{ value: 'me', label: 'Assigned to me' }, ...owners.map((o) => ({ value: String(o), label: profileName(o) }))]} />
         <SelectField className="w-44" label="Status" value={status} allowEmpty placeholder="All" onChange={setStatus}
           options={[{ value: 'open', label: 'Open' }, { value: 'overdue', label: '⚠ Overdue' }, ...TASK_STATUSES]} />
         <span className="pb-2 text-sm text-muted-foreground">{filtered.length} task(s)</span>
@@ -99,14 +99,14 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
       {view === 'kanban' ? (
         <TaskKanban
           tasks={filtered}
-          canEdit={(t) => perm.manage || [t.owner_id, t.reviewer_id, t.created_by].includes(me?.id ?? '')}
+          canEdit={(t) => perm.manage || [t.owner_id, t.reviewer_id, t.created_by].includes(me?.id ?? -1)}
           onOpen={setEdit}
           onChanged={reload}
           subtitle={(t) => data.activities.find((a) => a.id === t.activity_id)?.name}
         />
       ) : view === 'gantt' ? (
-        <GanttChart rows={rows} deps={data.deps.map((d) => ({ from: d.predecessor_id, to: d.successor_id }))}
-          onRowClick={(r) => r.level > 0 && setEdit(data.tasks.find((t) => t.id === r.id) ?? null)} />
+        <GanttChart rows={rows} deps={ganttDeps(data.deps)}
+          onRowClick={(r) => r.level > 0 && setEdit(data.tasks.find((t) => t.id === r.entityId) ?? null)} />
       ) : (
         <div>
           {data.activities.map((a, i) => {

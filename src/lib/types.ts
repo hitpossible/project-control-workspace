@@ -11,15 +11,22 @@ export type Role =
   | 'management_view'
   | 'admin';
 
+export type PositionLevel = 'staff' | 'supervisor' | 'manager' | 'gm' | 'factory_manager' | 'president';
+
 export interface Profile {
-  id: string;
+  id: number;
   /** AD / company login name */
   username: string | null;
   employee_id: string | null;
   full_name: string;
   email: string | null;
-  department: string | null;
-  section: string | null;
+  department_id: number | null;
+  section_id: number | null;
+  position_id: number | null;
+  /** names joined from departments / sections / positions (not columns of profiles) */
+  department?: string | null;
+  section?: string | null;
+  position?: string | null;
   telephone: string | null;
   extension: string | null;
   roles: Role[];
@@ -29,13 +36,20 @@ export interface Profile {
 
 export interface Department {
   id: number;
+  code: string | null;
   name: string;
   is_active: boolean;
+}
+
+export interface Position {
+  id: number;
+  name: string;
 }
 
 export interface Section {
   id: number;
   department_id: number;
+  code: string | null;
   name: string;
   is_active: boolean;
 }
@@ -67,10 +81,10 @@ export interface ProjectTemplate {
 }
 
 export interface ProjectRequest {
-  id: string;
+  id: number;
   request_no: string | null;
   status: string;
-  requestor_id: string;
+  requestor_id: number;
   req_employee_id: string | null;
   req_full_name: string | null;
   req_department: string | null;
@@ -93,54 +107,59 @@ export interface ProjectRequest {
   reduction_man_to: number | null;
   reduction_cost_from: number | null;
   reduction_cost_to: number | null;
-  requestor_approver_id: string | null;
-  authority_approver_id: string | null;
+  /** legacy: approvers were picked per request before the fixed approval route */
+  requestor_approver_id: number | null;
+  authority_approver_id: number | null;
   project_type_id: number | null;
   template_id: number | null;
-  proposed_leader_id: string | null;
+  proposed_leader_id: number | null;
   scope_assessment: string | null;
-  reviewed_by: string | null;
-  project_id: string | null;
+  reviewed_by: number | null;
+  project_id: number | null;
   submitted_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface ApprovalStep {
-  id: string;
-  request_id: string;
+  id: number;
+  request_id: number;
   cycle: number;
   step_no: number;
-  step_code: 'requestor_approval' | 'system_review' | 'authority_approval';
+  /** see APPROVAL_ROUTE; requestor_approval / system_review / authority_approval = steps created before the fixed route */
+  step_code: string;
   step_name: string;
-  approver_id: string | null;
+  approver_id: number | null;
   approver_role: string;
+  /** levels allowed to act; null = legacy step (approver_id / approver_role) */
+  approver_levels: PositionLevel[] | null;
+  approver_department: string | null;
   status: string;
   action: string | null;
   comment: string | null;
-  acted_by: string | null;
+  acted_by: number | null;
   acted_at: string | null;
 }
 
 export interface ApprovalAction {
-  id: string;
-  request_id: string;
-  step_id: string | null;
+  id: number;
+  request_id: number;
+  step_id: number | null;
   step_code: string | null;
   action: string;
   comment: string | null;
-  action_by: string | null;
+  action_by: number | null;
   created_at: string;
 }
 
 export interface Project {
-  id: string;
+  id: number;
   project_code: string;
   project_name: string;
   project_type_id: number | null;
   template_id: number | null;
-  request_id: string | null;
-  leader_id: string | null;
+  request_id: number | null;
+  leader_id: number | null;
   sponsor: string | null;
   department: string | null;
   priority: string;
@@ -155,7 +174,7 @@ export interface Project {
   baseline_version: number;
   created_at: string;
   updated_at: string;
-  updated_by: string | null;
+  updated_by: number | null;
 }
 
 export interface ProjectView extends Project {
@@ -180,19 +199,19 @@ export interface ProjectView extends Project {
 }
 
 export interface ProjectMember {
-  id: string;
-  project_id: string;
-  user_id: string;
+  id: number;
+  project_id: number;
+  user_id: number;
   member_role: string;
   notify: boolean;
 }
 
 export interface Activity {
-  id: string;
-  project_id: string;
+  id: number;
+  project_id: number;
   seq: number;
   name: string;
-  pic_user_id: string | null;
+  pic_user_id: number | null;
   pic_label: string | null;
   plan_start: string | null;
   plan_finish: string | null;
@@ -208,26 +227,26 @@ export interface Activity {
   delay_reason: string | null;
   recovery_plan: string | null;
   delay_impact: string | null;
-  recovery_owner_id: string | null;
+  recovery_owner_id: number | null;
   recovery_due_date: string | null;
-  recovery_reviewed_by: string | null;
+  recovery_reviewed_by: number | null;
   recovery_reviewed_at: string | null;
   is_milestone: boolean;
   updated_at: string;
-  updated_by: string | null;
+  updated_by: number | null;
 }
 
 export interface InternalTask {
-  id: string;
+  id: number;
   task_no: string | null;
-  project_id: string;
-  activity_id: string;
-  parent_task_id: string | null;
+  project_id: number;
+  activity_id: number;
+  parent_task_id: number | null;
   seq: number;
   name: string;
   task_type: string;
-  owner_id: string;
-  reviewer_id: string | null;
+  owner_id: number;
+  reviewer_id: number | null;
   priority: string;
   planned_start: string | null;
   due_date: string;
@@ -241,36 +260,36 @@ export interface InternalTask {
   delay_category: string | null;
   delay_reason: string | null;
   recovery_action: string | null;
-  created_by: string | null;
+  created_by: number | null;
   updated_at: string;
-  updated_by: string | null;
+  updated_by: number | null;
 }
 
 export interface TaskDependency {
-  id: string;
-  project_id: string;
-  predecessor_id: string;
-  successor_id: string;
+  id: number;
+  project_id: number;
+  predecessor_id: number;
+  successor_id: number;
   dep_type: string;
 }
 
 export interface Baseline {
-  id: string;
-  project_id: string;
+  id: number;
+  project_id: number;
   version_no: number;
   planned_start: string | null;
   planned_finish: string | null;
   target_date: string | null;
   reason: string | null;
-  created_by: string | null;
-  approved_by: string | null;
+  created_by: number | null;
+  approved_by: number | null;
   created_at: string;
 }
 
 export interface BaselineItem {
-  id: string;
-  baseline_id: string;
-  activity_id: string | null;
+  id: number;
+  baseline_id: number;
+  activity_id: number | null;
   seq: number;
   activity_name: string;
   pic: string | null;
@@ -282,11 +301,11 @@ export interface BaselineItem {
 export type EntityType = 'request' | 'project' | 'activity' | 'task' | 'test_round' | 'bug' | 'fix' | 'retest';
 
 export interface Evidence {
-  id: string;
-  project_id: string | null;
-  request_id: string | null;
+  id: number;
+  project_id: number | null;
+  request_id: number | null;
   entity_type: EntityType;
-  entity_id: string;
+  entity_id: number;
   evidence_type: string;
   file_name: string | null;
   storage_path: string | null;
@@ -297,18 +316,18 @@ export interface Evidence {
   is_required: boolean;
   is_internal: boolean;
   verification_status: string;
-  verified_by: string | null;
-  requirement_id: string | null;
-  uploaded_by: string | null;
+  verified_by: number | null;
+  requirement_id: number | null;
+  uploaded_by: number | null;
   uploaded_at: string;
 }
 
 export interface Notification {
-  id: string;
-  user_id: string;
+  id: number;
+  user_id: number;
   event_code: string;
-  project_id: string | null;
-  request_id: string | null;
+  project_id: number | null;
+  request_id: number | null;
   title: string;
   body: string | null;
   link: string | null;
@@ -330,14 +349,14 @@ export interface NotificationRule {
 export interface AuditLog {
   id: number;
   table_name: string;
-  entity_id: string | null;
-  project_id: string | null;
-  request_id: string | null;
+  entity_id: number | null;
+  project_id: number | null;
+  request_id: number | null;
   action: string;
   field: string | null;
   old_value: string | null;
   new_value: string | null;
-  user_id: string | null;
+  user_id: number | null;
   created_at: string;
 }
 
@@ -345,13 +364,13 @@ export interface AuditLog {
 // Phase 2 — QA & Workflow Control
 // ---------------------------------------------------------------------------
 export interface TestRound {
-  id: string;
-  project_id: string;
+  id: number;
+  project_id: number;
   round_no: number;
-  activity_id: string | null;
+  activity_id: number | null;
   title: string;
   test_type: string;
-  tester_id: string | null;
+  tester_id: number | null;
   planned_date: string | null;
   due_date: string | null;
   actual_date: string | null;
@@ -361,17 +380,17 @@ export interface TestRound {
   passed_cases: number | null;
   failed_cases: number | null;
   summary: string | null;
-  created_by: string | null;
+  created_by: number | null;
   updated_at: string;
 }
 
 export interface Bug {
-  id: string;
+  id: number;
   bug_no: string;
-  project_id: string;
-  test_round_id: string | null;
-  activity_id: string | null;
-  task_id: string | null;
+  project_id: number;
+  test_round_id: number | null;
+  activity_id: number | null;
+  task_id: number | null;
   title: string;
   description: string | null;
   steps_to_reproduce: string | null;
@@ -379,9 +398,9 @@ export interface Bug {
   actual_result: string | null;
   severity: string;
   priority: string;
-  reporter_id: string | null;
-  assigned_dev_id: string | null;
-  supervisor_id: string | null;
+  reporter_id: number | null;
+  assigned_dev_id: number | null;
+  supervisor_id: number | null;
   due_date: string | null;
   status: string;
   root_cause: string | null;
@@ -394,11 +413,11 @@ export interface Bug {
 }
 
 export interface BugFix {
-  id: string;
-  bug_id: string;
-  project_id: string;
+  id: number;
+  bug_id: number;
+  project_id: number;
   fix_cycle: number;
-  fix_owner_id: string;
+  fix_owner_id: number;
   fix_start_date: string;
   fix_due_date: string | null;
   fix_description: string | null;
@@ -412,12 +431,12 @@ export interface BugFix {
 }
 
 export interface Retest {
-  id: string;
-  bug_id: string;
-  project_id: string;
-  fix_id: string | null;
+  id: number;
+  bug_id: number;
+  project_id: number;
+  fix_id: number | null;
   retest_round: number;
-  tester_id: string | null;
+  tester_id: number | null;
   due_date: string | null;
   status: string;
   result: string | null;
@@ -427,10 +446,10 @@ export interface Retest {
 }
 
 export interface EvidenceRequirement {
-  id: string;
-  project_id: string;
+  id: number;
+  project_id: number;
   entity_type: 'project' | 'activity' | 'task';
-  entity_id: string;
+  entity_id: number;
   name: string;
   description: string | null;
   is_mandatory: boolean;
@@ -439,28 +458,28 @@ export interface EvidenceRequirement {
 }
 
 export interface BaselineRevision {
-  id: string;
-  project_id: string;
+  id: number;
+  project_id: number;
   from_version: number;
   reason: string;
   impact: string | null;
   previous_target_date: string | null;
   proposed_target_date: string | null;
-  plan_snapshot: { activity_id: string; name: string; plan_start: string | null; plan_finish: string | null }[];
+  plan_snapshot: { activity_id: number; name: string; plan_start: string | null; plan_finish: string | null }[];
   status: string;
-  requested_by: string | null;
+  requested_by: number | null;
   requested_at: string;
-  decided_by: string | null;
+  decided_by: number | null;
   decided_at: string | null;
   decision_comment: string | null;
-  baseline_id: string | null;
+  baseline_id: number | null;
 }
 
 // ---------------------------------------------------------------------------
 // Phase 3 — Management Intelligence
 // ---------------------------------------------------------------------------
 export interface KpiProject {
-  project_id: string; project_code: string; project_name: string; leader_name: string | null; status: string; health: string;
+  project_id: number; project_code: string; project_name: string; leader_name: string | null; status: string; health: string;
   progress: number; start_date: string | null; target_date: string | null; forecast_date: string | null; baseline_finish: string | null;
   schedule_variance: number | null; completed_on: string | null; on_time: boolean | null; reschedules: number; waiting_days: number;
   tasks_total: number | null; tasks_completed: number | null; tasks_on_time_rate: number | null; overdue_tasks: number | null;
@@ -477,7 +496,7 @@ export interface KpiTeam {
 }
 
 export interface KpiIndividual {
-  user_id: string; full_name: string; roles: string[];
+  user_id: number; full_name: string; roles: string[];
   assigned_tasks: number; completed_tasks: number; on_time_tasks: number; late_tasks: number; excused_late: number;
   on_time_rate: number | null; avg_delay_days: number | null; overdue_tasks: number; open_tasks: number;
   bugs_assigned: number; fixes_ready: number; avg_fix_days: number | null; fix_first_time_pass_rate: number | null;
@@ -485,8 +504,8 @@ export interface KpiIndividual {
 }
 
 export interface Insight {
-  project_id: string | null; project_code: string | null; rule_code: string; severity: 'critical' | 'warning' | 'info';
-  title: string; detail: string; entity_type: string; entity_id: string; link: string;
+  project_id: number | null; project_code: string | null; rule_code: string; severity: 'critical' | 'warning' | 'info';
+  title: string; detail: string; entity_type: string; entity_id: number; link: string;
 }
 
 export interface InsightRule {
@@ -495,16 +514,16 @@ export interface InsightRule {
 }
 
 export interface WorkforcePlan {
-  id: string; user_id: string; work_date: string; start_time: string | null; end_time: string | null; work_type: string;
-  location: string | null; project_id: string | null; remark: string | null; created_by: string | null;
+  id: number; user_id: number; work_date: string; start_time: string | null; end_time: string | null; work_type: string;
+  location: string | null; project_id: number | null; remark: string | null; created_by: number | null;
 }
 
 export interface KpiSnapshot {
-  id: string; project_id: string; snapshot_date: string; progress: number; health: string; status: string;
+  id: number; project_id: number; snapshot_date: string; progress: number; health: string; status: string;
   schedule_variance: number | null; overdue_tasks: number; open_bugs: number; evidence_completion: number | null; waiting_days: number;
 }
 
 export interface Comment {
-  id: string; project_id: string; entity_type: 'task' | 'bug'; entity_id: string; body: string;
-  mentions: string[]; created_by: string; created_at: string; edited_at: string | null;
+  id: number; project_id: number; entity_type: 'task' | 'bug'; entity_id: number; body: string;
+  mentions: number[]; created_by: number; created_at: string; edited_at: string | null;
 }

@@ -18,13 +18,13 @@ export function isSatisfied(r: EvidenceRequirement, evidence: Evidence[]) {
 
 /** Evidence checklist (PRD §18): mandatory items block completion until evidence is attached */
 export default function EvidenceChecklist({ projectId, requirements, evidence, canManage, entityOptions, fixedEntity, onChange, labelFor }: {
-  projectId: string;
+  projectId: number;
   requirements: EvidenceRequirement[];
   evidence: Evidence[];
   canManage: boolean;
   /** where a new item can be bound (project / activities / tasks) */
-  entityOptions?: { value: string; label: string; type: 'project' | 'activity' | 'task' }[];
-  fixedEntity?: { type: 'project' | 'activity' | 'task'; id: string };
+  entityOptions?: { value: number; label: string; type: 'project' | 'activity' | 'task' }[];
+  fixedEntity?: { type: 'project' | 'activity' | 'task'; id: number };
   onChange: () => void;
   labelFor?: (r: EvidenceRequirement) => string | undefined;
 }) {
@@ -103,7 +103,7 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
 
 /** Checklist + evidence files of one activity / task (used in item dialogs) */
 export function EntityEvidence({ projectId, entityType, entityId, canAdd, canManage, allowPublicToggle, onChange }: {
-  projectId: string; entityType: 'activity' | 'task'; entityId: string; canAdd: boolean; canManage: boolean; allowPublicToggle?: boolean; onChange?: () => void;
+  projectId: number; entityType: 'activity' | 'task'; entityId: number; canAdd: boolean; canManage: boolean; allowPublicToggle?: boolean; onChange?: () => void;
 }) {
   const db = dbClient();
   const [reqs, setReqs] = useState<EvidenceRequirement[]>([]);

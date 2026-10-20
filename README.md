@@ -37,18 +37,34 @@ npm run dev                  # http://localhost:3000
 
 Username = the name below, local password = `SEED_PASSWORD` in `scripts/seed.ts`.
 
-| Account | Roles |
-|---|---|
-| requestor | Requestor |
-| req.manager | Requestor Approver |
-| reviewer | System Service Reviewer, Supervisor |
-| authority | Authority Approver, Manager |
-| leader | Project Leader, Developer |
-| dev1 / dev2 | Developer |
-| qa | QA |
-| supervisor | Supervisor |
-| mgmt | Management / User View |
-| admin | Administrator |
+| Account | Roles | Position (approval route) |
+|---|---|---|
+| requestor | Requestor | Staff · PRODUCTION 1 |
+| req.manager | Requestor Approver | Manager · PRODUCTION 1 — *Checked By* |
+| req.gm | Requestor | GM · PRODUCTION 1 — *Approved By* |
+| reviewer | System Service Reviewer, Supervisor | Supervisor · SYSTEM — *Received Request By* |
+| ss.gm | Manager | GM · SYSTEM — *Approved Request By* |
+| factory | Management / User View | Factory Manager — *Approved Request By* |
+| authority | Authority Approver, Manager | President — *Final Approved By* |
+| leader | Project Leader, Developer | Staff |
+| dev1 / dev2 | Developer | Staff |
+| qa | QA | Staff |
+| supervisor | Supervisor | Supervisor · SYSTEM |
+| mgmt | Management / User View | Manager · EXECUTIVE |
+| admin | Administrator | Staff |
+
+### Approval route
+
+Fixed for every request (`src/lib/approval.ts`) — nobody picks approvers on the form. Each step is open to every active user whose **position** matches (SUPERVISOR, MANAGER, GENERAL MANAGER, FACTORY MANAGER, PRESIDENT — other positions cannot approve), and for some steps whose department matches; the requestor never approves their own request.
+
+Profiles store `department_id` / `section_id` / `position_id`. At every AD login the `department`, `section` and `position` names from AD are matched (by name) to those tables; a name that is not found becomes empty.
+
+1. **Requestor Approval** (requestor's department): Checked By (Manager up) → Approved By (GM up)
+2. **System Service Approval**: Received Request By (Supervisor up, System Service department — fills in Project Type / Template / Leader) → Approved Request By (GM up, System Service department) → Approved Request By (Factory Manager) → Final Approved By (President)
+
+The System Service department is set in Admin → Numbering & Route (default `SYSTEM`).
+
+All tables use INT AUTO_INCREMENT ids (`audit_logs`: BIGINT). Ids are per table, so code that mixes rows of several tables in one map / set keys them with `entityKey(type, id)` (`src/components/common.tsx`), and audit lookups always filter by `table_name`.
 
 The seed runs the **real workflow through the same server functions and access policies as the API**: 3 converted projects (one delayed with recovery plan, one on track, one still planning), plus requests in Approved / Waiting System Review / Waiting Requestor Approval / Draft, QA bugs / retests, a pending baseline revision and a workforce plan.
 

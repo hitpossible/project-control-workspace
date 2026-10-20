@@ -3,7 +3,8 @@
 // Usage: npm run db:reset   (migrate --reset && tsx scripts/seed.ts)
 import { config } from 'dotenv';
 import { hashPassword, loadProfile } from '../src/server/users';
-import { pool, uuid } from '../src/server/db';
+import { POSITION_LEVELS } from '../src/lib/approval';
+import { pool } from '../src/server/db';
 import { localDb } from '../src/server/local-db';
 
 config({ path: '.env.local', quiet: true });
@@ -15,20 +16,23 @@ type Db = ReturnType<typeof localDb>;
 const admin = localDb(null); // system (was the service-role client)
 
 const USERS = [
-  { key: 'admin',     email: 'admin@tbkk.test',      full_name: 'System Admin',        employee_id: 'A0001', department: 'System Service', section: 'System', roles: ['admin', 'requestor'] },
-  { key: 'requestor', email: 'requestor@tbkk.test',  full_name: 'Somchai Jaidee',      employee_id: 'P1001', department: 'Production',     section: 'Assembly Line 2', roles: ['requestor'] },
-  { key: 'reqmgr',    email: 'req.manager@tbkk.test',full_name: 'Suda Manee',          employee_id: 'P1002', department: 'Production',     section: 'Production Mgmt', roles: ['requestor', 'requestor_approver'] },
-  { key: 'reviewer',  email: 'reviewer@tbkk.test',   full_name: 'Anan Reviewer',       employee_id: 'S2001', department: 'System Service', section: 'System', roles: ['system_reviewer', 'supervisor', 'requestor'] },
-  { key: 'authority', email: 'authority@tbkk.test',  full_name: 'Kittipong Director',  employee_id: 'M3001', department: 'Management',     section: 'Director Office', roles: ['authority_approver', 'manager'] },
-  { key: 'leader',    email: 'leader@tbkk.test',     full_name: 'Nattapong Leader',    employee_id: 'S2002', department: 'System Service', section: 'Application', roles: ['project_leader', 'developer', 'requestor'] },
-  { key: 'dev1',      email: 'dev1@tbkk.test',       full_name: 'Pim Developer',       employee_id: 'S2003', department: 'System Service', section: 'Application', roles: ['developer'] },
-  { key: 'dev2',      email: 'dev2@tbkk.test',       full_name: 'Tee Developer',       employee_id: 'S2004', department: 'System Service', section: 'Application', roles: ['developer'] },
-  { key: 'qa',        email: 'qa@tbkk.test',         full_name: 'Mint QA',             employee_id: 'S2005', department: 'System Service', section: 'QA', roles: ['qa'] },
-  { key: 'supervisor',email: 'supervisor@tbkk.test', full_name: 'Wichai Supervisor',   employee_id: 'S2006', department: 'System Service', section: 'System', roles: ['supervisor'] },
-  { key: 'mgmt',      email: 'mgmt@tbkk.test',       full_name: 'Management Viewer',   employee_id: 'M3002', department: 'Management',     section: 'Planning', roles: ['management_view'] },
+  { key: 'admin',     email: 'admin@tbkk.test',      full_name: 'System Admin',        employee_id: 'A0001', department: 'K1SS00', section: 'K1SS00', roles: ['admin', 'requestor'], level: 'staff' },
+  { key: 'requestor', email: 'requestor@tbkk.test',  full_name: 'Somchai Jaidee',      employee_id: 'P1001', department: 'K1PD01', section: 'K1A000', roles: ['requestor'], level: 'staff' },
+  { key: 'reqmgr',    email: 'req.manager@tbkk.test',full_name: 'Suda Manee',          employee_id: 'P1002', department: 'K1PD01', section: 'K1B000', roles: ['requestor', 'requestor_approver'], level: 'manager' },
+  { key: 'reqgm',     email: 'req.gm@tbkk.test',     full_name: 'Prasert Production GM', employee_id: 'P1003', department: 'K1PD01', section: 'K1B000', roles: ['requestor'], level: 'gm' },
+  { key: 'reviewer',  email: 'reviewer@tbkk.test',   full_name: 'Anan Reviewer',       employee_id: 'S2001', department: 'K1SS00', section: 'K1SS00', roles: ['system_reviewer', 'supervisor', 'requestor'], level: 'supervisor' },
+  { key: 'ssgm',      email: 'ss.gm@tbkk.test',      full_name: 'Chaiwat System GM',   employee_id: 'S2000', department: 'K1SS00', section: 'K1SS00', roles: ['manager'], level: 'gm' },
+  { key: 'factory',   email: 'factory@tbkk.test',    full_name: 'Somsak Factory Mgr',  employee_id: 'M3003', department: 'K1EX00', section: 'K1EX00', roles: ['management_view'], level: 'factory_manager' },
+  { key: 'authority', email: 'authority@tbkk.test',  full_name: 'Kittipong Director',  employee_id: 'M3001', department: 'K1EX00', section: 'K1EX00', roles: ['authority_approver', 'manager'], level: 'president' },
+  { key: 'leader',    email: 'leader@tbkk.test',     full_name: 'Nattapong Leader',    employee_id: 'S2002', department: 'K1SS00', section: 'K1SS00', roles: ['project_leader', 'developer', 'requestor'], level: 'staff' },
+  { key: 'dev1',      email: 'dev1@tbkk.test',       full_name: 'Pim Developer',       employee_id: 'S2003', department: 'K1SS00', section: 'K1SS00', roles: ['developer'], level: 'staff' },
+  { key: 'dev2',      email: 'dev2@tbkk.test',       full_name: 'Tee Developer',       employee_id: 'S2004', department: 'K1SS00', section: 'K1SS00', roles: ['developer'], level: 'staff' },
+  { key: 'qa',        email: 'qa@tbkk.test',         full_name: 'Mint QA',             employee_id: 'S2005', department: 'K1SS00', section: 'K1SS00', roles: ['qa'], level: 'staff' },
+  { key: 'supervisor',email: 'supervisor@tbkk.test', full_name: 'Wichai Supervisor',   employee_id: 'S2006', department: 'K1SS00', section: 'K1SS00', roles: ['supervisor'], level: 'supervisor' },
+  { key: 'mgmt',      email: 'mgmt@tbkk.test',       full_name: 'Management Viewer',   employee_id: 'M3002', department: 'K1EX00', section: 'K1EX00', roles: ['management_view'], level: 'manager' },
 ];
 
-const ids: Record<string, string> = {};
+const ids: Record<string, number> = {};
 const clients: Record<string, Db> = {};
 
 const localIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -46,23 +50,35 @@ function must({ data, error }: { data: any; error: { message: string } | null },
   return data;
 }
 
-async function createDepartments() {
-  for (const name of [...new Set(USERS.map((u) => u.department))]) {
-    const dept = must(await admin.from('departments').insert({ name }).select('id').single(), `department ${name}`);
-    const sections = [...new Set(USERS.filter((u) => u.department === name).map((u) => u.section))];
-    must(await admin.from('sections').insert(sections.map((s) => ({ department_id: dept.id, name: s }))), `sections of ${name}`);
+// Demo users sit in the company departments / sections from migration 002 (USERS use their codes)
+const deptIds: Record<string, number> = {};
+const sectionIds: Record<string, number> = {}; // key: `${department code}/${section code}`
+
+async function loadOrganisation() {
+  for (const d of must(await admin.from('departments').select('id,code'), 'departments') as any[]) deptIds[d.code] = d.id;
+  for (const x of must(await admin.from('sections').select('id,department_id,code'), 'sections') as any[]) {
+    const dept = Object.keys(deptIds).find((k) => deptIds[k] === x.department_id);
+    sectionIds[`${dept}/${x.code}`] = x.id;
   }
-  console.log('✓ departments & sections');
+  const missing = USERS.filter((u) => !deptIds[u.department] || !sectionIds[`${u.department}/${u.section}`]);
+  if (missing.length) {
+    console.error('✗ department / section codes not in master data:', missing.map((u) => `${u.department}/${u.section}`).join(', '));
+    process.exit(1);
+  }
+  console.log('✓ organisation master (departments & sections from migration 002)');
 }
 
 async function createUsers() {
   const hash = await hashPassword(SEED_PASSWORD);
+  // positions master comes from migration 008
+  const positions = new Map((must(await admin.from('positions').select('id,name'), 'positions') as any[]).map((p) => [p.name, p.id]));
   for (const u of USERS) {
-    const id = uuid();
-    must(await admin.from('profiles').insert({
-      id, username: u.email.split('@')[0], email: u.email, full_name: u.full_name, employee_id: u.employee_id, department: u.department,
-      section: u.section, roles: u.roles, telephone: '02-123-4567', extension: String(1000 + USERS.indexOf(u)),
-    }), `create ${u.email}`);
+    const { id } = must(await admin.from('profiles').insert({
+      username: u.email.split('@')[0], email: u.email, full_name: u.full_name, employee_id: u.employee_id,
+      department_id: deptIds[u.department], section_id: sectionIds[`${u.department}/${u.section}`],
+      position_id: positions.get(POSITION_LEVELS.find((l) => l.value === u.level)!.position) ?? null,
+      roles: u.roles, telephone: '02-123-4567', extension: String(1000 + USERS.indexOf(u)),
+    }).select('id').single(), `create ${u.email}`);
     // local password for the demo accounts (real users sign in through AD)
     await pool().query('UPDATE profiles SET password_hash = ? WHERE id = ?', [hash, id]);
     ids[u.key] = id;
@@ -73,9 +89,7 @@ async function createUsers() {
 
 async function newRequest(fields: Record<string, unknown>) {
   const req = must(
-    await clients.requestor.from('project_requests').insert({
-      requestor_approver_id: ids.reqmgr, ...fields,
-    }).select().single(),
+    await clients.requestor.from('project_requests').insert(fields).select().single(),
     'insert request',
   );
   return req;
@@ -83,33 +97,36 @@ async function newRequest(fields: Record<string, unknown>) {
 
 const submit = async (r: any) => must(await clients.requestor.rpc('submit_request', { p_request_id: r.id }), 'submit');
 
-async function waitingStep(requestId: string) {
+async function waitingStep(requestId: number) {
   return must(
     await admin.from('approval_steps').select('*').eq('request_id', requestId).eq('status', 'waiting').single(),
     'waiting step',
   );
 }
 
-async function approve(who: string, requestId: string, comment?: string) {
+async function approve(who: string, requestId: number, comment?: string) {
   const s = await waitingStep(requestId);
   return must(await clients[who].rpc('act_on_approval', { p_step_id: s.id, p_action: 'approve', p_comment: comment ?? null }), `approve by ${who}`);
 }
 
-async function review(requestId: string, typeCode: string, tplCode: string) {
+async function review(requestId: number, typeCode: string, tplCode: string) {
   const type = must(await admin.from('project_types').select('id').eq('code', typeCode).single(), 'type');
   const tpl = must(await admin.from('project_templates').select('id').eq('code', tplCode).single(), 'tpl');
   must(await clients.reviewer.rpc('save_review', {
     p_request_id: requestId, p_project_type_id: type.id, p_template_id: tpl.id,
-    p_proposed_leader_id: ids.leader, p_authority_approver_id: ids.authority,
+    p_proposed_leader_id: ids.leader,
     p_scope_assessment: 'Scope reviewed. Feasible with current System Service resources.',
   }), 'save_review');
 }
 
 async function fullyApprove(r: any, typeCode: string, tplCode: string) {
-  await approve('reqmgr', r.id, 'Agree, please proceed.');
+  await approve('reqmgr', r.id, 'Agree, please proceed.');      // Checked By (Manager up)
+  await approve('reqgm', r.id, 'Approved.');                    // Approved By (GM up)
   await review(r.id, typeCode, tplCode);
-  await approve('reviewer', r.id, 'Reviewed by System Service.');
-  await approve('authority', r.id, 'Approved.');
+  await approve('reviewer', r.id, 'Received by System Service.'); // Received Request By (Supervisor up)
+  await approve('ssgm', r.id, 'Approved.');                     // Approved Request By (GM up)
+  await approve('factory', r.id, 'Approved.');                  // Approved Request By (Factory Manager)
+  await approve('authority', r.id, 'Final approval.');          // Final Approved By (President)
 }
 
 async function convert(r: any, start: string, target: string, sponsor: string) {
@@ -118,12 +135,12 @@ async function convert(r: any, start: string, target: string, sponsor: string) {
   }), 'convert');
 }
 
-async function addMembers(projectId: string, list: [string, string][]) {
+async function addMembers(projectId: number, list: [string, string][]) {
   must(await clients.leader.from('project_members').insert(list.map(([k, role]) => ({ project_id: projectId, user_id: ids[k], member_role: role }))), 'members');
 }
 
 async function main() {
-  await createDepartments();
+  await loadOrganisation();
   await createUsers();
   const L = clients.leader;
 
@@ -281,7 +298,8 @@ async function main() {
     priority: 'medium', date_required: day(90), reduction_cost_from: 120000, reduction_cost_to: 95000,
   });
   await submit(rE);
-  await approve('reqmgr', rE.id, 'OK'); // waiting system review
+  await approve('reqmgr', rE.id, 'OK');
+  await approve('reqgm', rE.id, 'OK'); // waiting System Service to receive
 
   const rF = await newRequest({
     project_name: 'Overtime Request Workflow', description: 'Online OT request and approval.',

@@ -14,7 +14,7 @@ import { ACTIVITY_STATUSES } from '@/lib/constants';
 import { fmtDate, isOverdue } from '@/lib/format';
 import type { Activity, InternalTask } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { buildGanttRows } from './ganttRows';
+import { allGanttKeys, buildGanttRows, ganttDeps } from './ganttRows';
 import type { TabProps } from './types';
 
 export function ViewToggle({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string][] }) {
@@ -63,7 +63,7 @@ export default function PlanTab({ data, perm, reload, memberProfiles }: TabProps
         <DateField className="w-40" label="To" value={to} onChange={setTo} />
         {perm.internal && view === 'gantt' && (
           <>
-            <Button variant="ghost" className="h-9" onClick={() => setExpanded(new Set([...data.activities.map((a) => a.id), ...data.tasks.map((t) => t.id)]))}><ChevronsUpDown /> Expand</Button>
+            <Button variant="ghost" className="h-9" onClick={() => setExpanded(allGanttKeys(data.activities, data.tasks))}><ChevronsUpDown /> Expand</Button>
             <Button variant="ghost" className="h-9" onClick={() => setExpanded(new Set())}><ChevronsDownUp /> Collapse</Button>
           </>
         )}
@@ -74,11 +74,11 @@ export default function PlanTab({ data, perm, reload, memberProfiles }: TabProps
       {acts.length === 0 ? <EmptyState text="No activities" /> : view === 'gantt' ? (
         <GanttChart
           rows={rows}
-          deps={data.deps.map((d) => ({ from: d.predecessor_id, to: d.successor_id }))}
+          deps={ganttDeps(data.deps)}
           onToggle={(r) => toggle(r.id)}
           onRowClick={(r) => {
-            if (r.level === 0) setEditAct(data.activities.find((a) => a.id === r.id) ?? null);
-            else setEditTask(data.tasks.find((t) => t.id === r.id) ?? null);
+            if (r.level === 0) setEditAct(data.activities.find((a) => a.id === r.entityId) ?? null);
+            else setEditTask(data.tasks.find((t) => t.id === r.entityId) ?? null);
           }}
         />
       ) : (

@@ -34,10 +34,10 @@ export interface ManagementReportData {
 export interface ReportMeta {
   generatedBy: string;
   generatedAt: string;
-  name: (id: string | null | undefined) => string;
+  name: (id: number | null | undefined) => string;
 }
 
-export async function loadProjectReport(db: DbClient, projectId: string): Promise<ProjectReportData> {
+export async function loadProjectReport(db: DbClient, projectId: number): Promise<ProjectReportData> {
   const [pv, acts, mem, bl, ins, kp, reqs, ev, qa, bugs] = await Promise.all([
     db.from('v_projects').select('*').eq('id', projectId).single(),
     db.from('activities').select('*').eq('project_id', projectId).order('seq'),

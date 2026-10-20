@@ -9,7 +9,7 @@ const INLINE = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/gif
 /** Stream an evidence file after checking the evidence row is visible to the user */
 export const GET = withUser(async (me, _req, params) => {
   const ev = await withCtx(me, async (ctx) => {
-    const e = await ctx.one<{ storage_path: string | null; file_name: string | null; mime_type: string | null; project_id: string | null; request_id: string | null; is_internal: boolean }>(
+    const e = await ctx.one<{ storage_path: string | null; file_name: string | null; mime_type: string | null; project_id: number | null; request_id: number | null; is_internal: boolean }>(
       'SELECT storage_path, file_name, mime_type, project_id, request_id, is_internal FROM evidence WHERE id = ?', [params.id]);
     if (!e || !e.storage_path || !(await canReadEvidence(ctx, e))) throw new AppError('File not found', 404);
     return e;

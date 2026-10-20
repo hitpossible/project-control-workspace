@@ -10,16 +10,16 @@ const SLA: Record<string, number> = { critical: 1, high: 3, medium: 5 };
 const slaDays = (severity: string) => SLA[severity] ?? 10;
 const bugLink = (b: Pick<Bug, 'project_id' | 'id'>) => `/projects/${b.project_id}?tab=qa&bug=${b.id}`;
 
-async function lockBug(ctx: Ctx, id: string): Promise<Bug> {
+async function lockBug(ctx: Ctx, id: number): Promise<Bug> {
   const b = await getRow(ctx, 'bugs', id, true);
   if (!b) throw new AppError('Bug not found', 404);
   return b as unknown as Bug;
 }
 
 export async function reportBug(ctx: Ctx, a: {
-  p_project_id: string; p_title: string; p_description?: string | null; p_severity?: string | null; p_priority?: string | null;
-  p_test_round_id?: string | null; p_activity_id?: string | null; p_task_id?: string | null; p_steps?: string | null;
-  p_expected?: string | null; p_actual?: string | null; p_assigned_dev_id?: string | null; p_due_date?: string | null;
+  p_project_id: number; p_title: string; p_description?: string | null; p_severity?: string | null; p_priority?: string | null;
+  p_test_round_id?: number | null; p_activity_id?: number | null; p_task_id?: number | null; p_steps?: string | null;
+  p_expected?: string | null; p_actual?: string | null; p_assigned_dev_id?: number | null; p_due_date?: string | null;
 }) {
   if (!(await canViewInternal(ctx, a.p_project_id))) throw new AppError('Not allowed to report bugs in this project', 403);
   if (blank(a.p_title)) throw new AppError('Bug title is required');
@@ -47,7 +47,7 @@ export async function reportBug(ctx: Ctx, a: {
   });
 }
 
-export async function assignBug(ctx: Ctx, a: { p_bug_id: string; p_dev_id: string | null; p_due_date?: string | null }) {
+export async function assignBug(ctx: Ctx, a: { p_bug_id: number; p_dev_id: number | null; p_due_date?: string | null }) {
   let b = await lockBug(ctx, a.p_bug_id);
   if (!(await canTriageBug(ctx, b))) throw new AppError('Only QA, the Project Leader or Supervisor can assign bugs', 403);
   if (['closed', 'cancelled'].includes(b.status)) throw new AppError(`Bug ${b.bug_no} is ${b.status}`);
@@ -56,7 +56,7 @@ export async function assignBug(ctx: Ctx, a: { p_bug_id: string; p_dev_id: strin
     b = (await updateRow(ctx, 'bugs', b.id, {
       assigned_dev_id: a.p_dev_id, due_date: a.p_due_date ?? b.due_date, status: b.status === 'new' ? 'assigned' : b.status,
     })) as unknown as Bug;
-    for (const f of await ctx.q<{ id: string }>(`SELECT id FROM bug_fixes WHERE bug_id = ? AND status = 'in_progress'`, [b.id])) {
+    for (const f of await ctx.q<{ id: number }>(`SELECT id FROM bug_fixes WHERE bug_id = ? AND status = 'in_progress'`, [b.id])) {
       await updateRow(ctx, 'bug_fixes', f.id, { fix_owner_id: a.p_dev_id });
     }
     await notifyEvent(ctx, {
@@ -68,7 +68,7 @@ export async function assignBug(ctx: Ctx, a: { p_bug_id: string; p_dev_id: strin
   });
 }
 
-export async function startFix(ctx: Ctx, a: { p_bug_id: string }) {
+export async function startFix(ctx: Ctx, a: { p_bug_id: number }) {
   const b = await lockBug(ctx, a.p_bug_id);
   if (!(b.assigned_dev_id === ctx.uid || (await canManageProject(ctx, b.project_id)))) throw new AppError('Only the assigned developer can start the fix', 403);
   if (!b.assigned_dev_id) throw new AppError('Assign a developer first');
@@ -85,8 +85,8 @@ export async function startFix(ctx: Ctx, a: { p_bug_id: string }) {
 
 /** Developer: Fix Ready → creates a Retest and notifies QA / Tester (Rule 8, AC-013) */
 export async function markFixReady(ctx: Ctx, a: {
-  p_fix_id: string; p_description: string; p_unit_test_result?: string | null; p_technical_note?: string | null;
-  p_build_link?: string | null; p_commit_link?: string | null; p_tester_id?: string | null;
+  p_fix_id: number; p_description: string; p_unit_test_result?: string | null; p_technical_note?: string | null;
+  p_build_link?: string | null; p_commit_link?: string | null; p_tester_id?: number | null;
 }) {
   const f = (await getRow(ctx, 'bug_fixes', a.p_fix_id, true)) as unknown as BugFix | null;
   if (!f) throw new AppError('Fix not found', 404);
@@ -101,7 +101,7 @@ export async function markFixReady(ctx: Ctx, a: {
     ? await ctx.val(`SELECT 1 FROM profiles WHERE id = ? AND JSON_CONTAINS(roles, '"qa"')`, [b.reporter_id]) : null;
   const tester = a.p_tester_id
     ?? (reporterIsQa ? b.reporter_id : null)
-    ?? await ctx.val<string>(`SELECT user_id FROM project_members WHERE project_id = ? AND member_role = 'qa' ORDER BY created_at LIMIT 1`, [b.project_id])
+    ?? await ctx.val<number>(`SELECT user_id FROM project_members WHERE project_id = ? AND member_role = 'qa' ORDER BY created_at LIMIT 1`, [b.project_id])
     ?? b.reporter_id;
 
   return ctx.asWorkflow(async () => {
@@ -125,7 +125,7 @@ export async function markFixReady(ctx: Ctx, a: {
 }
 
 /** QA: Retest → Passed closes the bug (Rule 7); otherwise Reopen (AC-014) */
-export async function recordRetest(ctx: Ctx, a: { p_retest_id: string; p_result: string; p_comment?: string | null }) {
+export async function recordRetest(ctx: Ctx, a: { p_retest_id: number; p_result: string; p_comment?: string | null }) {
   const t = (await getRow(ctx, 'retests', a.p_retest_id, true)) as unknown as Retest | null;
   if (!t) throw new AppError('Retest not found', 404);
   let b = await lockBug(ctx, t.bug_id);
@@ -159,16 +159,16 @@ export async function recordRetest(ctx: Ctx, a: { p_retest_id: string; p_result:
   });
 }
 
-export async function cancelBug(ctx: Ctx, a: { p_bug_id: string; p_reason: string }) {
+export async function cancelBug(ctx: Ctx, a: { p_bug_id: number; p_reason: string }) {
   let b = await lockBug(ctx, a.p_bug_id);
   if (!(await canTriageBug(ctx, b))) throw new AppError('Not allowed', 403);
   if (['closed', 'cancelled'].includes(b.status)) throw new AppError(`Bug is already ${b.status}`);
   if (blank(a.p_reason)) throw new AppError('A reason is required');
   return ctx.asWorkflow(async () => {
-    for (const r of await ctx.q<{ id: string }>(`SELECT id FROM retests WHERE bug_id = ? AND status = 'pending'`, [b.id])) {
+    for (const r of await ctx.q<{ id: number }>(`SELECT id FROM retests WHERE bug_id = ? AND status = 'pending'`, [b.id])) {
       await updateRow(ctx, 'retests', r.id, { status: 'cancelled' });
     }
-    for (const f of await ctx.q<{ id: string }>(`SELECT id FROM bug_fixes WHERE bug_id = ? AND status IN ('in_progress','ready')`, [b.id])) {
+    for (const f of await ctx.q<{ id: number }>(`SELECT id FROM bug_fixes WHERE bug_id = ? AND status IN ('in_progress','ready')`, [b.id])) {
       await updateRow(ctx, 'bug_fixes', f.id, { status: 'failed' });
     }
     b = (await updateRow(ctx, 'bugs', b.id, { status: 'cancelled', cancel_reason: a.p_reason, closed_at: new Date().toISOString() })) as unknown as Bug;

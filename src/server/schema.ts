@@ -1,21 +1,20 @@
 import type { Ctx, Row } from './db';
 
 /** Column metadata from information_schema — used to whitelist identifiers and coerce values on write. */
-export type ColKind = 'uuid' | 'text' | 'int' | 'number' | 'bool' | 'date' | 'datetime' | 'time' | 'json';
+export type ColKind = 'text' | 'int' | 'number' | 'bool' | 'date' | 'datetime' | 'time' | 'json';
 export type TableMeta = { columns: Map<string, ColKind>; pk: string; autoPk: boolean };
 
 type G = typeof globalThis & { __pcwSchema?: Promise<Map<string, TableMeta>> };
 
-function kindOf(dataType: string, columnType: string, name: string): ColKind {
+function kindOf(dataType: string, columnType: string): ColKind {
   if (columnType === 'tinyint(1)') return 'bool';
-  if (dataType === 'char' && columnType === 'char(36)') return 'uuid';
   if (['int', 'bigint', 'smallint', 'mediumint', 'tinyint'].includes(dataType)) return 'int';
   if (['decimal', 'double', 'float'].includes(dataType)) return 'number';
   if (dataType === 'date') return 'date';
   if (dataType === 'datetime' || dataType === 'timestamp') return 'datetime';
   if (dataType === 'time') return 'time';
   if (dataType === 'json') return 'json';
-  return name === 'id' ? 'uuid' : 'text';
+  return 'text';
 }
 
 export async function loadSchema(ctx: Ctx): Promise<Map<string, TableMeta>> {
@@ -31,7 +30,7 @@ export async function loadSchema(ctx: Ctx): Promise<Map<string, TableMeta>> {
         let m = map.get(r.t);
         if (!m) map.set(r.t, (m = { columns: new Map(), pk: 'id', autoPk: false }));
         if (r.x.includes('GENERATED')) continue; // generated columns are never written or returned
-        m.columns.set(r.c, kindOf(r.dt, r.ct, r.c));
+        m.columns.set(r.c, kindOf(r.dt, r.ct));
         if (r.k === 'PRI') {
           m.pk = r.c;
           m.autoPk = r.x.includes('auto_increment');

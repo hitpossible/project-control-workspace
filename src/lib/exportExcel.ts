@@ -30,7 +30,7 @@ function download(buf: ArrayBuffer, filename: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-function summarySheet(wb: Wb, p: ProjectView, members: ProjectMember[], name: (id: string | null) => string, exportedBy: string) {
+function summarySheet(wb: Wb, p: ProjectView, members: ProjectMember[], name: (id: number | null) => string, exportedBy: string) {
   const ws = wb.addWorksheet('Project Summary');
   ws.columns = [{ width: 26 }, { width: 70 }];
   ws.mergeCells('A1:B1');
@@ -157,7 +157,7 @@ function planSheet(wb: Wb, p: ProjectView, acts: Activity[], picName: (a: Activi
   ws.getCell(legendRow, 2).font = { italic: true, size: 9, color: { argb: 'FF777777' } };
 }
 
-function taskSheet(wb: Wb, acts: Activity[], tasks: InternalTask[], name: (id: string | null) => string) {
+function taskSheet(wb: Wb, acts: Activity[], tasks: InternalTask[], name: (id: number | null) => string) {
   const ws = wb.addWorksheet('Task List', { views: [{ state: 'frozen', ySplit: 1 }] });
   ws.columns = [
     { header: 'Task No', key: 'no', width: 9 }, { header: 'Activity', key: 'act', width: 22 }, { header: 'Task', key: 'name', width: 34 },
@@ -183,7 +183,7 @@ function taskSheet(wb: Wb, acts: Activity[], tasks: InternalTask[], name: (id: s
   ws.autoFilter = { from: 'A1', to: 'N1' };
 }
 
-function bugSheet(wb: Wb, bugs: Bug[], name: (id: string | null) => string) {
+function bugSheet(wb: Wb, bugs: Bug[], name: (id: number | null) => string) {
   const ws = wb.addWorksheet('Bug List', { views: [{ state: 'frozen', ySplit: 1 }] });
   ws.columns = [
     { header: 'Bug No', key: 'no', width: 10 }, { header: 'Title', key: 'title', width: 40 }, { header: 'Severity', key: 'sev', width: 10 },
@@ -206,7 +206,7 @@ function bugSheet(wb: Wb, bugs: Bug[], name: (id: string | null) => string) {
 
 export async function exportProjectExcel(opts: {
   project: ProjectView; activities: Activity[]; tasks?: InternalTask[]; bugs?: Bug[]; members: ProjectMember[];
-  name: (id: string | null) => string; exportedBy: string; includeInternal: boolean;
+  name: (id: number | null) => string; exportedBy: string; includeInternal: boolean;
 }) {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
@@ -323,7 +323,7 @@ export async function exportInsightsExcel(rows: Insight[]) {
   download(buf as ArrayBuffer, `Smart_Insights_${dayjs().format('YYYYMMDD')}.xlsx`);
 }
 
-export async function exportWorkforceExcel(opts: { from: string; to: string; plans: WorkforcePlan[]; people: { id: string; full_name: string }[]; projectCode: (id: string | null) => string }) {
+export async function exportWorkforceExcel(opts: { from: string; to: string; plans: WorkforcePlan[]; people: { id: number; full_name: string }[]; projectCode: (id: number | null) => string }) {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
   const days: string[] = [];

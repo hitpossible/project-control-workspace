@@ -26,7 +26,7 @@ export type Policy = {
 };
 
 const all: Where = ['1=1', []];
-const pid = (r: Row) => String(r.project_id);
+const pid = (r: Row) => Number(r.project_id);
 const admin = (ctx: Ctx) => isAdmin(ctx);
 const masterData: Policy = { read: () => all, insert: admin, update: admin, check: admin, delete: admin };
 const visibleProject = async (ctx: Ctx, col = 'project_id') => idFilter(col, await visibleProjectIds(ctx));
@@ -52,14 +52,14 @@ export const POLICIES: Record<string, Policy> = {
   project_types: masterData,
   departments: masterData,
   sections: masterData,
+  positions: masterData,
   project_templates: masterData,
   notification_rules: masterData,
   insight_rules: masterData,
 
   // Requests
   project_requests: {
-    read: (ctx) => (isStaff(ctx) ? all
-      : ['(requestor_id = ? OR requestor_approver_id = ? OR authority_approver_id = ?)', [ctx.uid, ctx.uid, ctx.uid]]),
+    read: (ctx) => (isStaff(ctx) ? all : requestFilter(ctx, 'id')),
     insert: (ctx, r) => {
       r.requestor_id ??= ctx.uid;
       r.status ??= 'draft';
@@ -75,8 +75,8 @@ export const POLICIES: Record<string, Policy> = {
   // Projects
   projects: {
     read: (ctx) => visibleProject(ctx, 'id'),
-    update: (ctx, o) => canManageProject(ctx, String(o.id)),
-    check: (ctx, n) => canManageProject(ctx, String(n.id)),
+    update: (ctx, o) => canManageProject(ctx, Number(o.id)),
+    check: (ctx, n) => canManageProject(ctx, Number(n.id)),
     readonly: ['created_at', 'created_by'],
   },
   project_members: { read: (ctx) => visibleProject(ctx), insert: manage, update: manage, check: manage, delete: manage },
@@ -200,5 +200,5 @@ export const POLICIES: Record<string, Policy> = {
 /** Single-row visibility checks used outside list queries (file download etc.) */
 export async function canReadEvidence(ctx: Ctx, e: Row) {
   if (e.project_id) return (await canViewInternal(ctx, pid(e))) || (!e.is_internal && (await canViewProject(ctx, pid(e))));
-  return !!e.request_id && canViewRequest(ctx, String(e.request_id));
+  return !!e.request_id && canViewRequest(ctx, Number(e.request_id));
 }

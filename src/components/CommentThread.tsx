@@ -17,7 +17,7 @@ const MENTION_AT_CARET = /(^|\s)@([^\s@]{0,30})$/;
 
 /** Comment thread with @mention for an internal Task or Bug */
 export default function CommentThread({ projectId, entityType, entityId, canModerate, onCount }: {
-  projectId: string; entityType: 'task' | 'bug'; entityId: string;
+  projectId: number; entityType: 'task' | 'bug'; entityId: number;
   /** Project Leader / Admin may delete any comment */
   canModerate?: boolean;
   onCount?: (n: number) => void;
@@ -26,7 +26,7 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
   const { me, profiles, profileName, notify } = useApp();
   const [items, setItems] = useState<Comment[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   // System Service staff can open internal tasks / bugs (the server re-checks every mention)
@@ -46,7 +46,7 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
     load();
   }, [load]);
 
-  const post = async (body: string, mentions: string[]) => {
+  const post = async (body: string, mentions: number[]) => {
     setSaving(true);
     const { error } = await db.from('comments').insert({ project_id: projectId, entity_type: entityType, entity_id: entityId, body, mentions });
     setSaving(false);
@@ -58,7 +58,7 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
     return true;
   };
 
-  const update = async (c: Comment, body: string, mentions: string[]) => {
+  const update = async (c: Comment, body: string, mentions: number[]) => {
     setSaving(true);
     const { error } = await db.from('comments').update({ body, mentions }).eq('id', c.id);
     setSaving(false);
@@ -137,7 +137,7 @@ function MentionText({ body, names }: { body: string; names: string[] }) {
 
 function Composer({ candidates, initial, saving, submitLabel, onSubmit, onCancel }: {
   candidates: Profile[]; initial?: Comment; saving: boolean; submitLabel: string;
-  onSubmit: (body: string, mentions: string[]) => Promise<boolean>; onCancel?: () => void;
+  onSubmit: (body: string, mentions: number[]) => Promise<boolean>; onCancel?: () => void;
 }) {
   const [text, setText] = useState(initial?.body ?? '');
   const [picked, setPicked] = useState<Profile[]>(() => candidates.filter((p) => initial?.mentions.includes(p.id)));

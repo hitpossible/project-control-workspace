@@ -5,7 +5,7 @@ import { pool } from './db';
 export async function sendQueuedEmails(limit = 50): Promise<number> {
   const db = pool();
   const [rows] = await db.query(`SELECT * FROM email_outbox WHERE status = 'queued' ORDER BY created_at LIMIT ?`, [limit]);
-  const queue = rows as { id: string; to_email: string; subject: string; body: string | null }[];
+  const queue = rows as { id: number; to_email: string; subject: string; body: string | null }[];
   if (!queue.length || !process.env.SMTP_HOST) return 0;
 
   const transport = nodemailer.createTransport({

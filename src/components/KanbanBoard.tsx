@@ -8,7 +8,7 @@ import { useState } from 'react';
 import type { Opt } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
-type Item = { id: string; status: string };
+type Item = { id: number; status: string };
 
 /**
  * Generic status board (monday.com style) built on @dnd-kit.
@@ -28,8 +28,8 @@ export default function KanbanBoard<T extends Item>({
   onOpen?: (item: T) => void;
   emptyText?: string;
 }) {
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [moving, setMoving] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const [moving, setMoving] = useState<number | null>(null);
   const active = items.find((i) => i.id === activeId) ?? null;
   const label = (status: string) => columns.find((c) => c.value === status)?.label ?? status;
 
@@ -84,7 +84,7 @@ export default function KanbanBoard<T extends Item>({
         announcements,
         screenReaderInstructions: { draggable: 'Press Enter to open. Alt plus left or right arrow moves the card to the previous or next column. Drag with mouse or long-press on touch.' },
       }}
-      onDragStart={(e) => setActiveId(String(e.active.id))}
+      onDragStart={(e) => setActiveId(Number(e.active.id))}
       onDragEnd={end}
       onDragCancel={() => setActiveId(null)}
     >
@@ -143,7 +143,7 @@ function Column({ col, count, isTarget, emptyText, children }: {
 }
 
 function Card({ id, title, draggable, dimmed, busy, onOpen, onShift, children }: {
-  id: string; title?: string; draggable: boolean; dimmed: boolean; busy: boolean; onOpen: () => void; onShift: (dir: -1 | 1) => void; children: React.ReactNode;
+  id: number; title?: string; draggable: boolean; dimmed: boolean; busy: boolean; onOpen: () => void; onShift: (dir: -1 | 1) => void; children: React.ReactNode;
 }) {
   const { setNodeRef, attributes, listeners } = useDraggable({ id, disabled: !draggable, data: { title } });
   return (

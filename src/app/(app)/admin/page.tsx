@@ -15,11 +15,28 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DELAY_CATEGORIES, INSIGHT_SEVERITIES, MEMBER_ROLES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
-import type { Department, InsightRule, NotificationRule, Profile, ProjectTemplate, ProjectType, Role, Section } from '@/lib/types';
+import type { Department, InsightRule, NotificationRule, Position, Profile, ProjectTemplate, ProjectType, Role, Section } from '@/lib/types';
+import { APPROVAL_ROUTE, POSITION_LEVELS, stepAudience } from '@/lib/approval';
 import { cn } from '@/lib/utils';
 
 const ROLE_OPTS = (Object.keys(ROLE_LABELS) as Role[]).map((r) => ({ value: r, label: ROLE_LABELS[r] }));
-const TABS = ['Users & Roles', 'Departments', 'Project Types', 'Project Templates', 'Numbering', 'Notification Rules', 'Insight Rules', 'KPI Settings'];
+// A plain mouse wheel only scrolls vertically, so turn it into horizontal scrolling of the tab strip.
+function wheelScrollX(el: HTMLDivElement | null) {
+  if (!el) return;
+  const onWheel = (e: WheelEvent) => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    const max = el.scrollWidth - el.clientWidth;
+    if (max <= 0) return;
+    const next = Math.min(max, Math.max(0, el.scrollLeft + e.deltaY));
+    if (next === el.scrollLeft) return;
+    e.preventDefault();
+    el.scrollLeft = next;
+  };
+  el.addEventListener('wheel', onWheel, { passive: false });
+  return () => el.removeEventListener('wheel', onWheel);
+}
+
+const TABS = ['Users & Roles', 'Departments', 'Project Types', 'Project Templates', 'Numbering & Route', 'Notification Rules', 'Insight Rules', 'KPI Settings'];
 
 export default function AdminPage() {
   const { hasRole } = useApp();
@@ -29,7 +46,7 @@ export default function AdminPage() {
     <>
       <PageHeader title="Administration" subtitle="Master data, roles, workflow configuration" />
       <Tabs value={tab} onValueChange={setTab} className="mb-5">
-        <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b border-grid">
+        <TabsList ref={wheelScrollX} variant="line" className="no-scrollbar w-full justify-start overflow-x-auto border-b border-grid">
           {TABS.map((t) => <TabsTrigger key={t} value={t} className="flex-none px-3">{t}</TabsTrigger>)}
         </TabsList>
       </Tabs>
@@ -49,13 +66,14 @@ function UsersAdmin() {
   const db = dbClient();
   const { profiles, refreshProfiles, notify } = useApp();
   const [edit, setEdit] = useState<(Partial<Profile> & { password?: string }) | null>(null);
-  const { departments, sections } = useDepartments();
-  const dept = departments.find((d) => d.name === edit?.department);
-  // active entries, plus the user's current value so an inactive / unknown name (e.g. from AD) is not lost
-  const options = (names: string[], current: string | null | undefined) =>
-    [...new Set([...names, ...(current ? [current] : [])])].map((v) => ({ value: v, label: v }));
-  const deptOpts = options(departments.filter((d) => d.is_active).map((d) => d.name), edit?.department);
-  const sectionOpts = options(sections.filter((x) => x.department_id === dept?.id && x.is_active).map((x) => x.name), edit?.section);
+  const { departments, sections, positions } = useDepartments();
+  // active entries, plus the user's current one so an inactive entry is not lost
+  const options = (rows: { id: number; name: string; is_active?: boolean }[], current: number | null | undefined) =>
+    rows.filter((r) => r.is_active !== false || r.id === current).map((r) => ({ value: String(r.id), label: r.name }));
+  const deptOpts = options(departments, edit?.department_id);
+  const sectionOpts = options(sections.filter((x) => x.department_id === edit?.department_id), edit?.section_id);
+  const positionOpts = options(positions, edit?.position_id);
+  const idOrNull = (v: string) => (v ? Number(v) : null);
 
   const save = async () => {
     if (!edit) return;
@@ -69,7 +87,7 @@ function UsersAdmin() {
     } else {
       const { error } = await db.from('profiles').update({
         username: edit.username || null, email: edit.email || null,
-        full_name: edit.full_name, employee_id: edit.employee_id, department: edit.department, section: edit.section,
+        full_name: edit.full_name, employee_id: edit.employee_id, department_id: edit.department_id ?? null, section_id: edit.section_id ?? null, position_id: edit.position_id ?? null,
         telephone: edit.telephone, extension: edit.extension, roles: edit.roles, is_active: edit.is_active,
       }).eq('id', edit.id);
       if (error) return notify(errMsg(error), 'error');
@@ -90,7 +108,7 @@ function UsersAdmin() {
       <BoardGroup title="Users" color="#579bfc" count={profiles.length}
         actions={<Button size="sm" onClick={() => setEdit({ roles: ['requestor'], is_active: true })}><Plus /> Add User</Button>}>
         <Table className="board-table">
-          <TableHeader><TableRow><TableHead className="text-left">Name</TableHead><TableHead>Emp. ID</TableHead><TableHead>Username</TableHead><TableHead>Email</TableHead><TableHead>Department</TableHead><TableHead>Roles</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead className="text-left">Name</TableHead><TableHead>Emp. ID</TableHead><TableHead>Username</TableHead><TableHead>Email</TableHead><TableHead>Department</TableHead><TableHead>Position</TableHead><TableHead>Roles</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
           <TableBody>
             {profiles.map((p) => (
               <TableRow key={p.id} className={cn('cursor-pointer', !p.is_active && 'opacity-50')} onClick={() => setEdit({ ...p })}>
@@ -99,6 +117,7 @@ function UsersAdmin() {
                 <TableCell className="text-center">{p.username}</TableCell>
                 <TableCell className="text-center">{p.email}</TableCell>
                 <TableCell className="text-center">{p.department}</TableCell>
+                <TableCell className="text-center">{p.position}</TableCell>
                 <TableCell className="whitespace-normal">
                   <div className="flex flex-wrap gap-1">{p.roles.map((r) => <span key={r} className="rounded bg-secondary px-1.5 py-0.5 text-xs">{ROLE_LABELS[r]}</span>)}</div>
                 </TableCell>
@@ -119,10 +138,13 @@ function UsersAdmin() {
               <TextField className="col-span-6" label="Email" value={edit.email} onChange={(v) => set({ email: v })} />
               <TextField className="col-span-12" label={edit.id ? 'Set local password' : 'Local password (optional)'} type="password" value={edit.password} onChange={(v) => set({ password: v })}
                 helperText="Leave empty for AD login. Min 8 characters — only for accounts without AD (e.g. break-glass admin)." />
-              <SelectField className="col-span-6" label="Department" allowEmpty value={edit.department} options={deptOpts}
-                onChange={(v) => set({ department: v || null, section: v === edit.department ? edit.section : null })} />
-              <SelectField className="col-span-6" label="Section" allowEmpty value={edit.section} options={sectionOpts}
-                disabled={!edit.department} onChange={(v) => set({ section: v || null })} />
+              <SelectField className="col-span-6" label="Department" allowEmpty value={edit.department_id?.toString()} options={deptOpts}
+                onChange={(v) => set({ department_id: idOrNull(v), section_id: idOrNull(v) === edit.department_id ? edit.section_id : null })} />
+              <SelectField className="col-span-6" label="Section" allowEmpty value={edit.section_id?.toString()} options={sectionOpts}
+                disabled={!edit.department_id} onChange={(v) => set({ section_id: idOrNull(v) })} />
+              <SelectField className="col-span-12" label="Position" allowEmpty value={edit.position_id?.toString()} options={positionOpts}
+                onChange={(v) => set({ position_id: idOrNull(v) })}
+                helperText={`Synced from AD at each login. Approval: ${POSITION_LEVELS.filter((l) => l.value !== 'staff').map((l) => l.position).join(', ')}`} />
               <TextField className="col-span-8" label="Telephone" value={edit.telephone} onChange={(v) => set({ telephone: v })} />
               <TextField className="col-span-4" label="Ext." value={edit.extension} onChange={(v) => set({ extension: v })} />
               <MultiSelect className="col-span-12" label="Roles" value={edit.roles ?? []} onChange={(v) => set({ roles: v as Role[] })} options={ROLE_OPTS} />
@@ -140,25 +162,32 @@ function useDepartments() {
   const db = dbClient();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const load = useCallback(async () => {
-    const [d, s] = await Promise.all([db.from('departments').select('*').order('name'), db.from('sections').select('*').order('name')]);
+    const [d, s, p] = await Promise.all([
+      db.from('departments').select('*').order('name'), db.from('sections').select('*').order('name'), db.from('positions').select('*').order('name'),
+    ]);
     setDepartments((d.data ?? []) as Department[]);
     setSections((s.data ?? []) as Section[]);
+    setPositions((p.data ?? []) as Position[]);
   }, [db]);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
     load();
   }, [load]);
-  return { departments, sections, load };
+  return { departments, sections, positions, load };
 }
+
+/** Blank → null (codes are optional); otherwise trimmed upper case */
+const normCode = (v: string) => v.trim().toUpperCase() || null;
 
 function DepartmentsAdmin() {
   const db = dbClient();
   const { notify, refreshProfiles } = useApp();
   const { departments, sections, load } = useDepartments();
   const [selected, setSelected] = useState<number | null>(null);
-  const [newDept, setNewDept] = useState('');
-  const [newSection, setNewSection] = useState('');
+  const [newDept, setNewDept] = useState({ code: '', name: '' });
+  const [newSection, setNewSection] = useState({ code: '', name: '' });
   const current = departments.find((d) => d.id === selected) ?? departments[0];
   const deptSections = sections.filter((s) => s.department_id === current?.id);
 
@@ -172,28 +201,32 @@ function DepartmentsAdmin() {
   const rename = async (table: 'departments' | 'sections', id: number, name: string) => {
     if (await run(db.from(table).update({ name: name.trim() }).eq('id', id))) refreshProfiles();
   };
+  const setCode = (table: 'departments' | 'sections', id: number, code: string) =>
+    run(db.from(table).update({ code: normCode(code) }).eq('id', id));
 
   return (
     <>
-      <p className="mb-3 text-sm text-muted-foreground">Used for each user&apos;s Department / Section in Users &amp; Roles. Renaming updates the users that have it; inactive entries are hidden from the list.</p>
+      <p className="mb-3 text-sm text-muted-foreground">Code is a short unique key (e.g. SYS, PRD), saved in upper case. Used for each user&apos;s Department / Section in Users &amp; Roles. Renaming updates the users that have it; inactive entries are hidden from the list.</p>
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-12 lg:col-span-6">
           <BoardGroup title="Departments" color="#00c875" count={departments.length}>
             <Table className="board-table">
-              <TableHeader><TableRow><TableHead className="text-left">Name</TableHead><TableHead>Sections</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead className="w-24 text-left">Code</TableHead><TableHead className="min-w-36 text-left">Name</TableHead><TableHead className="w-20">Sections</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
               <TableBody>
                 {departments.map((d) => (
                   <TableRow key={d.id} className={cn('cursor-pointer', d.id === current?.id && 'bg-accent')} onClick={() => setSelected(d.id)}>
+                    <TableCell className="w-24"><Input key={d.code} defaultValue={d.code ?? ''} placeholder="—" className="h-8 min-w-20 font-mono uppercase" onBlur={(e) => normCode(e.target.value) !== d.code && setCode('departments', d.id, e.target.value)} /></TableCell>
                     <TableCell><Input defaultValue={d.name} className="h-8" onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== d.name && rename('departments', d.id, e.target.value)} /></TableCell>
-                    <TableCell className="w-24 text-center">{sections.filter((s) => s.department_id === d.id).length}</TableCell>
+                    <TableCell className="w-20 text-center">{sections.filter((s) => s.department_id === d.id).length}</TableCell>
                     <TableCell className="w-24 text-center"><Switch checked={d.is_active} onCheckedChange={(c) => run(db.from('departments').update({ is_active: c }).eq('id', d.id))} /></TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
-                  <TableCell><Input placeholder="New department" className="h-8" value={newDept} onChange={(e) => setNewDept(e.target.value)} /></TableCell>
+                  <TableCell><Input placeholder="Code" className="h-8 min-w-20 font-mono uppercase" value={newDept.code} onChange={(e) => setNewDept({ ...newDept, code: e.target.value })} /></TableCell>
+                  <TableCell><Input placeholder="New department" className="h-8" value={newDept.name} onChange={(e) => setNewDept({ ...newDept, name: e.target.value })} /></TableCell>
                   <TableCell />
-                  <TableCell className="text-center"><Button size="sm" disabled={!newDept.trim()} onClick={async () => {
-                    if (await run(db.from('departments').insert({ name: newDept.trim() }))) setNewDept('');
+                  <TableCell className="text-center"><Button size="sm" disabled={!newDept.name.trim()} onClick={async () => {
+                    if (await run(db.from('departments').insert({ code: normCode(newDept.code), name: newDept.name.trim() }))) setNewDept({ code: '', name: '' });
                   }}>Add</Button></TableCell>
                 </TableRow>
               </TableBody>
@@ -204,18 +237,20 @@ function DepartmentsAdmin() {
           {current && (
             <BoardGroup title={`Sections — ${current.name}`} color="#579bfc" count={deptSections.length}>
               <Table className="board-table">
-                <TableHeader><TableRow><TableHead className="text-left">Name</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead className="w-24 text-left">Code</TableHead><TableHead className="min-w-36 text-left">Name</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {deptSections.map((s) => (
                     <TableRow key={s.id}>
+                      <TableCell className="w-24"><Input key={s.code} defaultValue={s.code ?? ''} placeholder="—" className="h-8 min-w-20 font-mono uppercase" onBlur={(e) => normCode(e.target.value) !== s.code && setCode('sections', s.id, e.target.value)} /></TableCell>
                       <TableCell><Input defaultValue={s.name} className="h-8" onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== s.name && rename('sections', s.id, e.target.value)} /></TableCell>
                       <TableCell className="w-24 text-center"><Switch checked={s.is_active} onCheckedChange={(c) => run(db.from('sections').update({ is_active: c }).eq('id', s.id))} /></TableCell>
                     </TableRow>
                   ))}
                   <TableRow>
-                    <TableCell><Input placeholder="New section" className="h-8" value={newSection} onChange={(e) => setNewSection(e.target.value)} /></TableCell>
-                    <TableCell className="text-center"><Button size="sm" disabled={!newSection.trim()} onClick={async () => {
-                      if (await run(db.from('sections').insert({ department_id: current.id, name: newSection.trim() }))) setNewSection('');
+                    <TableCell><Input placeholder="Code" className="h-8 min-w-20 font-mono uppercase" value={newSection.code} onChange={(e) => setNewSection({ ...newSection, code: e.target.value })} /></TableCell>
+                    <TableCell><Input placeholder="New section" className="h-8" value={newSection.name} onChange={(e) => setNewSection({ ...newSection, name: e.target.value })} /></TableCell>
+                    <TableCell className="text-center"><Button size="sm" disabled={!newSection.name.trim()} onClick={async () => {
+                      if (await run(db.from('sections').insert({ department_id: current.id, code: normCode(newSection.code), name: newSection.name.trim() }))) setNewSection({ code: '', name: '' });
                     }}>Add</Button></TableCell>
                   </TableRow>
                 </TableBody>
@@ -354,6 +389,7 @@ function TemplatesAdmin() {
 function SettingsAdmin() {
   const db = dbClient();
   const { notify } = useApp();
+  const { departments } = useDepartments();
   const [vals, setVals] = useState<Record<string, string>>({});
   useEffect(() => {
     db.from('app_settings').select('*').then(({ data }) => setVals(Object.fromEntries((data ?? []).map((s: { key: string; value: unknown }) => [s.key, String(s.value)]))));
@@ -374,6 +410,26 @@ function SettingsAdmin() {
             <Button variant="outline" className="h-9" onClick={() => save(k)}>Save</Button>
           </div>
         ))}
+      </div>
+
+      <h3 className="mt-8 mb-2 text-sm font-semibold">Approval Route</h3>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Fixed for every request — approvers are matched by their Position (Admin → Users, synced from AD), nobody picks them on the form.
+      </p>
+      <ol className="mb-4 space-y-1 text-sm">
+        {APPROVAL_ROUTE.map((s, i) => (
+          <li key={s.step_code}>
+            <span className="text-muted-foreground">{i + 1}. {s.group} —</span> <b>{s.step_name}</b>{' '}
+            ({stepAudience({ approver_levels: s.levels, approver_department: null })}
+            {s.department === 'requestor' ? ', requestor\'s department' : s.department === 'system_service' ? ', System Service department' : ''})
+          </li>
+        ))}
+      </ol>
+      <div className="flex items-end gap-2">
+        <SelectField className="flex-1" label="System Service department" value={vals.system_service_department}
+          options={departments.filter((d) => d.is_active || d.name === vals.system_service_department).map((d) => ({ value: d.name, label: d.name }))}
+          onChange={(v) => setVals({ ...vals, system_service_department: v })} />
+        <Button variant="outline" className="h-9" onClick={() => save('system_service_department')}>Save</Button>
       </div>
     </div>
   );

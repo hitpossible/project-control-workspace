@@ -23,14 +23,14 @@ async function onTaskAssigned(ctx: Ctx, t: Row) {
   if (t.owner_id === ctx.uid) return;
   const code = await ctx.val<string>('SELECT project_code FROM projects WHERE id = ?', [t.project_id]);
   await notifyEvent(ctx, {
-    event: 'task_assigned', projectId: String(t.project_id), explicit: [String(t.owner_id)],
+    event: 'task_assigned', projectId: Number(t.project_id), explicit: [Number(t.owner_id)],
     title: `Task assigned: ${t.task_no} ${t.name}`, body: `Project ${code} — due ${fmtD(t.due_date as string)}`,
     link: `/projects/${t.project_id}?tab=internal&task=${t.id}`,
   });
 }
 
 async function evidenceRecompute(ctx: Ctx, r: Row) {
-  if (r.project_id && ctx.depth <= 8) await recomputeProject(ctx, String(r.project_id));
+  if (r.project_id && ctx.depth <= 8) await recomputeProject(ctx, Number(r.project_id));
 }
 
 /** Requestor Information always comes from the signed-in user's profile (only the requestor writes a draft) */
@@ -47,23 +47,16 @@ const requestorInfo = (ctx: Ctx): Row => ({
 export const HOOKS: Record<string, Hooks> = {
   profiles: {
     beforeUpdate(ctx, n, o) {
-      if (!ctx.bypass && !isAdmin(ctx) && changed(n, o, 'roles', 'is_active', 'username', 'password_hash')) {
-        throw new AppError('Only administrators can change roles, login or activation', 403);
+      if (!ctx.bypass && !isAdmin(ctx) && changed(n, o, 'roles', 'is_active', 'username', 'password_hash', 'department_id', 'section_id', 'position_id')) {
+        throw new AppError('Only administrators can change roles, position, department, login or activation', 403);
       }
     },
   },
 
-  // profiles store department / section names — keep them in step with the master data
   departments: {
     async afterUpdate(ctx, d, o) {
-      if (d.name !== o.name) await ctx.exec('UPDATE profiles SET department = ? WHERE department = ?', [d.name, o.name]);
-    },
-  },
-  sections: {
-    async afterUpdate(ctx, s, o) {
-      if (s.name === o.name) return;
-      await ctx.exec(
-        'UPDATE profiles SET section = ? WHERE section = ? AND department = (SELECT name FROM departments WHERE id = ?)', [s.name, o.name, s.department_id]);
+      if (d.name === o.name) return;
+      await ctx.exec("UPDATE app_settings SET value = ? WHERE `key` = 'system_service_department' AND JSON_UNQUOTE(value) = ?", [JSON.stringify(d.name), o.name]);
     },
   },
 
@@ -83,7 +76,7 @@ export const HOOKS: Record<string, Hooks> = {
       }
     },
     async afterUpdate(ctx, r, o) {
-      if (r.status === 'converted' && o.status !== 'converted' && r.project_id) await applyTemplateChecklist(ctx, String(r.project_id));
+      if (r.status === 'converted' && o.status !== 'converted' && r.project_id) await applyTemplateChecklist(ctx, Number(r.project_id));
     },
   },
 
@@ -96,9 +89,9 @@ export const HOOKS: Record<string, Hooks> = {
       if (n.status === 'completed' && o.status !== 'completed') {
         const open = await ctx.val(`SELECT 1 FROM activities WHERE project_id = ? AND status NOT IN ('completed','cancelled') LIMIT 1`, [n.id]);
         if (open) throw new AppError('All activities must be completed or cancelled before completing the project');
-        const missing = await missingEvidence(ctx, 'project', String(n.id));
+        const missing = await missingEvidence(ctx, 'project', Number(n.id));
         if (missing.length) throw new AppError(`Mandatory project evidence missing: ${missing.join(', ')}`);
-        const crit = await openCriticalBugs(ctx, String(n.id));
+        const crit = await openCriticalBugs(ctx, Number(n.id));
         if (crit > 0) throw new AppError(`${crit} critical bug(s) still open — close them before completing the project`);
       }
     },
@@ -106,7 +99,7 @@ export const HOOKS: Record<string, Hooks> = {
       // Project Need Attention when health turns red
       if (p.health === 'red' && o.health !== 'red') {
         await notifyEvent(ctx, {
-          event: 'project_need_attention', projectId: String(p.id), explicit: [p.leader_id as string | null],
+          event: 'project_need_attention', projectId: Number(p.id), explicit: [p.leader_id as number | null],
           title: `Project needs attention: ${p.project_code}`,
           body: `${p.project_name} — health turned RED. Forecast ${fmtD(p.forecast_date as string)}, target ${fmtD(p.target_date as string)}.`,
           link: `/projects/${p.id}`, dedupe: `need_attention:${p.id}:${ctx.today}`,

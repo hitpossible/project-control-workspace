@@ -131,7 +131,7 @@ function StatusTiles({ p }: { p: ProjectView }) {
 }
 
 /** User Control Plan with a mini timeline column */
-function PlanTable({ acts, name, withBars = true }: { acts: Activity[]; name: (id: string | null) => string; withBars?: boolean }) {
+function PlanTable({ acts, name, withBars = true }: { acts: Activity[]; name: (id: number | null) => string; withBars?: boolean }) {
   const dates = acts.flatMap((a) => [a.plan_start, a.plan_finish, a.actual_finish, a.forecast_finish]).filter(Boolean) as string[];
   const min = dates.length ? dayjs(dates.reduce((a, b) => (a < b ? a : b))) : dayjs();
   const max = dates.length ? dayjs(dates.reduce((a, b) => (a > b ? a : b))) : dayjs();
@@ -289,7 +289,7 @@ function ClosureReport({ d, meta }: { d: ProjectReportData; meta: ReportMeta }) 
   const live = d.activities.filter((a) => a.status !== 'cancelled');
   const allDone = live.length > 0 && live.every((a) => a.actual_finish);
   const finish = allDone ? live.map((a) => a.actual_finish!).sort().pop()! : null;
-  const ok = (r: { id: string }) => d.evidence.some((e) => e.requirement_id === r.id && e.verification_status !== 'rejected');
+  const ok = (r: { id: number }) => d.evidence.some((e) => e.requirement_id === r.id && e.verification_status !== 'rejected');
   return (
     <Document title={`${p.project_code} Project Closure`}>
       <Page size="A4" style={s.page}>

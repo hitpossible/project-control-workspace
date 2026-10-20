@@ -5,7 +5,7 @@ import { Tip } from './common';
 
 /** Horizontal bar list (single axis, direct labels) */
 export function HBarChart({ rows, max, suffix = '', emptyText = 'No data' }: {
-  rows: { label: React.ReactNode; value: number | null; color?: string; hint?: string; key: string }[];
+  rows: { label: React.ReactNode; value: number | null; color?: string; hint?: string; key: string | number }[];
   max?: number; suffix?: string; emptyText?: string;
 }) {
   const m = max ?? Math.max(1, ...rows.map((r) => r.value ?? 0));
@@ -28,7 +28,7 @@ export function HBarChart({ rows, max, suffix = '', emptyText = 'No data' }: {
 }
 
 /** Diverging bars around zero (e.g. schedule variance: late → right/red, early → left/green) */
-export function DivergingBarChart({ rows, suffix = 'd' }: { rows: { key: string; label: React.ReactNode; value: number | null }[]; suffix?: string }) {
+export function DivergingBarChart({ rows, suffix = 'd' }: { rows: { key: string | number; label: React.ReactNode; value: number | null }[]; suffix?: string }) {
   const m = Math.max(1, ...rows.map((r) => Math.abs(r.value ?? 0)));
   return (
     <div className="space-y-1.5">
