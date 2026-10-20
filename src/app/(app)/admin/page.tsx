@@ -15,11 +15,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DELAY_CATEGORIES, INSIGHT_SEVERITIES, MEMBER_ROLES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
-import type { InsightRule, NotificationRule, Profile, ProjectTemplate, ProjectType, Role } from '@/lib/types';
+import type { Department, InsightRule, NotificationRule, Profile, ProjectTemplate, ProjectType, Role, Section } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 const ROLE_OPTS = (Object.keys(ROLE_LABELS) as Role[]).map((r) => ({ value: r, label: ROLE_LABELS[r] }));
-const TABS = ['Users & Roles', 'Project Types', 'Project Templates', 'Numbering', 'Notification Rules', 'Insight Rules', 'KPI Settings'];
+const TABS = ['Users & Roles', 'Departments', 'Project Types', 'Project Templates', 'Numbering', 'Notification Rules', 'Insight Rules', 'KPI Settings'];
 
 export default function AdminPage() {
   const { hasRole } = useApp();
@@ -34,12 +34,13 @@ export default function AdminPage() {
         </TabsList>
       </Tabs>
       {tab === TABS[0] && <UsersAdmin />}
-      {tab === TABS[1] && <TypesAdmin />}
-      {tab === TABS[2] && <TemplatesAdmin />}
-      {tab === TABS[3] && <SettingsAdmin />}
-      {tab === TABS[4] && <RulesAdmin />}
-      {tab === TABS[5] && <InsightRulesAdmin />}
-      {tab === TABS[6] && <KpiSettingsAdmin />}
+      {tab === TABS[1] && <DepartmentsAdmin />}
+      {tab === TABS[2] && <TypesAdmin />}
+      {tab === TABS[3] && <TemplatesAdmin />}
+      {tab === TABS[4] && <SettingsAdmin />}
+      {tab === TABS[5] && <RulesAdmin />}
+      {tab === TABS[6] && <InsightRulesAdmin />}
+      {tab === TABS[7] && <KpiSettingsAdmin />}
     </>
   );
 }
@@ -48,6 +49,13 @@ function UsersAdmin() {
   const db = dbClient();
   const { profiles, refreshProfiles, notify } = useApp();
   const [edit, setEdit] = useState<(Partial<Profile> & { password?: string }) | null>(null);
+  const { departments, sections } = useDepartments();
+  const dept = departments.find((d) => d.name === edit?.department);
+  // active entries, plus the user's current value so an inactive / unknown name (e.g. from AD) is not lost
+  const options = (names: string[], current: string | null | undefined) =>
+    [...new Set([...names, ...(current ? [current] : [])])].map((v) => ({ value: v, label: v }));
+  const deptOpts = options(departments.filter((d) => d.is_active).map((d) => d.name), edit?.department);
+  const sectionOpts = options(sections.filter((x) => x.department_id === dept?.id && x.is_active).map((x) => x.name), edit?.section);
 
   const save = async () => {
     if (!edit) return;
@@ -111,8 +119,10 @@ function UsersAdmin() {
               <TextField className="col-span-6" label="Email" value={edit.email} onChange={(v) => set({ email: v })} />
               <TextField className="col-span-12" label={edit.id ? 'Set local password' : 'Local password (optional)'} type="password" value={edit.password} onChange={(v) => set({ password: v })}
                 helperText="Leave empty for AD login. Min 8 characters — only for accounts without AD (e.g. break-glass admin)." />
-              <TextField className="col-span-6" label="Department" value={edit.department} onChange={(v) => set({ department: v })} />
-              <TextField className="col-span-6" label="Section" value={edit.section} onChange={(v) => set({ section: v })} />
+              <SelectField className="col-span-6" label="Department" allowEmpty value={edit.department} options={deptOpts}
+                onChange={(v) => set({ department: v || null, section: v === edit.department ? edit.section : null })} />
+              <SelectField className="col-span-6" label="Section" allowEmpty value={edit.section} options={sectionOpts}
+                disabled={!edit.department} onChange={(v) => set({ section: v || null })} />
               <TextField className="col-span-8" label="Telephone" value={edit.telephone} onChange={(v) => set({ telephone: v })} />
               <TextField className="col-span-4" label="Ext." value={edit.extension} onChange={(v) => set({ extension: v })} />
               <MultiSelect className="col-span-12" label="Roles" value={edit.roles ?? []} onChange={(v) => set({ roles: v as Role[] })} options={ROLE_OPTS} />
@@ -122,6 +132,98 @@ function UsersAdmin() {
           </DialogContent>
         </Dialog>
       )}
+    </>
+  );
+}
+
+function useDepartments() {
+  const db = dbClient();
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+  const load = useCallback(async () => {
+    const [d, s] = await Promise.all([db.from('departments').select('*').order('name'), db.from('sections').select('*').order('name')]);
+    setDepartments((d.data ?? []) as Department[]);
+    setSections((s.data ?? []) as Section[]);
+  }, [db]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
+    load();
+  }, [load]);
+  return { departments, sections, load };
+}
+
+function DepartmentsAdmin() {
+  const db = dbClient();
+  const { notify, refreshProfiles } = useApp();
+  const { departments, sections, load } = useDepartments();
+  const [selected, setSelected] = useState<number | null>(null);
+  const [newDept, setNewDept] = useState('');
+  const [newSection, setNewSection] = useState('');
+  const current = departments.find((d) => d.id === selected) ?? departments[0];
+  const deptSections = sections.filter((s) => s.department_id === current?.id);
+
+  const run = async (p: PromiseLike<{ error: { message: string } | null }>) => {
+    const { error } = await p;
+    if (error) notify(errMsg(error), 'error');
+    await load();
+    return !error;
+  };
+  // renames are copied to user profiles by the server
+  const rename = async (table: 'departments' | 'sections', id: number, name: string) => {
+    if (await run(db.from(table).update({ name: name.trim() }).eq('id', id))) refreshProfiles();
+  };
+
+  return (
+    <>
+      <p className="mb-3 text-sm text-muted-foreground">Used for each user&apos;s Department / Section in Users &amp; Roles. Renaming updates the users that have it; inactive entries are hidden from the list.</p>
+      <div className="grid grid-cols-12 gap-5">
+        <div className="col-span-12 lg:col-span-6">
+          <BoardGroup title="Departments" color="#00c875" count={departments.length}>
+            <Table className="board-table">
+              <TableHeader><TableRow><TableHead className="text-left">Name</TableHead><TableHead>Sections</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {departments.map((d) => (
+                  <TableRow key={d.id} className={cn('cursor-pointer', d.id === current?.id && 'bg-accent')} onClick={() => setSelected(d.id)}>
+                    <TableCell><Input defaultValue={d.name} className="h-8" onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== d.name && rename('departments', d.id, e.target.value)} /></TableCell>
+                    <TableCell className="w-24 text-center">{sections.filter((s) => s.department_id === d.id).length}</TableCell>
+                    <TableCell className="w-24 text-center"><Switch checked={d.is_active} onCheckedChange={(c) => run(db.from('departments').update({ is_active: c }).eq('id', d.id))} /></TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableCell><Input placeholder="New department" className="h-8" value={newDept} onChange={(e) => setNewDept(e.target.value)} /></TableCell>
+                  <TableCell />
+                  <TableCell className="text-center"><Button size="sm" disabled={!newDept.trim()} onClick={async () => {
+                    if (await run(db.from('departments').insert({ name: newDept.trim() }))) setNewDept('');
+                  }}>Add</Button></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </BoardGroup>
+        </div>
+        <div className="col-span-12 lg:col-span-6">
+          {current && (
+            <BoardGroup title={`Sections — ${current.name}`} color="#579bfc" count={deptSections.length}>
+              <Table className="board-table">
+                <TableHeader><TableRow><TableHead className="text-left">Name</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {deptSections.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell><Input defaultValue={s.name} className="h-8" onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== s.name && rename('sections', s.id, e.target.value)} /></TableCell>
+                      <TableCell className="w-24 text-center"><Switch checked={s.is_active} onCheckedChange={(c) => run(db.from('sections').update({ is_active: c }).eq('id', s.id))} /></TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell><Input placeholder="New section" className="h-8" value={newSection} onChange={(e) => setNewSection(e.target.value)} /></TableCell>
+                    <TableCell className="text-center"><Button size="sm" disabled={!newSection.trim()} onClick={async () => {
+                      if (await run(db.from('sections').insert({ department_id: current.id, name: newSection.trim() }))) setNewSection('');
+                    }}>Add</Button></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </BoardGroup>
+          )}
+        </div>
+      </div>
     </>
   );
 }

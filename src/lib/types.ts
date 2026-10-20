@@ -27,6 +27,19 @@ export interface Profile {
   last_login_at?: string | null;
 }
 
+export interface Department {
+  id: number;
+  name: string;
+  is_active: boolean;
+}
+
+export interface Section {
+  id: number;
+  department_id: number;
+  name: string;
+  is_active: boolean;
+}
+
 export interface ProjectType {
   id: number;
   code: string;

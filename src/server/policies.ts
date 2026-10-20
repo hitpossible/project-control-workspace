@@ -50,6 +50,8 @@ export const POLICIES: Record<string, Policy> = {
   // Master data: read for all, write for admin
   app_settings: masterData,
   project_types: masterData,
+  departments: masterData,
+  sections: masterData,
   project_templates: masterData,
   notification_rules: masterData,
   insight_rules: masterData,

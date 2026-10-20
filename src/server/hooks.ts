@@ -53,6 +53,20 @@ export const HOOKS: Record<string, Hooks> = {
     },
   },
 
+  // profiles store department / section names — keep them in step with the master data
+  departments: {
+    async afterUpdate(ctx, d, o) {
+      if (d.name !== o.name) await ctx.exec('UPDATE profiles SET department = ? WHERE department = ?', [d.name, o.name]);
+    },
+  },
+  sections: {
+    async afterUpdate(ctx, s, o) {
+      if (s.name === o.name) return;
+      await ctx.exec(
+        'UPDATE profiles SET section = ? WHERE section = ? AND department = (SELECT name FROM departments WHERE id = ?)', [s.name, o.name, s.department_id]);
+    },
+  },
+
   project_requests: {
     beforeInsert(ctx, r) {
       r.status ??= 'draft';

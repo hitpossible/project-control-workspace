@@ -46,6 +46,15 @@ function must({ data, error }: { data: any; error: { message: string } | null },
   return data;
 }
 
+async function createDepartments() {
+  for (const name of [...new Set(USERS.map((u) => u.department))]) {
+    const dept = must(await admin.from('departments').insert({ name }).select('id').single(), `department ${name}`);
+    const sections = [...new Set(USERS.filter((u) => u.department === name).map((u) => u.section))];
+    must(await admin.from('sections').insert(sections.map((s) => ({ department_id: dept.id, name: s }))), `sections of ${name}`);
+  }
+  console.log('✓ departments & sections');
+}
+
 async function createUsers() {
   const hash = await hashPassword(SEED_PASSWORD);
   for (const u of USERS) {
@@ -114,6 +123,7 @@ async function addMembers(projectId: string, list: [string, string][]) {
 }
 
 async function main() {
+  await createDepartments();
   await createUsers();
   const L = clients.leader;
 
