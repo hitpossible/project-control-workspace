@@ -7,7 +7,7 @@ import { errMsg, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { ProjectRequest } from '@/lib/types';
 import { useApp } from './AppProvider';
-import { DateField, Field, Section, SelectField, TextField, UserSelect } from './common';
+import { DateField, Section, SelectField, TextField, UserSelect } from './common';
 import { Alert, AlertDescription } from './ui/alert';
 import { Button } from './ui/button';
 
@@ -26,7 +26,7 @@ export function emptyRequest(): RequestDraft {
   };
 }
 
-// Requestor Information is not sent: the server copies it from the signed-in user's profile
+// Requestor Information is not sent or shown: the server stores it from the signed-in user's profile
 const EDITABLE: (keyof ProjectRequest)[] = [
   'project_name', 'description', 'reason', 'expectation', 'priority', 'date_required', 'benefit', 'requestor_approver_id',
 ];
@@ -66,20 +66,9 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
 
   return (
     <div>
-      <Section title="Requestor Information">
-        <div className="grid grid-cols-12 gap-x-3">
-          <div className="col-span-12 sm:col-span-4"><Field label="Employee ID">{me?.employee_id}</Field></div>
-          <div className="col-span-12 sm:col-span-8"><Field label="Full Name">{me?.full_name}</Field></div>
-          <div className="col-span-12 sm:col-span-6"><Field label="Department">{me?.department}</Field></div>
-          <div className="col-span-12 sm:col-span-6"><Field label="Section">{me?.section}</Field></div>
-          <div className="col-span-12 sm:col-span-6"><Field label="Email">{me?.email}</Field></div>
-          <div className="col-span-8 sm:col-span-4"><Field label="Telephone">{me?.telephone}</Field></div>
-          <div className="col-span-4 sm:col-span-2"><Field label="Ext.">{me?.extension}</Field></div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {me?.department ? 'From your user profile.' : 'Your user profile has no department — ask an administrator to update it before submitting.'}
-        </p>
-      </Section>
+      {!me?.department && (
+        <Alert className="mb-4"><Info /><AlertDescription>Your user profile has no department — ask an administrator to update it before submitting.</AlertDescription></Alert>
+      )}
 
       <Section title="Project Information">
         <div className="grid grid-cols-12 gap-3">
