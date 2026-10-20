@@ -33,6 +33,17 @@ async function evidenceRecompute(ctx: Ctx, r: Row) {
   if (r.project_id && ctx.depth <= 8) await recomputeProject(ctx, String(r.project_id));
 }
 
+/** Requestor Information always comes from the signed-in user's profile (only the requestor writes a draft) */
+const requestorInfo = (ctx: Ctx): Row => ({
+  req_employee_id: ctx.me?.employee_id ?? null,
+  req_full_name: ctx.me?.full_name ?? null,
+  req_department: ctx.me?.department ?? null,
+  req_section: ctx.me?.section ?? null,
+  req_email: ctx.me?.email ?? null,
+  req_telephone: ctx.me?.telephone ?? null,
+  req_extension: ctx.me?.extension ?? null,
+});
+
 export const HOOKS: Record<string, Hooks> = {
   profiles: {
     beforeUpdate(ctx, n, o) {
@@ -45,9 +56,11 @@ export const HOOKS: Record<string, Hooks> = {
   project_requests: {
     beforeInsert(ctx, r) {
       r.status ??= 'draft';
+      if (!ctx.bypass) Object.assign(r, requestorInfo(ctx));
     },
     beforeUpdate(ctx, n, o) {
       if (ctx.bypass) return;
+      Object.assign(n, requestorInfo(ctx));
       if (changed(n, o, 'status', 'request_no', 'date_submitted', 'submitted_at', 'project_id', 'requestor_id', 'reviewed_by')) {
         throw new AppError('Protected request fields can only be changed through the approval workflow', 403);
       }

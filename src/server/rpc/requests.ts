@@ -42,9 +42,10 @@ export async function submitRequest(ctx: Ctx, a: { p_request_id: string }) {
   if (blank(r.reason)) missing.push('Reason for Request');
   if (!r.date_required) missing.push('Date Required');
   if (!r.requestor_approver_id) missing.push('Requestor Approver');
-  if (blank(r.req_full_name)) missing.push('Requestor Name');
-  if (blank(r.req_department)) missing.push('Department');
   if (missing.length) throw new AppError(`Missing required fields: ${missing.join(', ')}`);
+  if (blank(r.req_full_name) || blank(r.req_department)) {
+    throw new AppError('Your user profile has no name or department — ask an administrator to update it in Admin → Users');
+  }
 
   return ctx.asWorkflow(async () => {
     // Resume after "Request More Information": same step goes back to waiting

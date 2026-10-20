@@ -63,11 +63,8 @@ async function createUsers() {
 }
 
 async function newRequest(fields: Record<string, unknown>) {
-  const u = USERS.find((x) => x.key === 'requestor')!;
   const req = must(
     await clients.requestor.from('project_requests').insert({
-      req_employee_id: u.employee_id, req_full_name: u.full_name, req_department: u.department, req_section: u.section,
-      req_email: u.email, req_telephone: '02-123-4567', req_extension: '1001',
       requestor_approver_id: ids.reqmgr, ...fields,
     }).select().single(),
     'insert request',

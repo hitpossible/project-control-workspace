@@ -12,7 +12,7 @@ export default function NewRequestPage() {
   return (
     <div className="max-w-5xl">
       <PageHeader title="New Project Request" subtitle="FM-SYS-004 Project Development Request Form" />
-      <RequestForm initial={emptyRequest(me)} onSaved={(r) => router.replace(`/requests/${r.id}`)} />
+      <RequestForm initial={emptyRequest()} onSaved={(r) => router.replace(`/requests/${r.id}`)} />
     </div>
   );
 }

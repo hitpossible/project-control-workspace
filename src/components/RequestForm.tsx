@@ -5,23 +5,16 @@ import { useState } from 'react';
 import { PRIORITIES } from '@/lib/constants';
 import { errMsg, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
-import type { Profile, ProjectRequest } from '@/lib/types';
+import type { ProjectRequest } from '@/lib/types';
 import { useApp } from './AppProvider';
-import { DateField, Section, SelectField, TextField, UserSelect } from './common';
+import { DateField, Field, Section, SelectField, TextField, UserSelect } from './common';
 import { Alert, AlertDescription } from './ui/alert';
 import { Button } from './ui/button';
 
 export type RequestDraft = Partial<ProjectRequest>;
 
-export function emptyRequest(me: Profile | null): RequestDraft {
+export function emptyRequest(): RequestDraft {
   return {
-    req_employee_id: me?.employee_id ?? '',
-    req_full_name: me?.full_name ?? '',
-    req_department: me?.department ?? '',
-    req_section: me?.section ?? '',
-    req_email: me?.email ?? '',
-    req_telephone: me?.telephone ?? '',
-    req_extension: me?.extension ?? '',
     project_name: '',
     description: '',
     reason: '',
@@ -33,8 +26,8 @@ export function emptyRequest(me: Profile | null): RequestDraft {
   };
 }
 
+// Requestor Information is not sent: the server copies it from the signed-in user's profile
 const EDITABLE: (keyof ProjectRequest)[] = [
-  'req_employee_id', 'req_full_name', 'req_department', 'req_section', 'req_email', 'req_telephone', 'req_extension',
   'project_name', 'description', 'reason', 'expectation', 'priority', 'date_required', 'benefit', 'requestor_approver_id',
 ];
 
@@ -45,7 +38,7 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
   onSubmit?: (r: ProjectRequest) => Promise<void>;
 }) {
   const db = dbClient();
-  const { notify } = useApp();
+  const { me, notify } = useApp();
   const [f, setF] = useState<RequestDraft>(initial);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof ProjectRequest) => (v: string | null) => setF((p) => ({ ...p, [k]: v }));
@@ -74,15 +67,18 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
   return (
     <div>
       <Section title="Requestor Information">
-        <div className="grid grid-cols-12 gap-3">
-          <TextField className="col-span-12 sm:col-span-4" label="Employee ID" {...txt('req_employee_id')} />
-          <TextField className="col-span-12 sm:col-span-8" label="Full Name" required {...txt('req_full_name')} />
-          <TextField className="col-span-12 sm:col-span-6" label="Department" required {...txt('req_department')} />
-          <TextField className="col-span-12 sm:col-span-6" label="Section" {...txt('req_section')} />
-          <TextField className="col-span-12 sm:col-span-6" label="Email" type="email" {...txt('req_email')} />
-          <TextField className="col-span-8 sm:col-span-4" label="Telephone" {...txt('req_telephone')} />
-          <TextField className="col-span-4 sm:col-span-2" label="Ext." {...txt('req_extension')} />
+        <div className="grid grid-cols-12 gap-x-3">
+          <div className="col-span-12 sm:col-span-4"><Field label="Employee ID">{me?.employee_id}</Field></div>
+          <div className="col-span-12 sm:col-span-8"><Field label="Full Name">{me?.full_name}</Field></div>
+          <div className="col-span-12 sm:col-span-6"><Field label="Department">{me?.department}</Field></div>
+          <div className="col-span-12 sm:col-span-6"><Field label="Section">{me?.section}</Field></div>
+          <div className="col-span-12 sm:col-span-6"><Field label="Email">{me?.email}</Field></div>
+          <div className="col-span-8 sm:col-span-4"><Field label="Telephone">{me?.telephone}</Field></div>
+          <div className="col-span-4 sm:col-span-2"><Field label="Ext.">{me?.extension}</Field></div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          {me?.department ? 'From your user profile.' : 'Your user profile has no department — ask an administrator to update it before submitting.'}
+        </p>
       </Section>
 
       <Section title="Project Information">
