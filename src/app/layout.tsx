@@ -18,6 +18,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-app font-sans antialiased">
         <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
         <Toaster theme="light" position="bottom-center" richColors />
+        {/* live notifications (useLiveNotifications): top-right, below the 56px header, plain white */}
+        <Toaster id="live" theme="light" position="top-right" offset={{ top: 64, right: 16 }} visibleToasts={4} closeButton />
       </body>
     </html>
   );

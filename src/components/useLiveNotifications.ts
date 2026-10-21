@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { Bell } from 'lucide-react';
+import { createElement, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 type LiveNotification = { id: number; title: string; body: string | null; link: string | null };
@@ -31,7 +32,9 @@ export function useLiveNotifications(enabled: boolean, onNotification: () => voi
       const n = JSON.parse((ev as MessageEvent<string>).data) as LiveNotification;
       handler.current();
       const open = n.link ? () => nav.current.push(n.link!) : undefined;
-      toast.info(n.title, {
+      toast(n.title, {
+        toasterId: 'live',
+        icon: createElement(Bell, { className: 'size-4 text-primary' }),
         description: n.body ?? undefined,
         duration: 8000,
         action: open ? { label: 'Open', onClick: open } : undefined,
@@ -54,6 +57,7 @@ export function useLiveNotifications(enabled: boolean, onNotification: () => voi
     if (!enabled || !desktopSupported() || Notification.permission !== 'default' || localStorage.getItem(ASKED_KEY)) return;
     const t = setTimeout(() => {
       toast('Get desktop notifications?', {
+        toasterId: 'live',
         description: 'Show a pop-up for new notifications while this tab is in the background.',
         duration: Infinity,
         action: {
