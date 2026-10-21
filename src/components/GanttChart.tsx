@@ -1,11 +1,12 @@
 'use client';
 
 import dayjs, { type Dayjs } from 'dayjs';
-import { ChevronDown, ChevronRight, TriangleAlert } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ChevronDown, Crosshair, TriangleAlert } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fmtDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Tip } from './common';
+import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 
 export interface GanttRow {
@@ -88,6 +89,19 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
   }, [start, days, dayW, scale]);
 
   const rowIndex = new Map(rows.map((r, i) => [r.id, i]));
+  const todayLeft = x(today) + dayW / 2;
+
+  // bring today into view (a third from the left) when the chart opens or the scale changes
+  const scroller = useRef<HTMLDivElement>(null);
+  const scrollToToday = (behavior: ScrollBehavior = 'smooth') => {
+    const el = scroller.current;
+    if (el) el.scrollTo({ left: Math.max(0, todayLeft - (el.clientWidth - LEFT_W) / 3), behavior });
+  };
+  const hasRows = rows.length > 0;
+  useEffect(() => {
+    if (hasRows) scrollToToday('instant');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on open / scale change
+  }, [hasRows, scale]);
 
   return (
     <div>
@@ -96,9 +110,10 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
           <ToggleGroupItem value="day" className="data-[state=on]:bg-selected data-[state=on]:text-primary">Day</ToggleGroupItem>
           <ToggleGroupItem value="week" className="data-[state=on]:bg-selected data-[state=on]:text-primary">Week</ToggleGroupItem>
         </ToggleGroup>
+        <Button variant="outline" size="sm" onClick={() => scrollToToday()}><Crosshair /> Today</Button>
         <Legend />
       </div>
-      <div className="relative overflow-auto rounded-md border border-grid bg-white" style={{ maxHeight: height ?? 640 }}>
+      <div ref={scroller} className="relative overflow-auto rounded-md border border-grid bg-white" style={{ maxHeight: height ?? 640 }}>
         <div className="relative" style={{ width: LEFT_W + width }}>
           {/* Header */}
           <div className="sticky top-0 z-[4] flex border-b border-grid bg-white">
@@ -114,6 +129,8 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
                   className={cn('absolute top-[22px] h-[22px] text-[10px] leading-[22px]', scale === 'day' ? 'text-center' : 'border-l border-grid pl-1', t.weekend ? 'text-[#b0b8c8]' : 'text-muted-foreground')}
                   style={{ left: t.left, width: scale === 'day' ? dayW : dayW * 7 }}>{t.label}</div>
               ))}
+              <span className="motion-rise absolute bottom-0 z-[1] -translate-x-1/2 rounded-t px-1.5 text-[10px] leading-4 font-semibold text-white"
+                style={{ left: todayLeft, background: TODAY_COLOR }}>Today</span>
             </div>
           </div>
 
@@ -126,13 +143,15 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
               {scale === 'week' && ticks.filter((t) => t.isWeekStart).map((t) => (
                 <div key={t.left} className="absolute inset-y-0 border-l border-[#f0f2f6]" style={{ left: t.left }} />
               ))}
-              <div className="absolute inset-y-0 z-[2] w-0.5 opacity-90" style={{ left: x(today) + dayW / 2, background: TODAY_COLOR }} title={`Today ${today.format('DD MMM YYYY')}`} />
+              <div className="motion-grow-y absolute inset-y-0 z-[2] w-0.5 origin-top opacity-90" style={{ left: todayLeft, background: TODAY_COLOR }} title={`Today ${today.format('DD MMM YYYY')}`} />
             </div>
 
             {rows.map((r, i) => {
               const hasPlan = r.planStart && r.planFinish;
               const actualEnd = r.actualFinish ?? (r.actualStart ? today.format('YYYY-MM-DD') : null);
               const forecastBeyond = r.forecastFinish && r.planFinish && dayjs(r.forecastFinish).isAfter(dayjs(r.planFinish));
+              // bars grow in from their start, a little after the row above
+              const grow = { animationDelay: `${Math.min(i, 20) * 25}ms` };
               return (
                 <div key={r.id}
                   className={cn('group flex border-b border-[#f0f2f6]',
@@ -148,7 +167,7 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
                     <div className="flex min-w-0 items-center" style={{ paddingLeft: r.level * 18 }}>
                       {r.hasChildren ? (
                         <button type="button" className="mr-0.5 rounded p-0.5 hover:bg-muted" onClick={(e) => { e.stopPropagation(); onToggle?.(r); }}>
-                          {r.expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                          <ChevronDown className={cn('size-4 transition-transform duration-200', !r.expanded && '-rotate-90')} />
                         </button>
                       ) : <span className="w-[22px]" />}
                       <div className="min-w-0">
@@ -168,26 +187,26 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
                   <div className="relative shrink-0" style={{ width }} onClick={() => onRowClick?.(r)}>
                     {hasPlan && !r.milestone && (
                       <Tip title={`Plan: ${fmtDate(r.planStart)} → ${fmtDate(r.planFinish)}`}>
-                        <div className="absolute z-[1] rounded-full border border-[#cdd1dc] bg-[#e9ebf1]" style={{ top: PLAN_Y, height: PLAN_H, left: x(r.planStart!) + 1, width: x(r.planFinish!) - x(r.planStart!) + dayW - 2 }} />
+                        <div className="motion-grow-x absolute z-[1] origin-left rounded-full border border-[#cdd1dc] bg-[#e9ebf1] transition-colors group-hover:border-[#b3b8c6] group-hover:bg-[#dfe2ea]" style={{ ...grow, top: PLAN_Y, height: PLAN_H, left: x(r.planStart!) + 1, width: x(r.planFinish!) - x(r.planStart!) + dayW - 2 }} />
                       </Tip>
                     )}
                     {r.milestone && r.planFinish && (
                       <Tip title={`Milestone: ${fmtDate(r.planFinish)}`}>
-                        <div className="absolute z-[1] size-4 rotate-45 rounded-[3px]" style={{ top: (ROW_H - 16) / 2, left: x(r.planFinish) + dayW / 2 - 8, background: r.status === 'completed' ? '#00c875' : '#784bd1' }} />
+                        <div className="motion-rise absolute z-[1] size-4 rotate-45 rounded-[3px] transition-transform group-hover:scale-125" style={{ top: (ROW_H - 16) / 2, left: x(r.planFinish) + dayW / 2 - 8, background: r.status === 'completed' ? '#00c875' : '#784bd1' }} />
                       </Tip>
                     )}
                     {r.actualStart && actualEnd && !r.milestone && (
                       <Tip title={`Actual: ${fmtDate(r.actualStart)} → ${r.actualFinish ? fmtDate(r.actualFinish) : 'today'} · ${Math.round(r.progress)}%`}>
-                        <div className="absolute z-[1] overflow-hidden rounded-full"
-                          style={{ top: ACT_Y, height: ACT_H, left: x(r.actualStart) + 1, width: Math.max(x(actualEnd) - x(r.actualStart) + dayW - 2, dayW - 2), background: `${r.statusColor}40` }}>
-                          <div className="h-full" style={{ width: `${r.progress}%`, background: r.statusColor }} />
+                        <div className="motion-grow-x absolute z-[1] origin-left overflow-hidden rounded-full transition-shadow group-hover:shadow-[0_2px_6px_rgba(16,24,40,.18)]"
+                          style={{ ...grow, top: ACT_Y, height: ACT_H, left: x(r.actualStart) + 1, width: Math.max(x(actualEnd) - x(r.actualStart) + dayW - 2, dayW - 2), background: `${r.statusColor}40` }}>
+                          <div className="h-full transition-[width] duration-500" style={{ width: `${r.progress}%`, background: r.statusColor }} />
                         </div>
                       </Tip>
                     )}
                     {forecastBeyond && (
                       <Tip title={`Forecast / Recovery: ${fmtDate(r.forecastFinish)}${r.recovery ? ` — ${r.recovery}` : ''}`}>
-                        <div className="absolute z-[1] rounded-r-full border-[1.5px] border-l-0 border-dashed border-[#e2445c] bg-[#e2445c12]"
-                          style={{ top: PLAN_Y, height: PLAN_H, left: x(r.planFinish!) + dayW - 1, width: x(r.forecastFinish!) - x(r.planFinish!) }} />
+                        <div className="motion-grow-x absolute z-[1] origin-left rounded-r-full border-[1.5px] border-l-0 border-dashed border-[#e2445c] bg-[#e2445c12]"
+                          style={{ animationDelay: `${Math.min(i, 20) * 25 + 300}ms`, top: PLAN_Y, height: PLAN_H, left: x(r.planFinish!) + dayW - 1, width: x(r.forecastFinish!) - x(r.planFinish!) }} />
                       </Tip>
                     )}
                   </div>

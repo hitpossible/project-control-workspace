@@ -9,6 +9,7 @@ import { dispatchEmails, useApp } from '@/components/AppProvider';
 import { BoardGroup, EmptyState, HealthDot, PageHeader, Person, StatCard, StatusChip, Tip } from '@/components/common';
 import InsightList from '@/components/InsightList';
 import ManagementDashboard from '@/components/ManagementDashboard';
+import { BoardSkeleton, StatCardsSkeleton } from '@/components/motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -38,6 +39,7 @@ function InternalDashboard() {
   const [myRequests, setMyRequests] = useState<Set<number>>(new Set());
   const [pendingEvidence, setPendingEvidence] = useState(0);
   const [today, setToday] = useState<WorkforcePlan[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
     const [p, t, s, e, mine] = await Promise.all([
@@ -52,6 +54,7 @@ function InternalDashboard() {
     setTasks((t.data ?? []) as InternalTask[]);
     setSteps((s.data ?? []) as ApprovalStep[]);
     setPendingEvidence(e.count ?? 0);
+    setLoaded(true);
     const w = await db.from('workforce_plans').select('*').eq('work_date', dayjs().format('YYYY-MM-DD')).order('start_time');
     setToday((w.data ?? []) as WorkforcePlan[]);
   }, [db, me?.id]);
@@ -118,6 +121,16 @@ function InternalDashboard() {
         </Alert>
       )}
 
+      {!loaded ? (
+        <>
+          <StatCardsSkeleton className="mb-3" />
+          <StatCardsSkeleton count={5} className="mb-6 lg:grid-cols-5" />
+          <div className="grid grid-cols-12 gap-5">
+            <div className="col-span-12 xl:col-span-7"><BoardSkeleton groups={2} rows={4} /></div>
+            <div className="col-span-12 xl:col-span-5"><BoardSkeleton groups={2} rows={4} cols={2} /></div>
+          </div>
+        </>
+      ) : <>
       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {stats.map((s) => <StatCard key={s.l} label={s.l} value={s.v} color={s.c} onClick={() => router.push(`/projects${s.q}`)} />)}
       </div>
@@ -202,11 +215,11 @@ function InternalDashboard() {
               </div>
               {workload.length === 0 ? <EmptyState text="No open tasks" /> : (
                 <div className="space-y-2">
-                  {workload.map((w) => (
+                  {workload.map((w, i) => (
                     <Tip key={w.id} title={`${profileName(w.id)}: ${w.open} open on time, ${w.overdue} overdue`}>
                       <div className="grid grid-cols-[160px_1fr_32px] items-center gap-2">
                         <Person name={profileName(w.id)} size={24} />
-                        <div className="flex h-3.5 gap-0.5">
+                        <div className="motion-grow-x flex h-3.5 origin-left gap-0.5" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
                           {w.open > 0 && <div className={cn('h-full', w.overdue ? 'rounded-l' : 'rounded')} style={{ width: `${(w.open / maxLoad) * 100}%`, background: OPEN_COLOR }} />}
                           {w.overdue > 0 && <div className={cn('h-full', w.open ? 'rounded-r' : 'rounded')} style={{ width: `${(w.overdue / maxLoad) * 100}%`, background: OVERDUE_COLOR }} />}
                         </div>
@@ -222,13 +235,13 @@ function InternalDashboard() {
           <BoardGroup title="Active Projects" color="#00c875" count={active.length}>
             <div className="divide-y divide-grid">
               {active.map((p) => (
-                <button key={p.id} type="button" onClick={() => router.push(`/projects/${p.id}`)} className="grid w-full grid-cols-[16px_1fr_60px] items-center gap-2 px-3 py-2 text-left hover:bg-muted">
+                <button key={p.id} type="button" onClick={() => router.push(`/projects/${p.id}`)} className="group/row grid w-full grid-cols-[16px_1fr_60px] items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted active:bg-selected/60">
                   <HealthDot value={p.health} />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold">{p.project_code}</span>
                     <span className="block truncate text-xs text-muted-foreground">{p.project_name}</span>
                   </span>
-                  <span className="text-right text-sm font-semibold">{Math.round(p.progress)}%</span>
+                  <span className="text-right text-sm font-semibold transition-transform group-hover/row:-translate-x-0.5">{Math.round(p.progress)}%</span>
                 </button>
               ))}
               {active.length === 0 && <EmptyState text="No active projects" />}
@@ -236,6 +249,7 @@ function InternalDashboard() {
           </BoardGroup>
         </div>
       </div>
+      </>}
     </>
   );
 }

@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
 import { EmptyState, SelectField, TextField, Tip } from './common';
 import EvidencePanel from './EvidencePanel';
+import { useNewIds } from './motion';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 
@@ -35,6 +36,8 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
   const [target, setTarget] = useState(fixedEntity ? `${fixedEntity.type}:${fixedEntity.id}` : `project:${projectId}`);
   const [mandatory, setMandatory] = useState(true);
 
+  // the parent passes [] until its data arrives — only items added after that animate in
+  const isNew = useNewIds(requirements.map((r) => r.id), requirements.length > 0);
   const done = requirements.filter((r) => isSatisfied(r, evidence)).length;
   const mandatoryMissing = requirements.filter((r) => r.is_mandatory && !isSatisfied(r, evidence)).length;
 
@@ -58,7 +61,7 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
     <div>
       <div className="mb-2 flex items-center gap-3">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-grid">
-          <div className="h-full bg-[#00c875]" style={{ width: `${requirements.length ? (done / requirements.length) * 100 : 0}%` }} />
+          <div className="h-full bg-[#00c875] transition-[width] duration-500" style={{ width: `${requirements.length ? (done / requirements.length) * 100 : 0}%` }} />
         </div>
         <span className="text-xs text-muted-foreground">{done}/{requirements.length} provided</span>
         {mandatoryMissing > 0 && <span className="rounded bg-[#e2445c] px-1.5 py-0.5 text-[11px] font-medium text-white">{mandatoryMissing} mandatory missing</span>}
@@ -70,7 +73,7 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
           const ok = isSatisfied(r, evidence);
           const count = evidence.filter((e) => e.requirement_id === r.id && e.verification_status !== 'rejected').length;
           return (
-            <li key={r.id} className="flex items-center gap-2 py-1.5">
+            <li key={r.id} className={cn('flex items-center gap-2 py-1.5', isNew(r.id) && 'motion-rise')}>
               {ok ? <CircleCheck className="size-4 text-[#00c875]" /> : <CircleDashed className={cn('size-4', r.is_mandatory ? 'text-[#e2445c]' : 'text-muted-foreground')} />}
               <span className={cn('text-sm', !ok && r.is_mandatory && 'font-medium')}>{r.name}</span>
               {r.is_mandatory ? <span className="rounded bg-secondary px-1.5 text-[10px]">Mandatory</span> : <span className="text-[10px] text-muted-foreground">Optional</span>}

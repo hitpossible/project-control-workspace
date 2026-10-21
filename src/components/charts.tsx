@@ -12,12 +12,15 @@ export function HBarChart({ rows, max, suffix = '', emptyText = 'No data' }: {
   if (!rows.length) return <div className="py-6 text-center text-sm text-muted-foreground">{emptyText}</div>;
   return (
     <div className="space-y-1.5">
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <Tip key={r.key} title={r.hint ?? `${r.value ?? '–'}${suffix}`}>
-          <div className="grid grid-cols-[minmax(110px,180px)_1fr_56px] items-center gap-2">
+          <div className="group/bar -mx-1 grid grid-cols-[minmax(110px,180px)_1fr_56px] items-center gap-2 rounded px-1 transition-colors hover:bg-muted/70">
             <div className="truncate text-sm">{r.label}</div>
             <div className="h-4 rounded-sm bg-[#f0f2f6]">
-              {r.value != null && <div className="h-full rounded-r-[4px]" style={{ width: `${Math.max(0, Math.min(100, (r.value / m) * 100))}%`, background: r.color ?? '#579bfc' }} />}
+              {r.value != null && (
+                <div className="motion-grow-x h-full origin-left rounded-r-[4px] transition-[width,filter] duration-500 group-hover/bar:brightness-110"
+                  style={{ width: `${Math.max(0, Math.min(100, (r.value / m) * 100))}%`, background: r.color ?? '#579bfc', animationDelay: `${Math.min(i, 12) * 35}ms` }} />
+              )}
             </div>
             <div className="text-right text-sm font-semibold tabular-nums">{r.value == null ? '–' : `${r.value}${suffix}`}</div>
           </div>
@@ -37,18 +40,19 @@ export function DivergingBarChart({ rows, suffix = 'd' }: { rows: { key: string 
         <div className="flex justify-between"><span>← ahead</span><span>0</span><span>late →</span></div>
         <span />
       </div>
-      {rows.map((r) => {
+      {rows.map((r, i) => {
         const v = r.value ?? 0;
         const w = (Math.abs(v) / m) * 50;
         return (
           <Tip key={r.key} title={r.value == null ? 'No baseline' : `${v > 0 ? '+' : ''}${v}${suffix}`}>
-            <div className="grid grid-cols-[minmax(110px,180px)_1fr_56px] items-center gap-2">
+            <div className="group/bar -mx-1 grid grid-cols-[minmax(110px,180px)_1fr_56px] items-center gap-2 rounded px-1 transition-colors hover:bg-muted/70">
               <div className="truncate text-sm">{r.label}</div>
               <div className="relative h-4 rounded-sm bg-[#f0f2f6]">
                 <div className="absolute inset-y-0 left-1/2 w-px bg-[#c3c6d4]" />
                 {r.value != null && v !== 0 && (
-                  <div className={cn('absolute inset-y-0', v > 0 ? 'left-1/2 rounded-r-[4px] bg-[#e2445c]' : 'rounded-l-[4px] bg-[#00c875]')}
-                    style={v > 0 ? { width: `${w}%` } : { width: `${w}%`, right: '50%' }} />
+                  <div className={cn('motion-grow-x absolute inset-y-0 transition-[width,filter] duration-500 group-hover/bar:brightness-110',
+                    v > 0 ? 'left-1/2 origin-left rounded-r-[4px] bg-[#e2445c]' : 'origin-right rounded-l-[4px] bg-[#00c875]')}
+                    style={{ width: `${w}%`, ...(v < 0 && { right: '50%' }), animationDelay: `${Math.min(i, 12) * 35}ms` }} />
                 )}
               </div>
               <div className={cn('text-right text-sm font-semibold tabular-nums', v > 0 ? 'text-destructive' : v < 0 ? 'text-[#00854d]' : '')}>{r.value == null ? '–' : `${v > 0 ? '+' : ''}${v}${suffix}`}</div>
@@ -65,9 +69,9 @@ export function StackBar({ parts, height = 14 }: { parts: { key: string; label: 
   const total = parts.reduce((a, p) => a + p.value, 0);
   return (
     <div>
-      <div className="flex gap-0.5 overflow-hidden rounded" style={{ height }}>
+      <div className="motion-grow-x flex origin-left gap-0.5 overflow-hidden rounded" style={{ height }}>
         {total === 0 ? <div className="flex-1 bg-[#f0f2f6]" /> : parts.filter((p) => p.value > 0).map((p) => (
-          <Tip key={p.key} title={`${p.label}: ${p.value}`}><div style={{ width: `${(p.value / total) * 100}%`, background: p.color }} /></Tip>
+          <Tip key={p.key} title={`${p.label}: ${p.value}`}><div className="transition-[width,filter] duration-500 hover:brightness-110" style={{ width: `${(p.value / total) * 100}%`, background: p.color }} /></Tip>
         ))}
       </div>
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -87,7 +91,7 @@ export function Sparkline({ values, width = 90, height = 24, color = '#579bfc' }
   const pts = values.map((v, i) => `${(i / (values.length - 1)) * (width - 4) + 2},${height - 2 - ((v - min) / Math.max(max - min, 1)) * (height - 4)}`).join(' ');
   return (
     <svg width={width} height={height}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      <polyline className="motion-draw" pathLength={1} points={pts} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }

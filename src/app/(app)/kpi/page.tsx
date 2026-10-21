@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { DivergingBarChart, HBarChart, Sparkline, StackBar } from '@/components/charts';
 import { BoardGroup, EmptyState, HealthDot, PageHeader, PeriodPicker, Person, ProgressBar, Section, StatCard, StatusChip, Tip, periodFor, type Period } from '@/components/common';
+import { BoardSkeleton, StatCardsSkeleton } from '@/components/motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -30,6 +31,7 @@ export default function KpiPage() {
   const [people, setPeople] = useState<KpiIndividual[]>([]);
   const [snaps, setSnaps] = useState<KpiSnapshot[]>([]);
   const [excused, setExcused] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const canAll = hasRole('project_leader', 'supervisor', 'manager');
   const canTeam = isStaff || hasRole('management_view');
   const [picked, setTab] = useState('');
@@ -50,6 +52,7 @@ export default function KpiPage() {
     setPeople((i.data ?? []) as KpiIndividual[]);
     setSnaps((s.data ?? []) as KpiSnapshot[]);
     setExcused((e.data?.value as string[]) ?? []);
+    setLoaded(true);
   }, [db, period.from, period.to, canTeam, isStaff, notify]);
 
   useEffect(() => {
@@ -87,7 +90,14 @@ export default function KpiPage() {
         </Tabs>
       </div>
 
-      {tab === 'team' && team && (
+      {!loaded && (
+        <>
+          <StatCardsSkeleton className="mb-5 md:grid-cols-4 xl:grid-cols-6" />
+          <BoardSkeleton groups={2} rows={4} cols={4} />
+        </>
+      )}
+
+      {loaded && tab === 'team' && team && (
         <>
           <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
             <StatCard label="Projects in period" value={team.total_projects} hint={`${team.completed_projects} completed`} />
@@ -117,7 +127,7 @@ export default function KpiPage() {
         </>
       )}
 
-      {tab === 'projects' && (
+      {loaded && tab === 'projects' && (
         <BoardGroup title="Project KPI" color="#579bfc" count={projects.length}>
           <Table className="board-table">
             <TableHeader>
@@ -152,7 +162,7 @@ export default function KpiPage() {
         </BoardGroup>
       )}
 
-      {tab === 'individual' && isStaff && (
+      {loaded && tab === 'individual' && isStaff && (
         <>
           <Alert className="mb-4 border-[#cce5ff] bg-[#f0f7ff]">
             <Info />

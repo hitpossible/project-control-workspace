@@ -10,6 +10,7 @@ import type { Comment, Profile } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
 import { EmptyState, Person, Tip } from './common';
+import { useNewIds } from './motion';
 import { Button } from './ui/button';
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 import { Textarea } from './ui/textarea';
@@ -54,6 +55,8 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
     if (el) el.scrollTop = el.scrollHeight;
   }, [items.length]);
 
+  const isNew = useNewIds(items.map((c) => c.id), loaded);
+
   const post = async (body: string, mentions: number[]) => {
     setSaving(true);
     const { error } = await db.from('comments').insert({ project_id: projectId, entity_type: entityType, entity_id: entityId, body, mentions });
@@ -93,9 +96,10 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
       {/* the thread scrolls on its own so the composer below never gets pushed out of view */}
       <ul ref={listRef} className="-mx-1 max-h-[min(45vh,26rem)] space-y-2 overflow-y-auto px-1">
         {items.map((c) => {
+          const fresh = isNew(c.id);
           const mine = c.created_by === me?.id;
           return (
-            <li key={c.id} className="group/comment flex gap-2">
+            <li key={c.id} className={cn('group/comment flex gap-2', fresh && 'motion-rise')}>
               <Person name={profileName(c.created_by)} showName={false} size={26} />
               <div className="min-w-0 flex-1 rounded-lg bg-muted/60 px-3 py-1.5">
                 <div className="flex min-h-6 flex-wrap items-center gap-x-2 text-xs">

@@ -11,6 +11,7 @@ import { dbClient } from '@/lib/db/client';
 import type { ProjectView } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import InsightList from './InsightList';
+import { BoardSkeleton, StatCardsSkeleton } from './motion';
 import { BoardGroup, EmptyState, HealthDot, PageHeader, Person, ProgressBar, SelectField, StatCard, StatusChip } from './common';
 import { Button } from './ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -19,7 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 export default function ManagementDashboard() {
   const db = dbClient();
   const router = useRouter();
-  const [rows, setRows] = useState<ProjectView[]>([]);
+  const [rows, setRows] = useState<ProjectView[] | null>(null);
   const [dept, setDept] = useState('');
 
   useEffect(() => {
@@ -29,8 +30,9 @@ export default function ManagementDashboard() {
       .order('project_code').then(({ data }) => setRows((data ?? []) as ProjectView[]));
   }, [db]);
 
-  const depts = [...new Set(rows.map((r) => r.requestor_department ?? r.department).filter(Boolean))] as string[];
-  const list = rows.filter((r) => !dept || (r.requestor_department ?? r.department) === dept);
+  const all = rows ?? [];
+  const depts = [...new Set(all.map((r) => r.requestor_department ?? r.department).filter(Boolean))] as string[];
+  const list = all.filter((r) => !dept || (r.requestor_department ?? r.department) === dept);
   const active = list.filter((p) => !['completed', 'cancelled'].includes(p.status));
   const attention = active.filter((p) => p.attention.length > 0 || p.health === 'red');
   const count = (s: string) => list.filter((p) => p.status === s).length;
@@ -46,6 +48,12 @@ export default function ManagementDashboard() {
           <Button variant="outline" className="h-9" onClick={() => exportProjectListExcel(list, `Management_Report_${dayjs().format('YYYYMMDD')}.xlsx`)}><Download /> Export</Button>
         </>}
       />
+      {!rows ? (
+        <>
+          <StatCardsSkeleton className="mb-5 md:grid-cols-6" />
+          <BoardSkeleton groups={2} rows={5} cols={6} />
+        </>
+      ) : <>
       <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-6">
         <StatCard label="Total Projects" value={list.length} />
         <StatCard label="Working on it" value={count('in_progress')} color="#fdab3d" />
@@ -59,7 +67,7 @@ export default function ManagementDashboard() {
         <BoardGroup title={<span className="inline-flex items-center gap-1.5"><TriangleAlert className="size-4" /> Projects Need Attention</span>} color="#e2445c" count={attention.length}>
           <div className="divide-y divide-grid">
             {attention.map((p) => (
-              <button key={p.id} type="button" onClick={() => router.push(`/projects/${p.id}`)} className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-muted">
+              <button key={p.id} type="button" onClick={() => router.push(`/projects/${p.id}`)} className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-muted active:bg-selected/60">
                 <HealthDot value={p.health} />
                 <span className="text-sm font-semibold">{p.project_code}</span>
                 <span className="text-sm">{p.project_name}</span>
@@ -111,6 +119,7 @@ export default function ManagementDashboard() {
         </Table>
         {list.length === 0 && <EmptyState text="No projects" />}
       </BoardGroup>
+      </>}
     </>
   );
 }

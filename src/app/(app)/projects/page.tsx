@@ -5,6 +5,7 @@ import { Download, TriangleAlert } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { BoardGroup, EmptyState, HealthDot, PageHeader, Person, PriorityChip, ProgressBar, SearchBox, SelectField, StatusChip, TimelinePill, Tip } from '@/components/common';
+import { BoardSkeleton } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,7 +27,7 @@ function ProjectList() {
   const db = dbClient();
   const router = useRouter();
   const params = useSearchParams();
-  const [rows, setRows] = useState<ProjectView[]>([]);
+  const [rows, setRows] = useState<ProjectView[] | null>(null);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState(params.get('status') ?? '');
   const [health, setHealth] = useState(params.get('health') ?? '');
@@ -36,7 +37,7 @@ function ProjectList() {
     db.from('v_projects').select('*').order('project_code', { ascending: false }).then(({ data }) => setRows((data ?? []) as ProjectView[]));
   }, [db]);
 
-  const list = rows.filter((p) => {
+  const list = (rows ?? []).filter((p) => {
     if (status === 'active' ? ['completed', 'cancelled'].includes(p.status) : status && p.status !== status) return false;
     if (health && p.health !== health) return false;
     if (attention && p.attention.length === 0) return false;
@@ -60,7 +61,8 @@ function ProjectList() {
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={attention} onCheckedChange={(c) => setAttention(!!c)} /> Need attention only</label>
       </div>
 
-      {list.length === 0 && <EmptyState text="No projects" />}
+      {!rows && <BoardSkeleton groups={2} rows={5} cols={7} />}
+      {rows && list.length === 0 && <EmptyState text="No projects" />}
       {GROUPS.map((g) => {
         const items = list.filter((p) => g.statuses.includes(p.status));
         if (!items.length) return null;

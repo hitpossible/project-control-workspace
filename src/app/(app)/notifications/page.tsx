@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { PageHeader, Tip } from '@/components/common';
+import { ListSkeleton, useNewIds } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -71,6 +72,8 @@ export default function NotificationsPage() {
   const [rows, setRows] = useState<Notification[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState('unread');
+  // rows sliding out after "mark as read" on the Unread tab
+  const [leaving, setLeaving] = useState<number[]>([]);
 
   const load = useCallback(async () => {
     let q = db.from('notifications').select('*').order('created_at', { ascending: false }).limit(300);
@@ -90,9 +93,16 @@ export default function NotificationsPage() {
   const markRead = async (ids: number[]) => {
     if (!ids.length) return;
     await db.from('notifications').update({ is_read: true }).in('id', ids);
+    if (tab === 'unread') {
+      setLeaving((l) => [...l, ...ids]);
+      await new Promise((r) => setTimeout(r, 180));
+      setLeaving((l) => l.filter((id) => !ids.includes(id)));
+    }
     setRows((rs) => (tab === 'unread' ? rs.filter((r) => !ids.includes(r.id)) : rs.map((r) => (ids.includes(r.id) ? { ...r, is_read: true } : r))));
     refreshUnread();
   };
+
+  const isNew = useNewIds(rows.map((r) => r.id), loaded);
 
   const groups = useMemo(() => {
     const out: { label: string; items: Notification[] }[] = [];
@@ -131,14 +141,14 @@ export default function NotificationsPage() {
           </TabsList>
         </Tabs>
 
-        {loaded && rows.length === 0 ? <EmptyList tab={tab} /> : groups.map((g) => (
+        {!loaded ? <ListSkeleton /> : rows.length === 0 ? <EmptyList tab={tab} /> : groups.map((g) => (
           <section key={g.label}>
             <div className="sticky top-14 z-10 border-b border-grid bg-muted/60 px-4 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase backdrop-blur">
               {g.label}
             </div>
             <ul className="divide-y divide-grid">
               {g.items.map((n) => (
-                <NotificationItem key={n.id} n={n}
+                <NotificationItem key={n.id} n={n} leaving={leaving.includes(n.id)} fresh={isNew(n.id)}
                   onOpen={async () => {
                     if (!n.is_read) await markRead([n.id]);
                     if (n.link) router.push(n.link);
@@ -153,13 +163,16 @@ export default function NotificationsPage() {
   );
 }
 
-function NotificationItem({ n, onOpen, onMarkRead }: { n: Notification; onOpen: () => void; onMarkRead: () => void }) {
+function NotificationItem({ n, leaving, fresh, onOpen, onMarkRead }: {
+  n: Notification; leaving: boolean; fresh: boolean; onOpen: () => void; onMarkRead: () => void;
+}) {
   const m = metaOf(n.event_code);
   const Icon = m.icon;
   return (
-    <li className={cn('group relative flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50', !n.is_read && 'bg-primary/[0.04]')}>
-      {!n.is_read && <span className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
-      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full" style={{ background: `${m.color}1f`, color: m.color }}>
+    <li className={cn('group relative flex items-start gap-3 px-4 py-3.5 transition-colors duration-300 hover:bg-muted/50',
+      !n.is_read && 'bg-primary/[0.04]', fresh && 'motion-rise', leaving && 'motion-leave pointer-events-none')}>
+      <span className={cn('absolute inset-y-0 left-0 w-[3px] origin-top bg-primary transition-transform duration-300', n.is_read && 'scale-y-0')} />
+      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full transition-transform duration-200 group-hover:scale-105" style={{ background: `${m.color}1f`, color: m.color }}>
         <Icon className="size-[18px]" />
       </span>
       <button type="button" onClick={onOpen} className="min-w-0 flex-1 cursor-pointer text-left">
@@ -190,7 +203,7 @@ function EmptyList({ tab }: { tab: string }) {
       : ['No notifications', 'Nothing has happened yet.'];
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center">
-      <span className="mb-3 grid size-12 place-items-center rounded-full bg-muted text-muted-foreground"><CheckCheck className="size-6" /></span>
+      <span className="motion-rise mb-3 grid size-12 place-items-center rounded-full bg-muted text-muted-foreground"><CheckCheck className="size-6" /></span>
       <div className="font-medium">{title}</div>
       <div className="mt-1 max-w-sm text-sm text-muted-foreground">{text}</div>
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarIcon, Check, ChevronDown, ChevronRight, ChevronsUpDown, Search, X } from 'lucide-react';
+import { CalendarIcon, Check, ChevronDown, ChevronsUpDown, Search, X } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { fmtDate } from '@/lib/format';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { useApp } from './AppProvider';
+import { AnimatedValue } from './motion';
 
 export type Opt = { value: string; label: string; color?: string };
 
@@ -77,7 +78,7 @@ export function ProgressBar({ value, className }: { value: number; className?: s
   return (
     <div className={cn('flex min-w-28 items-center gap-2', className)}>
       <div className="h-[18px] flex-1 overflow-hidden rounded-sm bg-grid">
-        <div className="h-full bg-[#00c875] transition-[width]" style={{ width: `${Math.min(100, v)}%` }} />
+        <div className="motion-grow-x h-full origin-left bg-[#00c875] transition-[width] duration-500" style={{ width: `${Math.min(100, v)}%` }} />
       </div>
       <span className="min-w-8 text-right text-xs text-muted-foreground">{Math.round(v)}%</span>
     </div>
@@ -115,8 +116,8 @@ export function BoardGroup({ title, color, count, children, actions, defaultOpen
   return (
     <section className="mb-7">
       <div className="mb-1.5 flex items-center gap-2">
-        <button type="button" onClick={() => setOpen(!open)} className="rounded p-0.5 hover:bg-muted" style={{ color }}>
-          {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="rounded p-0.5 transition-colors hover:bg-muted" style={{ color }}>
+          <ChevronDown className={cn('size-4 transition-transform duration-200', !open && '-rotate-90')} />
         </button>
         <h3 className="text-[17px] font-semibold" style={{ color }}>{title}</h3>
         {count !== undefined && <span className="text-sm text-muted-foreground">{count} {count === 1 ? 'item' : 'items'}</span>}
@@ -124,7 +125,7 @@ export function BoardGroup({ title, color, count, children, actions, defaultOpen
         {actions}
       </div>
       {open && (
-        <div className="overflow-x-auto rounded border border-grid bg-white" style={{ borderLeft: `6px solid ${color}` }}>
+        <div className="motion-rise overflow-x-auto rounded border border-grid bg-white" style={{ borderLeft: `6px solid ${color}` }}>
           {children}
         </div>
       )}
@@ -204,13 +205,17 @@ export function StatCard({ label, value, color, hint, onClick }: { label: string
   return (
     <div
       onClick={onClick}
-      className={cn('h-full rounded-lg border bg-white px-4 py-3 transition-shadow', onClick && 'cursor-pointer hover:shadow-md')}
+      onKeyDown={onClick && ((e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onClick()))}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      className={cn('h-full rounded-lg border bg-white px-4 py-3 transition-[box-shadow,transform,border-color] duration-200',
+        onClick && 'cursor-pointer outline-none hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary/50 active:translate-y-0 active:scale-[0.98]')}
     >
       <div className="flex items-center gap-1.5">
         <span className="size-2 shrink-0 rounded-full" style={{ background: color ?? '#0073ea' }} />
         <span className="truncate text-sm text-muted-foreground">{label}</span>
       </div>
-      <div className="mt-1 font-heading text-3xl leading-tight font-medium" style={{ color: color ?? undefined }}>{value}</div>
+      <div className="mt-1 font-heading text-3xl leading-tight font-medium" style={{ color: color ?? undefined }}><AnimatedValue value={value} /></div>
       {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
     </div>
   );

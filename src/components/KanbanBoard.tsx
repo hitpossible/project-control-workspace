@@ -6,7 +6,7 @@ import {
 } from '@dnd-kit/core';
 import dayjs from 'dayjs';
 import { AlertTriangle, CalendarClock, Check, MoreHorizontal } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { optColor, optLabel, type Opt } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,24 @@ export default function KanbanBoard<T extends Item>({
 }) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [moving, setMoving] = useState<number | null>(null);
+  // optimistic placement: the card shows in its new column while `onMove` saves
+  const [placed, setPlaced] = useState<{ id: number; status: string; from: string } | null>(null);
+  const [landed, setLanded] = useState<number | null>(null);
+  // the override stays until reloaded data shows the card left its old column
+  // (a workflow rule may have put it somewhere else); if that never happens the save failed
+  const savedStatus = placed ? items.find((i) => i.id === placed.id)?.status : undefined;
+  useEffect(() => {
+    if (!placed) return;
+    if (savedStatus !== placed.from) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reloaded data replaces the optimistic one
+      setPlaced(null);
+      return;
+    }
+    if (moving !== null) return;
+    const t = setTimeout(() => setPlaced(null), 3000);
+    return () => clearTimeout(t);
+  }, [savedStatus, placed, moving]);
+  const statusOf = (i: T) => (placed?.id === i.id ? placed.status : i.status);
   const active = items.find((i) => i.id === activeId) ?? null;
   const label = (status: string) => columns.find((c) => c.value === status)?.label ?? status;
 
@@ -58,6 +76,8 @@ export default function KanbanBoard<T extends Item>({
   const move = async (item: T | undefined, status: string | null) => {
     if (!item || !status || status === item.status || !onMove) return;
     setMoving(item.id);
+    setPlaced({ id: item.id, status, from: item.status });
+    setLanded(item.id);
     try {
       await onMove(item, status);
     } finally {
@@ -72,7 +92,7 @@ export default function KanbanBoard<T extends Item>({
 
   /** keyboard: move to the neighbouring column */
   const shift = async (item: T, dir: -1 | 1) => {
-    const i = columns.findIndex((c) => c.value === item.status);
+    const i = columns.findIndex((c) => c.value === statusOf(item));
     const target = columns[i + dir];
     if (!target) return;
     await move(item, target.value);
@@ -94,7 +114,7 @@ export default function KanbanBoard<T extends Item>({
     >
       <div className="flex gap-3 overflow-x-auto pb-3">
         {columns.map((col) => {
-          const colItems = items.filter((i) => i.status === col.value);
+          const colItems = items.filter((i) => statusOf(i) === col.value);
           return (
             <Column key={col.value} col={col} count={colItems.length} dragging={!!active}
               isTarget={!!active && active.status !== col.value} emptyText={emptyText}>
@@ -102,9 +122,9 @@ export default function KanbanBoard<T extends Item>({
                 const draggable = !!onMove && canDrag(item) && moving !== item.id;
                 return (
                   <Card key={item.id} id={item.id} title={(item as { name?: string }).name}
-                    draggable={draggable} dimmed={activeId === item.id} busy={moving === item.id}
+                    draggable={draggable} dimmed={activeId === item.id} landed={landed === item.id} onLanded={() => setLanded(null)}
                     onOpen={() => onOpen?.(item)} onShift={(d) => shift(item, d)}
-                    menu={draggable && <MoveMenu columns={columns} current={item.status} onPick={(s) => move(item, s)} />}>
+                    menu={draggable && <MoveMenu columns={columns} current={statusOf(item)} onPick={(s) => move(item, s)} />}>
                     {renderCard(item)}
                   </Card>
                 );
@@ -114,10 +134,10 @@ export default function KanbanBoard<T extends Item>({
         })}
       </div>
 
-      {/* card following the pointer */}
+      {/* card following the pointer; no drop animation — the card itself lands in its new column */}
       <DragOverlay dropAnimation={null}>
         {active && (
-          <div className="w-72 rotate-[1.5deg] cursor-grabbing rounded-lg border border-primary/30 bg-white p-3 text-sm shadow-2xl">{renderCard(active)}</div>
+          <div className="motion-lift w-72 scale-[1.03] rotate-[1.5deg] cursor-grabbing rounded-lg border border-primary/30 bg-white p-3 text-sm shadow-2xl">{renderCard(active)}</div>
         )}
       </DragOverlay>
     </DndContext>
@@ -161,8 +181,8 @@ function Column({ col, count, dragging, isTarget, emptyText, children }: {
   );
 }
 
-function Card({ id, title, draggable, dimmed, busy, onOpen, onShift, menu, children }: {
-  id: number; title?: string; draggable: boolean; dimmed: boolean; busy: boolean; onOpen: () => void; onShift: (dir: -1 | 1) => void;
+function Card({ id, title, draggable, dimmed, landed, onLanded, onOpen, onShift, menu, children }: {
+  id: number; title?: string; draggable: boolean; dimmed: boolean; landed: boolean; onLanded: () => void; onOpen: () => void; onShift: (dir: -1 | 1) => void;
   menu?: React.ReactNode; children: React.ReactNode;
 }) {
   const { setNodeRef, attributes, listeners } = useDraggable({ id, disabled: !draggable, data: { title } });
@@ -173,6 +193,7 @@ function Card({ id, title, draggable, dimmed, busy, onOpen, onShift, menu, child
       {...attributes}
       {...listeners}
       onClick={onOpen}
+      onAnimationEnd={(e) => e.animationName === 'pcw-flash' && onLanded()}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter') onOpen();
@@ -183,10 +204,10 @@ function Card({ id, title, draggable, dimmed, busy, onOpen, onShift, menu, child
       }}
       className={cn(
         'group/card relative rounded-lg border border-black/[.08] bg-white p-3 text-sm shadow-[0_1px_2px_rgba(16,24,40,.05)] transition outline-none select-none',
-        'hover:border-primary/30 hover:shadow-[0_4px_12px_rgba(16,24,40,.08)] focus-visible:ring-2 focus-visible:ring-primary/50',
+        'hover:-translate-y-px hover:border-primary/30 hover:shadow-[0_4px_12px_rgba(16,24,40,.08)] active:translate-y-0 focus-visible:ring-2 focus-visible:ring-primary/50',
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         dimmed && 'border-dashed opacity-40 shadow-none',
-        busy && 'pointer-events-none animate-pulse',
+        landed && 'motion-land',
       )}
     >
       {children}
@@ -266,7 +287,7 @@ export function KanbanProgress({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/[.06]">
-        <div className="h-full rounded-full bg-[#00c875] transition-[width]" style={{ width: `${v}%` }} />
+        <div className="motion-grow-x h-full origin-left rounded-full bg-[#00c875] transition-[width] duration-500" style={{ width: `${v}%` }} />
       </div>
       <span className="w-8 text-right text-[11px] text-muted-foreground tabular-nums">{Math.round(v)}%</span>
     </div>

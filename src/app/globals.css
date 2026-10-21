@@ -165,3 +165,76 @@
 @media (prefers-reduced-motion: reduce) {
     .pcw-motion { animation: none !important; transition: none !important; }
 }
+
+/* ---------------------------------------------------------------------------
+   Motion (short, calm — this is an all-day work tool). Everything here is
+   switched off under prefers-reduced-motion at the bottom of this block.
+   --------------------------------------------------------------------------- */
+@keyframes pcw-rise {
+    from { opacity: 0; transform: translateY(6px); }
+}
+@keyframes pcw-leave {
+    to { opacity: 0; transform: translateX(16px); }
+}
+@keyframes pcw-grow-x {
+    from { transform: scaleX(0); }
+}
+@keyframes pcw-grow-y {
+    from { transform: scaleY(0); }
+}
+@keyframes pcw-draw {
+    from { stroke-dashoffset: 1; }
+}
+@keyframes pcw-land {
+    0% { transform: scale(1.04); box-shadow: 0 10px 24px rgba(16, 24, 40, .16); }
+    100% { transform: scale(1); }
+}
+@keyframes pcw-flash {
+    0% { box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 55%, transparent); }
+    100% { box-shadow: 0 0 0 2px transparent; }
+}
+@keyframes pcw-lift {
+    /* Tailwind v4 rotate-/scale- classes use the individual properties, so animate those */
+    from { rotate: 0deg; scale: 1; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+}
+@keyframes pcw-shimmer {
+    from { background-position: 150% 0; }
+    to { background-position: -50% 0; }
+}
+
+@utility motion-rise {
+    animation: pcw-rise 220ms cubic-bezier(.2, .7, .3, 1) backwards;
+}
+@utility motion-leave {
+    animation: pcw-leave 180ms ease-in both;
+}
+/* bars grow from their start edge; set transform-origin with origin-left / origin-right */
+@utility motion-grow-x {
+    animation: pcw-grow-x 600ms cubic-bezier(.2, .7, .3, 1) backwards;
+}
+@utility motion-grow-y {
+    animation: pcw-grow-y 500ms cubic-bezier(.2, .7, .3, 1) backwards;
+}
+/* SVG lines drawn left to right — needs pathLength="1" on the element */
+@utility motion-draw {
+    stroke-dasharray: 1;
+    animation: pcw-draw 700ms ease-out backwards;
+}
+@utility motion-land {
+    animation: pcw-land 260ms cubic-bezier(.2, .7, .3, 1), pcw-flash 900ms ease-out;
+}
+@utility motion-lift {
+    animation: pcw-lift 160ms ease-out backwards;
+}
+/* skeleton placeholder */
+@utility skeleton {
+    border-radius: 4px;
+    background: linear-gradient(90deg, #eef0f4 0%, #e3e6ec 40%, #eef0f4 80%) 0 0 / 200% 100%;
+    animation: pcw-shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .motion-rise, .motion-grow-x, .motion-grow-y, .motion-draw, .motion-land, .motion-lift { animation: none !important; }
+    .motion-leave { animation-duration: 1ms !important; }
+    .skeleton { animation: none; }
+}

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { BoardGroup, EmptyState, PageHeader, Person, PriorityChip, ProgressBar, SelectField, StatusChip } from '@/components/common';
+import { BoardSkeleton } from '@/components/motion';
 import { ViewToggle } from '@/components/project/PlanTab';
 import TaskKanban from '@/components/TaskKanban';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -33,13 +34,17 @@ function MyWork() {
   const [filter, setFilter] = useState(params.get('filter') ?? 'open');
   const [layout, setLayout] = useState(params.get('view') ?? 'list');
   const [tick, setTick] = useState(0);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!me) return;
     let q = db.from('internal_tasks').select('*, projects(project_code, project_name), activities(name)').order('due_date');
     if (scope === 'mine') q = q.eq('owner_id', me.id);
     if (scope === 'review') q = q.eq('reviewer_id', me.id);
-    q.then(({ data }) => setRows((data ?? []) as Row[]));
+    q.then(({ data }) => {
+      setRows((data ?? []) as Row[]);
+      setLoaded(true);
+    });
     let b = db.from('bugs').select('*, projects(project_code, project_name)').order('due_date');
     if (scope !== 'all') b = b.eq('assigned_dev_id', me.id);
     b.then(({ data }) => setBugs((data ?? []) as BugRow[]));
@@ -74,7 +79,9 @@ function MyWork() {
         )}
       </div>
 
-      {tab === 'tasks' && layout === 'kanban' && (
+      {!loaded && <BoardSkeleton groups={2} rows={4} cols={6} />}
+
+      {loaded && tab === 'tasks' && layout === 'kanban' && (
         <TaskKanban
           tasks={list}
           canEdit={(t) => [t.owner_id, t.reviewer_id, t.created_by].includes(me?.id ?? -1)}
@@ -84,7 +91,7 @@ function MyWork() {
         />
       )}
 
-      {tab === 'tasks' && layout === 'list' && (
+      {loaded && tab === 'tasks' && layout === 'list' && (
         <>
           {list.length === 0 && <EmptyState text="No tasks" />}
           {projects.map(([pid, p], i) => {
@@ -118,7 +125,7 @@ function MyWork() {
         </>
       )}
 
-      {tab === 'bugs' && (
+      {loaded && tab === 'bugs' && (
         <BoardGroup title="Bugs to fix" color="#e2445c" count={bugList.length}>
           {bugList.length === 0 ? <EmptyState text="No bugs 🎉" /> : (
             <Table className="board-table">
@@ -143,7 +150,7 @@ function MyWork() {
         </BoardGroup>
       )}
 
-      {tab === 'retests' && (
+      {loaded && tab === 'retests' && (
         <BoardGroup title="Waiting for retest" color="#a25ddc" count={retests.length}>
           {retests.length === 0 ? <EmptyState text="Nothing to retest" /> : (
             <Table className="board-table">
