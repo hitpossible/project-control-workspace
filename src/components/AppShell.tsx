@@ -115,7 +115,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-app">
       <header className="no-print sticky top-0 z-40 flex h-14 items-center gap-3 bg-app px-4">
         <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)}><Menu /></Button>
-        <Brand />
+        <div className="lg:hidden"><Brand /></div>
+        {collapsed ? (
+          <Tip side="right" title="Expand sidebar">
+            <button type="button" onClick={toggle} aria-label="Expand sidebar"
+              className="group relative hidden h-9 w-10 shrink-0 items-center justify-center rounded-md hover:bg-sidebar-accent lg:flex">
+              <span className="transition-opacity group-hover:opacity-0"><BrandMark size={22} /></span>
+              <PanelLeftOpen className="absolute size-5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </button>
+          </Tip>
+        ) : (
+          <div className="hidden w-[14.5rem] shrink-0 items-center justify-between gap-2 lg:flex">
+            <Brand />
+            <Tip side="bottom" title="Collapse sidebar">
+              <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" onClick={toggle} aria-label="Collapse sidebar">
+                <PanelLeftClose className="size-4.5" />
+              </Button>
+            </Tip>
+          </div>
+        )}
         <div className="flex flex-1 justify-center px-2 md:px-6">
           <GlobalSearch pages={[...main, ...workspace, ...intelligence].filter((n) => n.show).map(({ href, label, icon }) => ({ href, label, icon }))} />
         </div>
@@ -151,15 +169,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex">
         <aside className={cn('no-print sticky top-14 hidden h-[calc(100vh-3.5rem)] shrink-0 flex-col lg:flex', animate && 'transition-[width] duration-200', collapsed ? 'w-14' : 'w-62')}>
           <div className="min-h-0 flex-1">{nav(collapsed)}</div>
-          <div className={cn('pb-3', collapsed ? 'px-2' : 'px-3')}>
-            <Tip side="right" title={collapsed ? 'Expand sidebar' : ''}>
-              <button type="button" onClick={toggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                className={cn('flex w-full items-center gap-2.5 rounded py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground [&_svg]:size-4',
-                  collapsed ? 'justify-center' : 'px-2.5')}>
-                {collapsed ? <PanelLeftOpen /> : <><PanelLeftClose /> Collapse</>}
-              </button>
-            </Tip>
-          </div>
         </aside>
         <main className="min-h-[calc(100vh-3.5rem)] min-w-0 flex-1 bg-white p-3 shadow-[0_0_0_1px_#e1e4ef] md:p-7 lg:rounded-tl-2xl">
           {children}
