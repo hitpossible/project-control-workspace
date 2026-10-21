@@ -9,15 +9,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ACTIVITY_STATUSES, MEMBER_ROLES, PRIORITIES, PROJECT_STATUSES, optLabel } from '@/lib/constants';
+import { ACTIVITY_STATUSES, MEMBER_ROLES, PRIORITIES, optLabel } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, isOverdue, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { Project } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { ProjectStatusMenu, ReadyToCloseBanner } from './ProjectStatus';
 import type { TabProps } from './types';
-
-// Statuses a leader may set manually; Delayed / At Risk are derived by the system
-const MANUAL_STATUSES = PROJECT_STATUSES.filter((s) => ['planning', 'in_progress', 'waiting', 'on_hold', 'completed', 'cancelled'].includes(s.value));
 
 export default function OverviewTab({ data, perm, reload }: TabProps) {
   const { profileName } = useApp();
@@ -40,6 +38,7 @@ export default function OverviewTab({ data, perm, reload }: TabProps) {
       </div>
 
       <div className="col-span-12 lg:col-span-8">
+        <ReadyToCloseBanner data={data} perm={perm} reload={reload} />
         {p.attention.length > 0 && (
           <Alert variant={p.health === 'red' ? 'destructive' : 'default'} className="mb-4">
             <TriangleAlert />
@@ -57,7 +56,7 @@ export default function OverviewTab({ data, perm, reload }: TabProps) {
             <Field label="Priority">{optLabel(PRIORITIES, p.priority)}</Field>
             <Field label="Start Date">{fmtDate(p.start_date)}</Field>
             <Field label="Target Date">{fmtDate(p.target_date)}</Field>
-            <Field label="Status"><StatusChip list={PROJECT_STATUSES} value={p.status} /></Field>
+            <Field label="Status"><ProjectStatusMenu data={data} perm={perm} reload={reload} /></Field>
             <Field label="Health"><HealthDot value={p.health} label /></Field>
             <div className="col-span-2"><Field label="Progress"><ProgressBar value={p.progress} className="max-w-72" /></Field></div>
           </div>
@@ -130,9 +129,8 @@ function EditProjectDialog({ project, onClose, onSaved }: { project: Project; on
   const { notify } = useApp();
   const [f, setF] = useState({
     leader_id: project.leader_id, sponsor: project.sponsor ?? '', priority: project.priority, target_date: project.target_date ?? '',
-    status: project.status, next_action: project.next_action ?? '', remark: project.remark ?? '',
+    next_action: project.next_action ?? '', remark: project.remark ?? '',
   });
-  const derived = !MANUAL_STATUSES.some((s) => s.value === f.status);
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-lg">
@@ -142,9 +140,6 @@ function EditProjectDialog({ project, onClose, onSaved }: { project: Project; on
           <TextField label="Sponsor" value={f.sponsor} onChange={(v) => setF({ ...f, sponsor: v })} />
           <SelectField label="Priority" value={f.priority} onChange={(v) => setF({ ...f, priority: v })} options={PRIORITIES} />
           <DateField label="Target Date" value={f.target_date} onChange={(v) => setF({ ...f, target_date: v })} helperText="Changes are kept in history. Use Baseline revision for re-plan." />
-          <SelectField label="Status" value={f.status} onChange={(v) => setF({ ...f, status: v })}
-            options={derived ? [...MANUAL_STATUSES, PROJECT_STATUSES.find((s) => s.value === f.status)!] : MANUAL_STATUSES}
-            helperText="Delayed / At Risk are set automatically from the plan" />
           <TextField label="Next Action" value={f.next_action} onChange={(v) => setF({ ...f, next_action: v })} />
           <TextField label="High-level Remark" multiline rows={2} value={f.remark} onChange={(v) => setF({ ...f, remark: v })} />
         </div>

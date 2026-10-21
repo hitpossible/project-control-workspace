@@ -6,20 +6,20 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import AuditHistory from '@/components/AuditHistory';
 import { useApp } from '@/components/AppProvider';
-import { HealthDot, PageHeader, PriorityChip, StatusChip, entityKey, toId } from '@/components/common';
+import { HealthDot, PageHeader, PriorityChip, entityKey, toId } from '@/components/common';
 import ReportButton from '@/components/ReportButton';
 import BaselineTab from '@/components/project/BaselineTab';
 import EvidenceTab from '@/components/project/EvidenceTab';
 import InternalTab from '@/components/project/InternalTab';
 import OverviewTab from '@/components/project/OverviewTab';
 import PlanTab from '@/components/project/PlanTab';
+import { CloseProjectButton, ProjectStatusMenu } from '@/components/project/ProjectStatus';
 import QaTab from '@/components/project/QaTab';
 import TeamTab from '@/components/project/TeamTab';
 import type { ProjectData } from '@/components/project/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PROJECT_STATUSES } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
 import { exportProjectExcel } from '@/lib/exportExcel';
 import { dbClient } from '@/lib/db/client';
@@ -134,7 +134,7 @@ function Workspace() {
         title={<span className="inline-flex items-center gap-2.5"><HealthDot value={p.health} />{p.project_code} — {p.project_name}</span>}
         subtitle={
           <div className="flex flex-wrap items-center gap-2">
-            <StatusChip list={PROJECT_STATUSES} value={p.status} />
+            <ProjectStatusMenu data={data} perm={perm} reload={load} />
             <PriorityChip value={p.priority} />
             <span className="text-xs">{p.project_type_name} · Leader {p.leader_name ?? '-'}</span>
             {p.request_id && p.request_no && <span className="text-xs">· Request <Link href={`/requests/${p.request_id}`} className="font-semibold text-primary">{p.request_no}</Link></span>}
@@ -146,6 +146,7 @@ function Workspace() {
           {perm.internal && (hasRole('project_leader', 'supervisor', 'manager') || perm.manage) && (
             <Button onClick={() => exportXlsx(true)}><Download /> Full Export (Excel)</Button>
           )}
+          <CloseProjectButton data={data} perm={perm} reload={load} />
         </>}
       />
       <Tabs value={tabs.some((t) => t.v === tab) ? tab : 'overview'} onValueChange={setTab} className="no-print mb-5">
