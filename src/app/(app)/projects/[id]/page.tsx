@@ -150,7 +150,7 @@ function Workspace() {
         </>}
       />
       <Tabs value={tabs.some((t) => t.v === tab) ? tab : 'overview'} onValueChange={setTab} className="no-print mb-5">
-        <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b border-grid">
+        <TabsList variant="line" className="w-full justify-start overflow-x-auto overflow-y-hidden border-b border-grid">
           {tabs.map((t) => <TabsTrigger key={t.v} value={t.v} className="flex-none px-3">{t.l}</TabsTrigger>)}
         </TabsList>
       </Tabs>

@@ -1,7 +1,7 @@
 'use client';
 
 import dayjs from 'dayjs';
-import { Ban, Check, ChevronRight, CircleHelp, Hourglass, MessageCircleQuestion, Rocket, Send, Sparkles, Undo2, Users, X, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Ban, CalendarClock, CalendarDays, Check, ChevronRight, CircleHelp, Hourglass, ListChecks, Mail, MessageCircleQuestion, Phone, Rocket, Send, Sparkles, Undo2, Users, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Fragment, useCallback, useEffect, useState } from 'react';
@@ -13,10 +13,11 @@ import EvidencePanel from '@/components/EvidencePanel';
 import RequestForm, { REDUCTION_ROWS } from '@/components/RequestForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentTypes } from '@/components/useDocumentTypes';
 import { coverageCount } from '@/lib/clarify';
 import { canActOnStep, canConvertRequest, stepAudience, stepGroup, stepStage } from '@/lib/approval';
-import { APPROVAL_ACTION_LABELS, REQUEST_STATUSES, ROLE_LABELS } from '@/lib/constants';
+import { APPROVAL_ACTION_LABELS, optLabel, REQUEST_STATUSES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, fmtNum } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { ApprovalAction, ApprovalStep, ProjectRequest, ProjectTemplate, ProjectType, Role } from '@/lib/types';
@@ -57,6 +58,25 @@ function Bubble({ tone, children }: { tone: Pick<Tone, 'fg' | 'bg'>; children: R
   );
 }
 
+function Stat({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: React.ReactNode; hint?: React.ReactNode }) {
+  return (
+    <div className="min-w-0 bg-card px-4 py-3">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><Icon className="size-3.5" />{label}</div>
+      <div className="mt-0.5 truncate text-sm font-semibold">{value}</div>
+      {hint && <div className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</div>}
+    </div>
+  );
+}
+
+function InfoBlock({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg bg-muted/50 px-3 py-2.5">
+      <div className="mb-0.5 text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="text-sm break-words whitespace-pre-wrap">{children || <span className="text-muted-foreground">-</span>}</div>
+    </div>
+  );
+}
+
 export default function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const db = dbClient();
@@ -72,6 +92,7 @@ export default function RequestDetailPage() {
   const [conv, setConv] = useState({ start: dayjs().format('YYYY-MM-DD'), target: '', sponsor: '' });
   const [notFound, setNotFound] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const [tab, setTab] = useState('details');
   const docType = useDocumentTypes().find((t) => t.id === r?.document_type_id);
 
   const load = useCallback(async () => {
@@ -111,6 +132,11 @@ export default function RequestDetailPage() {
   const isReview = canAct && !!waiting && stepStage(waiting) === 'receive';
   const legacyReview = waiting?.step_code === 'system_review';
   const canConvert = canConvertRequest(r, me);
+  const hasClarify = !!r.ai_clarifications?.length || !!r.ai_coverage || !!r.ai_chat?.length;
+  const coverage = r.ai_coverage ? coverageCount(r.ai_coverage) : null;
+  const daysLeft = r.date_required ? dayjs(r.date_required).startOf('day').diff(dayjs().startOf('day'), 'day') : null;
+  const audience = (s: ApprovalStep) =>
+    s.approver_levels ? stepAudience(s) : s.approver_ids?.length ? s.approver_ids.map(profileName).join(' / ') : s.approver_id ? profileName(s.approver_id) : `Any ${ROLE_LABELS[s.approver_role as Role] ?? s.approver_role}`;
 
   const rpc = async (fn: string, args: Record<string, unknown>, ok: string) => {
     const { data, error } = await db.rpc(fn, args);
@@ -169,9 +195,40 @@ export default function RequestDetailPage() {
         </AlertDescription></Alert>
       )}
 
+      <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border lg:grid-cols-4">
+        <Stat icon={CalendarDays} label="Date Submitted" value={fmtDate(r.date_submitted)} />
+        <Stat icon={CalendarClock} label="Date Required" value={fmtDate(r.date_required)}
+          hint={daysLeft == null || ['converted', 'cancelled', 'rejected'].includes(r.status) ? null
+            : <span className={cn(daysLeft < 0 ? 'text-[#d83a52]' : daysLeft <= 7 && 'text-[#b45309]')}>{daysLeft < 0 ? `${-daysLeft} days overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft} days left`}</span>} />
+        <Stat icon={Hourglass} label="Current Step" value={waiting?.step_name ?? optLabel(REQUEST_STATUSES, r.status)}
+          hint={waiting && (canAct ? <span className="font-medium text-primary">Your turn</span> : audience(waiting))} />
+        <Stat icon={ListChecks} label="Approval Progress" value={current.length ? `${approvedCount} / ${current.length} steps` : 'Not submitted'}
+          hint={current.length > 0 && (
+            <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted">
+              <span className="block h-full rounded-full bg-[#00c875] transition-all" style={{ width: `${(approvedCount / current.length) * 100}%` }} />
+            </span>
+          )} />
+      </div>
+
       <div className="grid grid-cols-12 gap-5">
-        <div className="col-span-12 xl:col-span-8">
-          {editable ? (
+        <div className="col-span-12 min-w-0 xl:col-span-8">
+          <Tabs value={tab} onValueChange={setTab} className="mb-4">
+            <TabsList variant="line" className="w-full justify-start overflow-x-auto overflow-y-hidden border-b border-grid">
+              <TabsTrigger value="details" className="flex-none px-3">Details</TabsTrigger>
+              {hasClarify && (
+                <TabsTrigger value="clarify" className="flex-none gap-1.5 px-3">
+                  <Sparkles className="size-3.5" /> Clarifications
+                  {coverage && <span className={cn('rounded-full px-1.5 text-[11px] font-medium', coverage.missing.length ? 'bg-[#fff1d6] text-[#b45309]' : 'bg-[#e3f8ee] text-[#00854d]')}>{coverage.covered}/{coverage.total}</span>}
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="attachments" className="flex-none px-3">Attachments</TabsTrigger>
+              <TabsTrigger value="history" className="flex-none gap-1.5 px-3">
+                History {actions.length > 0 && <span className="rounded-full bg-muted px-1.5 text-[11px] font-medium">{actions.length}</span>}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {tab === 'details' && (editable ? (
             <RequestForm
               key={formKey}
               initial={r}
@@ -180,36 +237,34 @@ export default function RequestDetailPage() {
             />
           ) : (
             <>
-              <Section title="Requestor Information">
-                <div className="grid grid-cols-2 gap-x-4 md:grid-cols-4">
-                  <Field label="Employee ID">{r.req_employee_id}</Field>
-                  <Field label="Full Name">{r.req_full_name}</Field>
-                  <Field label="Department">{r.req_department}</Field>
-                  <Field label="Section">{r.req_section}</Field>
-                  <Field label="Email">{r.req_email}</Field>
-                  <Field label="Telephone / Ext.">{[r.req_telephone, r.req_extension].filter(Boolean).join(' / ')}</Field>
-                </div>
-              </Section>
               <Section title="Project Information">
-                <Field label="Brief Description of Request">{r.description}</Field>
-                <div className="grid grid-cols-1 gap-x-4 md:grid-cols-2">
-                  <Field label="Reason for Request">{r.reason}</Field>
-                  <Field label="Expectation for Project Result">{r.expectation}</Field>
+                <p className="mb-4 text-[15px] leading-relaxed break-words whitespace-pre-wrap">{r.description || <span className="text-muted-foreground">No description</span>}</p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <InfoBlock label="Reason for Request">{r.reason}</InfoBlock>
+                  <InfoBlock label="Expectation for Project Result">{r.expectation}</InfoBlock>
                 </div>
-                <div className="grid grid-cols-3 gap-x-4">
-                  <Field label="Date Submitted">{fmtDate(r.date_submitted)}</Field>
-                  <Field label="Date Required">{fmtDate(r.date_required)}</Field>
-                  {r.requestor_approver_id && <Field label="Requestor Approver">{profileName(r.requestor_approver_id)}</Field>}
-                </div>
+                {r.requestor_approver_id && (
+                  <div className="mt-3 text-xs text-muted-foreground">Requestor Approver · <span className="font-medium text-foreground">{profileName(r.requestor_approver_id)}</span></div>
+                )}
               </Section>
               {REDUCTION_ROWS.some((row) => r[row.from] != null || r[row.to] != null) && (
-                <Section title="Reduction">
-                  <div className="grid grid-cols-1 gap-x-4 md:grid-cols-3">
-                    {REDUCTION_ROWS.map((row) => (
-                      <Field key={row.label} label={row.label}>
-                        {r[row.from] != null || r[row.to] != null ? `${fmtNum(r[row.from])} → ${fmtNum(r[row.to])}` : null}
-                      </Field>
-                    ))}
+                <Section title="Expected Reduction">
+                  <div className="overflow-hidden rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/60 text-xs text-muted-foreground">
+                        <tr><th className="px-3 py-2 text-left font-medium">Item</th><th className="px-3 py-2 text-right font-medium">Current</th><th className="w-8" /><th className="px-3 py-2 text-right font-medium">Target</th></tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {REDUCTION_ROWS.filter((row) => r[row.from] != null || r[row.to] != null).map((row) => (
+                          <tr key={row.label}>
+                            <td className="px-3 py-2">{row.label}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{fmtNum(r[row.from])}</td>
+                            <td className="text-center text-muted-foreground"><ArrowRight className="mx-auto size-3.5" /></td>
+                            <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtNum(r[row.to])}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </Section>
               )}
@@ -221,144 +276,118 @@ export default function RequestDetailPage() {
                     <Field label="Project Leader">{profileName(r.proposed_leader_id)}</Field>
                     {r.authority_approver_id && <Field label="Authority Approver">{profileName(r.authority_approver_id)}</Field>}
                   </div>
-                  <Field label="Scope Assessment">{r.scope_assessment}</Field>
+                  {r.scope_assessment && <InfoBlock label="Scope Assessment">{r.scope_assessment}</InfoBlock>}
                 </Section>
               )}
             </>
-          )}
+          ))}
 
-          {(!!r.ai_clarifications?.length || !!r.ai_coverage || !!r.ai_chat?.length) && (() => {
-            const { covered, total, missing } = coverageCount(r.ai_coverage);
-            return (
-              <Section title={<span className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> Project Clarifications</span>}
-                actions={r.ai_coverage && <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', missing.length ? 'bg-[#fff1d6] text-[#b45309]' : 'bg-[#e3f8ee] text-[#00854d]')}>Required {covered}/{total} covered</span>}>
-                {r.ai_coverage && (
+          {tab === 'clarify' && hasClarify && (
+            <Section
+              title="Project Clarifications"
+              actions={r.ai_coverage && <span className="text-xs text-muted-foreground">Checked {fmtDateTime(r.ai_coverage.checked_at)}</span>}
+            >
+              <p className="mb-3 text-xs text-muted-foreground">Gathered by AI before submit and confirmed by the requestor — please double-check.</p>
+              {coverage && coverage.missing.length > 0 && (
+                <Alert className="mb-3 border-[#fdab3d] bg-[#fff6e5]"><CircleHelp /><AlertDescription>
+                  Still missing: <b>{coverage.missing.map((m) => m.label).join(', ')}</b>
+                </AlertDescription></Alert>
+              )}
+              {r.ai_coverage && (() => {
+                const applicable = r.ai_coverage.criteria.filter((c) => c.status !== 'not_applicable');
+                const na = r.ai_coverage.criteria.filter((c) => c.status === 'not_applicable');
+                return (
                   <>
-                    {missing.length > 0 && (
-                      <Alert className="mb-3 border-[#fdab3d] bg-[#fff6e5]"><CircleHelp /><AlertDescription>
-                        Still missing: <b>{missing.map((m) => m.label).join(', ')}</b>
-                      </AlertDescription></Alert>
-                    )}
-                    <dl className="divide-y rounded-lg border">
-                      {r.ai_coverage.criteria.map((c) => (
-                        <div key={c.key} className="grid gap-1 px-3 py-2 text-sm sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-3">
-                          <dt className="flex items-start gap-1.5 font-medium">
-                            <span className="mt-1"><CoverageIcon c={c} /></span>
-                            <span className={cn(c.status === 'not_applicable' && 'text-muted-foreground')}>
-                              {c.label}{c.required && <span className="text-xs font-normal text-muted-foreground"> · required</span>}
-                            </span>
-                          </dt>
-                          <dd className="break-words whitespace-pre-wrap text-muted-foreground" title={c.note ?? undefined}>
-                            {c.summary || (c.status === 'not_applicable' ? 'Not applicable' : c.status === 'missing' ? <i>Not covered</i> : c.note)}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </>
-                )}
-                {!!r.ai_chat?.length && (
-                  <details className="group mt-3 rounded-lg border">
-                    <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium select-none">
-                      <ChevronRight className="size-4 transition-transform group-open:rotate-90" /> Conversation with the AI
-                      <span className="text-xs font-normal text-muted-foreground">· {r.ai_chat.length} messages</span>
-                    </summary>
-                    <div className="space-y-2 border-t px-3 py-3">
-                      {r.ai_chat.map((m, i) => (
-                        <div key={i} className={cn('flex', m.role === 'user' && 'justify-end')}>
-                          <div className={cn('max-w-[85%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
-                            m.role === 'user' ? 'rounded-br-md bg-primary text-white' : 'rounded-bl-md bg-muted')}>{m.content}</div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {applicable.map((c) => (
+                        <div key={c.key} className={cn('rounded-lg border p-3', c.status === 'missing' && 'border-[#fdab3d]/60 bg-[#fff8eb]')}>
+                          <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+                            <CoverageIcon c={c} />
+                            <span className="flex-1">{c.label}</span>
+                            {c.required && <span className="rounded bg-muted px-1.5 text-[10px] font-medium text-muted-foreground uppercase">Required</span>}
+                          </div>
+                          <div className="text-sm break-words whitespace-pre-wrap text-muted-foreground" title={c.note ?? undefined}>
+                            {c.summary || (c.status === 'missing' ? <i>Not covered</i> : c.note)}
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </details>
-                )}
-                {!!r.ai_clarifications?.length && (
-                  <ol className="mt-3 space-y-3 border-t pt-3">
-                    {r.ai_clarifications.map((c, i) => (
-                      <li key={i} className="text-sm">
-                        <div className="font-medium">{i + 1}. {c.question}</div>
-                        {c.answer
-                          ? <div className="mt-0.5 whitespace-pre-wrap break-words text-muted-foreground">{c.answer}</div>
-                          : <div className="mt-0.5 text-xs text-muted-foreground italic">Skipped by the requestor</div>}
-                      </li>
+                    {na.length > 0 && (
+                      <p className="mt-3 text-xs text-muted-foreground">Not applicable: {na.map((c) => c.label).join(', ')}</p>
+                    )}
+                  </>
+                );
+              })()}
+              {!!r.ai_clarifications?.length && (
+                <ol className="mt-4 space-y-3 border-t pt-4">
+                  {r.ai_clarifications.map((c, i) => (
+                    <li key={i} className="text-sm">
+                      <div className="font-medium">{i + 1}. {c.question}</div>
+                      {c.answer
+                        ? <div className="mt-0.5 whitespace-pre-wrap break-words text-muted-foreground">{c.answer}</div>
+                        : <div className="mt-0.5 text-xs text-muted-foreground italic">Skipped by the requestor</div>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {!!r.ai_chat?.length && (
+                <details className="group mt-4 rounded-lg border">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium select-none">
+                    <ChevronRight className="size-4 transition-transform group-open:rotate-90" /> Conversation with the AI
+                    <span className="text-xs font-normal text-muted-foreground">· {r.ai_chat.length} messages</span>
+                  </summary>
+                  <div className="max-h-[32rem] space-y-2 overflow-y-auto border-t px-3 py-3">
+                    {r.ai_chat.map((m, i) => (
+                      <div key={i} className={cn('flex', m.role === 'user' && 'justify-end')}>
+                        <div className={cn('max-w-[85%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
+                          m.role === 'user' ? 'rounded-br-md bg-primary text-white' : 'rounded-bl-md bg-muted')}>{m.content}</div>
+                      </div>
                     ))}
+                  </div>
+                </details>
+              )}
+            </Section>
+          )}
+
+          {tab === 'attachments' && (
+            <Section title="Attachments">
+              <EvidencePanel entityType="request" entityId={r.id} requestId={r.id} canAdd={editable || (mine && !['converted', 'cancelled', 'rejected'].includes(r.status)) || hasRole('system_reviewer')} defaultInternal={false} />
+            </Section>
+          )}
+
+          {tab === 'history' && (
+            <>
+              <Section title="Approval History">
+                {actions.length === 0 ? <p className="text-sm text-muted-foreground">No actions yet.</p> : (
+                  <ol>
+                    {[...actions].reverse().map((a, i, all) => {
+                      const meta = HISTORY_META[a.action] ?? HISTORY_META.cancel;
+                      return (
+                        <li key={a.id} className="relative flex gap-3 pb-4 last:pb-0">
+                          {i < all.length - 1 && <span className="absolute top-7 bottom-0 left-[13px] w-0.5 bg-border" />}
+                          <Bubble tone={meta}><meta.icon className="size-3.5" strokeWidth={2.5} /></Bubble>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <div className="text-sm">
+                              <span className="font-semibold" style={{ color: meta.fg }}>{APPROVAL_ACTION_LABELS[a.action] ?? a.action}</span>
+                              {a.step_code && <span className="text-xs text-muted-foreground"> · {steps.find((s) => s.id === a.step_id)?.step_name ?? a.step_code.replace('_', ' ')}</span>}
+                            </div>
+                            <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{profileName(a.action_by)}</span> · {fmtDateTime(a.created_at)}</div>
+                            {a.comment && <div className="mt-1.5 rounded-md border-l-2 bg-muted/60 px-2.5 py-1.5 text-xs italic" style={{ borderColor: meta.fg }}>“{a.comment}”</div>}
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ol>
                 )}
-                <p className="mt-3 text-xs text-muted-foreground">Gathered by AI before submit and confirmed by the requestor{r.ai_coverage && ` · ${fmtDateTime(r.ai_coverage.checked_at)}`} — please double-check.</p>
               </Section>
-            );
-          })()}
-
-          <Section title="Attachments">
-            <EvidencePanel entityType="request" entityId={r.id} requestId={r.id} canAdd={editable || (mine && !['converted', 'cancelled', 'rejected'].includes(r.status)) || hasRole('system_reviewer')} defaultInternal={false} />
-          </Section>
+              <Section title="Change History">
+                <AuditHistory requestId={r.id} entity={{ table: 'project_requests', id: r.id }} />
+              </Section>
+            </>
+          )}
         </div>
 
         <div className="col-span-12 xl:col-span-4">
-          <Section
-            title="Approval Route"
-            actions={current.length > 0 && <span className="text-xs font-medium text-muted-foreground">{approvedCount} / {current.length} approved</span>}
-          >
-            {current.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Not submitted yet.</p>
-            ) : (
-              <>
-                <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-[#00c875] transition-all" style={{ width: `${(approvedCount / current.length) * 100}%` }} />
-                </div>
-                <ol>
-                  {current.map((s, i) => {
-                    const meta = STEP_META[s.status];
-                    const group = stepGroup(s);
-                    const newGroup = i === 0 || group !== stepGroup(current[i - 1]);
-                    const isWaiting = s.status === 'waiting';
-                    return (
-                      <Fragment key={s.id}>
-                        {newGroup && (
-                          <li className={cn('relative pb-2 pl-10', i > 0 && 'pt-1')}>
-                            {i > 0 && <span className={cn('absolute inset-y-0 left-[13px] w-0.5', current[i - 1].status === 'approved' ? 'bg-[#00c875]' : 'bg-border')} />}
-                            <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{group}</span>
-                          </li>
-                        )}
-                        <li className="relative flex gap-3 pb-4 last:pb-0">
-                          {i < current.length - 1 && (
-                            <span className={cn('absolute top-7 bottom-0 left-[13px] w-0.5', s.status === 'approved' ? 'bg-[#00c875]' : 'bg-border')} />
-                          )}
-                          <Bubble tone={meta ?? { fg: '#676879', bg: '#eef0f4' }}>
-                            {meta ? <meta.icon className="size-3.5" strokeWidth={2.5} /> : s.step_no}
-                          </Bubble>
-                          <div className={cn('min-w-0 flex-1', isWaiting && '-mt-1 rounded-lg border border-[#fdab3d]/60 bg-[#fff8eb] px-3 py-2')}>
-                            <div className="flex items-start gap-2">
-                              <span className={cn('flex-1 pt-1 text-sm font-semibold', !meta && 'text-muted-foreground')}>{s.step_name}</span>
-                              <span
-                                className="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                                style={meta ? { background: meta.bg, color: meta.fg } : { background: '#eef0f4', color: '#676879' }}
-                              >
-                                {isWaiting && canAct ? 'Your turn' : meta?.label ?? s.status.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase())}
-                              </span>
-                            </div>
-                            <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                              <Users className="size-3 shrink-0" />
-                              <span className="truncate">
-                                {s.approver_levels ? stepAudience(s) : s.approver_ids?.length ? s.approver_ids.map(profileName).join(' / ') : s.approver_id ? profileName(s.approver_id) : `Any ${ROLE_LABELS[s.approver_role as Role] ?? s.approver_role}`}
-                              </span>
-                            </div>
-                            {s.acted_at && (
-                              <div className="mt-0.5 text-xs text-muted-foreground">
-                                by <span className="font-medium text-foreground">{profileName(s.acted_by)}</span> · {fmtDateTime(s.acted_at)}
-                              </div>
-                            )}
-                            {s.comment && <div className="mt-1.5 rounded-md border-l-2 bg-muted/60 px-2.5 py-1.5 text-xs italic" style={{ borderColor: meta?.fg }}>“{s.comment}”</div>}
-                          </div>
-                        </li>
-                      </Fragment>
-                    );
-                  })}
-                </ol>
-              </>
-            )}
-          </Section>
-
           {isReview && (
             <Section title={`System Service — ${waiting?.step_name}`} className="ring-2 ring-[#fdab3d]">
               <div className="space-y-3">
@@ -431,32 +460,74 @@ export default function RequestDetailPage() {
             </Section>
           )}
 
-          <Section title="Approval History">
-            {actions.length === 0 ? <p className="text-sm text-muted-foreground">No actions yet.</p> : (
+          <Section title="Approval Route">
+            {current.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Not submitted yet.</p>
+            ) : (
               <ol>
-                {[...actions].reverse().map((a, i, all) => {
-                  const meta = HISTORY_META[a.action] ?? HISTORY_META.cancel;
+                {current.map((s, i) => {
+                  const meta = STEP_META[s.status];
+                  const group = stepGroup(s);
+                  const newGroup = i === 0 || group !== stepGroup(current[i - 1]);
+                  const isWaiting = s.status === 'waiting';
                   return (
-                    <li key={a.id} className="relative flex gap-3 pb-4 last:pb-0">
-                      {i < all.length - 1 && <span className="absolute top-7 bottom-0 left-[13px] w-0.5 bg-border" />}
-                      <Bubble tone={meta}><meta.icon className="size-3.5" strokeWidth={2.5} /></Bubble>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <div className="text-sm">
-                          <span className="font-semibold" style={{ color: meta.fg }}>{APPROVAL_ACTION_LABELS[a.action] ?? a.action}</span>
-                          {a.step_code && <span className="text-xs text-muted-foreground"> · {steps.find((s) => s.id === a.step_id)?.step_name ?? a.step_code.replace('_', ' ')}</span>}
+                    <Fragment key={s.id}>
+                      {newGroup && (
+                        <li className={cn('relative pb-2 pl-10', i > 0 && 'pt-1')}>
+                          {i > 0 && <span className={cn('absolute inset-y-0 left-[13px] w-0.5', current[i - 1].status === 'approved' ? 'bg-[#00c875]' : 'bg-border')} />}
+                          <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{group}</span>
+                        </li>
+                      )}
+                      <li className="relative flex gap-3 pb-4 last:pb-0">
+                        {i < current.length - 1 && (
+                          <span className={cn('absolute top-7 bottom-0 left-[13px] w-0.5', s.status === 'approved' ? 'bg-[#00c875]' : 'bg-border')} />
+                        )}
+                        <Bubble tone={meta ?? { fg: '#676879', bg: '#eef0f4' }}>
+                          {meta ? <meta.icon className="size-3.5" strokeWidth={2.5} /> : s.step_no}
+                        </Bubble>
+                        <div className={cn('min-w-0 flex-1', isWaiting && '-mt-1 rounded-lg border border-[#fdab3d]/60 bg-[#fff8eb] px-3 py-2')}>
+                          <div className="flex items-start gap-2">
+                            <span className={cn('flex-1 pt-1 text-sm font-semibold', !meta && 'text-muted-foreground')}>{s.step_name}</span>
+                            <span
+                              className="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                              style={meta ? { background: meta.bg, color: meta.fg } : { background: '#eef0f4', color: '#676879' }}
+                            >
+                              {isWaiting && canAct ? 'Your turn' : meta?.label ?? s.status.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase())}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="size-3 shrink-0" />
+                            <span className="truncate">{audience(s)}</span>
+                          </div>
+                          {s.acted_at && (
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              by <span className="font-medium text-foreground">{profileName(s.acted_by)}</span> · {fmtDateTime(s.acted_at)}
+                            </div>
+                          )}
+                          {s.comment && <div className="mt-1.5 rounded-md border-l-2 bg-muted/60 px-2.5 py-1.5 text-xs italic" style={{ borderColor: meta?.fg }}>“{s.comment}”</div>}
                         </div>
-                        <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{profileName(a.action_by)}</span> · {fmtDateTime(a.created_at)}</div>
-                        {a.comment && <div className="mt-1.5 rounded-md border-l-2 bg-muted/60 px-2.5 py-1.5 text-xs italic" style={{ borderColor: meta.fg }}>“{a.comment}”</div>}
-                      </div>
-                    </li>
+                      </li>
+                    </Fragment>
                   );
                 })}
               </ol>
             )}
           </Section>
 
-          <Section title="Change History">
-            <AuditHistory requestId={r.id} entity={{ table: 'project_requests', id: r.id }} />
+          <Section title="Requestor">
+            <div className="mb-3 flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#e6f1fd] text-sm font-semibold text-[#0073ea]">
+                {(r.req_full_name ?? '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold">{r.req_full_name}</div>
+                <div className="truncate text-xs text-muted-foreground">{[r.req_employee_id, r.req_department, r.req_section].filter(Boolean).join(' · ')}</div>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-sm">
+              {r.req_email && <a href={`mailto:${r.req_email}`} className="flex items-center gap-2 truncate text-primary hover:underline"><Mail className="size-3.5 shrink-0 text-muted-foreground" />{r.req_email}</a>}
+              {(r.req_telephone || r.req_extension) && <div className="flex items-center gap-2"><Phone className="size-3.5 shrink-0 text-muted-foreground" />{[r.req_telephone, r.req_extension && `ext. ${r.req_extension}`].filter(Boolean).join(' · ')}</div>}
+            </div>
           </Section>
         </div>
       </div>
