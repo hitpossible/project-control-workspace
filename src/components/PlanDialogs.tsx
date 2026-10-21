@@ -1,6 +1,6 @@
 'use client';
 
-import { TriangleAlert } from 'lucide-react';
+import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { ACTIVITY_STATUSES, DELAY_CATEGORIES, PRIORITIES, TASK_STATUSES, TASK_TYPES } from '@/lib/constants';
 import { errMsg, fmtDateTime, isOverdue, nullify } from '@/lib/format';
@@ -41,6 +41,23 @@ function ProgressField({ label, value, onChange, disabled }: { label: string; va
 
 const Grid = ({ children }: { children: React.ReactNode }) => <div className="grid grid-cols-12 gap-3">{children}</div>;
 const col = (n: string) => cn('col-span-12', n);
+
+/** collapsible block in a dialog: title + one-line summary when closed */
+function Section({ title, summary, open, onToggle, danger, children }: {
+  title: string; summary: React.ReactNode; open: boolean; onToggle: () => void; danger?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <button type="button" onClick={onToggle} aria-expanded={open}
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/40">
+        <ChevronRight className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
+        <span className={cn('text-sm font-semibold', danger && 'text-destructive')}>{title}</span>
+        {!open && <span className={cn('min-w-0 truncate text-xs', danger ? 'text-destructive' : 'text-muted-foreground')}>{summary}</span>}
+      </button>
+      {open && <div className="px-3 pt-1 pb-3">{children}</div>}
+    </section>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Activity (User Control Plan)
@@ -185,6 +202,13 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
   // MultiSelect works with string values
   const [preds, setPreds] = useState<string[]>(task ? deps.filter((d) => d.successor_id === task.id).map((d) => String(d.predecessor_id)) : []);
   const set = <K extends keyof InternalTask>(k: K, v: InternalTask[K] | null) => setF((p) => ({ ...p, [k]: v }));
+  // folded sections start open when creating a task or when they already hold something
+  const [open, setOpen] = useState({
+    structure: !task,
+    notes: !!(task?.technical_note?.trim() || task?.internal_comment?.trim()),
+    delay: !!(task?.delay_category || task?.delay_reason?.trim() || task?.recovery_action?.trim()),
+  });
+  const toggle = (k: keyof typeof open) => setOpen((o) => ({ ...o, [k]: !o[k] }));
   const editable = !task || canManage || [task.owner_id, task.reviewer_id, task.created_by].includes(me?.id ?? -1);
   const hasChildren = !!task && tasks.some((t) => t.parent_task_id === task.id);
   const overdue = isOverdue(f.due_date, f.status ?? '');
@@ -193,6 +217,7 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
 
   const save = async () => {
     if (!f.name?.trim() || !f.owner_id || !f.due_date || !f.activity_id) {
+      if (!f.activity_id) setOpen((o) => ({ ...o, structure: true }));
       return notify('Task name, Activity, Owner and Due Date are required', 'warning');
     }
     if (overdue && (!f.delay_reason?.trim() || !f.recovery_action?.trim())) {
@@ -248,35 +273,65 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
         {task && <DialogTabs value={tab} onChange={setTab} tabs={['Details', 'Comments', 'Evidence', 'History']} />}
 
         {tab === 'Details' && (
-          <Grid>
-            {overdue && <Alert variant="destructive" className="col-span-12"><TriangleAlert /><AlertDescription>Task is overdue — record Delay Reason and Recovery Action.</AlertDescription></Alert>}
-            <TextField className={col('sm:col-span-8')} label="Task Name" required value={f.name} onChange={(v) => set('name', v)} disabled={!editable} />
-            <SelectField className={col('col-span-6 sm:col-span-2')} label="Type" value={f.task_type} onChange={(v) => set('task_type', v)} options={TASK_TYPES} disabled={!editable} />
-            <SelectField className={col('col-span-6 sm:col-span-2')} label="Priority" value={f.priority} onChange={(v) => set('priority', v)} options={PRIORITIES} disabled={!editable} />
-            <SelectField className={col('sm:col-span-6')} label="Parent Activity" required value={f.activity_id?.toString()}
-              onChange={(v) => setF((p) => ({ ...p, activity_id: Number(v), parent_task_id: null }))}
-              options={activities.map((a) => ({ value: String(a.id), label: a.name }))} disabled={!editable || !!task?.parent_task_id} />
-            <SelectField className={col('sm:col-span-6')} label="Parent Task (for sub-task)" allowEmpty value={f.parent_task_id?.toString()} onChange={(v) => set('parent_task_id', v ? Number(v) : null)}
-              options={parentOptions.map((t) => ({ value: String(t.id), label: `${t.task_no} ${t.name}` }))} disabled={!editable || hasChildren} />
-            <UserSelect className={col('sm:col-span-6')} label="Owner" required value={f.owner_id} onChange={(v) => set('owner_id', v as number)} users={members} disabled={!canManage && !!task} />
-            <UserSelect className={col('sm:col-span-6')} label="Reviewer" value={f.reviewer_id} onChange={(v) => set('reviewer_id', v)} users={members} disabled={!editable} />
-            <DateField className={col('col-span-6 sm:col-span-3')} label="Planned Start" value={f.planned_start} onChange={(v) => set('planned_start', v)} disabled={!editable} />
-            <DateField className={col('col-span-6 sm:col-span-3')} label="Due Date" required value={f.due_date} onChange={(v) => set('due_date', v)} disabled={!canManage && !!task} />
-            <DateField className={col('col-span-6 sm:col-span-3')} label="Actual Start" value={f.actual_start} onChange={(v) => set('actual_start', v)} disabled={!editable} />
-            <DateField className={col('col-span-6 sm:col-span-3')} label="Actual Finish" value={f.actual_finish} onChange={(v) => set('actual_finish', v)} disabled={!editable} />
-            <SelectField className={col('sm:col-span-6')} label="Status" value={f.status} onChange={(v) => set('status', v)} options={TASK_STATUSES} disabled={!editable} />
-            <div className={col('sm:col-span-6')}>
-              <ProgressField label={`Progress${hasChildren ? ' (from sub-tasks)' : ''}`} value={Number(f.progress ?? 0)} onChange={(v) => set('progress', v)} disabled={!editable || hasChildren} />
+          <div className="space-y-3">
+            {overdue && <Alert variant="destructive"><TriangleAlert /><AlertDescription>Task is overdue — record Delay Reason and Recovery Action.</AlertDescription></Alert>}
+
+            {/* the fields people touch every day */}
+            <Grid>
+              <TextField className={col('sm:col-span-8')} label="Task Name" required value={f.name} onChange={(v) => set('name', v)} disabled={!editable} />
+              <SelectField className={col('col-span-6 sm:col-span-2')} label="Type" value={f.task_type} onChange={(v) => set('task_type', v)} options={TASK_TYPES} disabled={!editable} />
+              <SelectField className={col('col-span-6 sm:col-span-2')} label="Priority" value={f.priority} onChange={(v) => set('priority', v)} options={PRIORITIES} disabled={!editable} />
+            </Grid>
+            <div className="grid grid-cols-12 gap-3 rounded-lg bg-muted/50 p-3">
+              <SelectField className={col('sm:col-span-5')} label="Status" value={f.status} onChange={(v) => set('status', v)} options={TASK_STATUSES} disabled={!editable} />
+              <div className={col('sm:col-span-7')}>
+                <ProgressField label={`Progress${hasChildren ? ' (from sub-tasks)' : ''}`} value={Number(f.progress ?? 0)} onChange={(v) => set('progress', v)} disabled={!editable || hasChildren} />
+              </div>
             </div>
-            <MultiSelect className="col-span-12" label="Depends on (finish-to-start)" value={preds} onChange={setPreds} options={predOptions} disabled={!canManage} placeholder="No dependency" />
-            <TextField className="col-span-12" label="Description" multiline rows={2} value={f.description} onChange={(v) => set('description', v)} disabled={!editable} />
-            <TextField className={col('sm:col-span-6')} label="Technical Note (internal)" multiline value={f.technical_note} onChange={(v) => set('technical_note', v)} disabled={!editable} />
-            <TextField className={col('sm:col-span-6')} label="Internal Comment" multiline value={f.internal_comment} onChange={(v) => set('internal_comment', v)} disabled={!editable} />
-            <h4 className={cn('col-span-12 text-sm font-semibold', overdue ? 'text-destructive' : 'text-muted-foreground')}>Delay / Recovery</h4>
-            <SelectField className={col('sm:col-span-4')} label="Delay Category" allowEmpty value={f.delay_category} onChange={(v) => set('delay_category', v)} options={delayOpts} disabled={!editable} />
-            <TextField className={col('sm:col-span-8')} label="Delay Reason" value={f.delay_reason} onChange={(v) => set('delay_reason', v)} disabled={!editable} required={overdue} />
-            <TextField className="col-span-12" label="Recovery Action" value={f.recovery_action} onChange={(v) => set('recovery_action', v)} disabled={!editable} required={overdue} />
-          </Grid>
+            <Grid>
+              <UserSelect className={col('sm:col-span-6')} label="Owner" required value={f.owner_id} onChange={(v) => set('owner_id', v as number)} users={members} disabled={!canManage && !!task} />
+              <UserSelect className={col('sm:col-span-6')} label="Reviewer" value={f.reviewer_id} onChange={(v) => set('reviewer_id', v)} users={members} disabled={!editable} />
+              <DateField className={col('col-span-6 sm:col-span-3')} label="Planned Start" value={f.planned_start} onChange={(v) => set('planned_start', v)} disabled={!editable} />
+              <DateField className={col('col-span-6 sm:col-span-3')} label="Due Date" required value={f.due_date} onChange={(v) => set('due_date', v)} disabled={!canManage && !!task} />
+              <DateField className={col('col-span-6 sm:col-span-3')} label="Actual Start" value={f.actual_start} onChange={(v) => set('actual_start', v)} disabled={!editable} />
+              <DateField className={col('col-span-6 sm:col-span-3')} label="Actual Finish" value={f.actual_finish} onChange={(v) => set('actual_finish', v)} disabled={!editable} />
+              <TextField className="col-span-12" label="Description" multiline rows={2} value={f.description} onChange={(v) => set('description', v)} disabled={!editable} />
+            </Grid>
+
+            {/* less frequent — folded, with a one-line summary */}
+            <div className="divide-y divide-grid rounded-lg border border-grid">
+              <Section title="Plan structure" open={open.structure} onToggle={() => toggle('structure')}
+                summary={[
+                  activities.find((a) => a.id === f.activity_id)?.name ?? 'No activity',
+                  f.parent_task_id ? `sub-task of ${tasks.find((t) => t.id === f.parent_task_id)?.task_no ?? '?'}` : null,
+                  preds.length ? `${preds.length} dependenc${preds.length > 1 ? 'ies' : 'y'}` : 'no dependency',
+                ].filter(Boolean).join(' · ')}>
+                <Grid>
+                  <SelectField className={col('sm:col-span-6')} label="Parent Activity" required value={f.activity_id?.toString()}
+                    onChange={(v) => setF((p) => ({ ...p, activity_id: Number(v), parent_task_id: null }))}
+                    options={activities.map((a) => ({ value: String(a.id), label: a.name }))} disabled={!editable || !!task?.parent_task_id} />
+                  <SelectField className={col('sm:col-span-6')} label="Parent Task (for sub-task)" allowEmpty value={f.parent_task_id?.toString()} onChange={(v) => set('parent_task_id', v ? Number(v) : null)}
+                    options={parentOptions.map((t) => ({ value: String(t.id), label: `${t.task_no} ${t.name}` }))} disabled={!editable || hasChildren} />
+                  <MultiSelect className="col-span-12" label="Depends on (finish-to-start)" value={preds} onChange={setPreds} options={predOptions} disabled={!canManage} placeholder="No dependency" />
+                </Grid>
+              </Section>
+              <Section title="Internal notes" open={open.notes} onToggle={() => toggle('notes')}
+                summary={[f.technical_note?.trim() && 'technical note', f.internal_comment?.trim() && 'internal comment'].filter(Boolean).join(' · ') || 'Empty'}>
+                <Grid>
+                  <TextField className={col('sm:col-span-6')} label="Technical Note (internal)" multiline value={f.technical_note} onChange={(v) => set('technical_note', v)} disabled={!editable} />
+                  <TextField className={col('sm:col-span-6')} label="Internal Comment" multiline value={f.internal_comment} onChange={(v) => set('internal_comment', v)} disabled={!editable} />
+                </Grid>
+              </Section>
+              <Section title="Delay / Recovery" open={open.delay || overdue} onToggle={() => !overdue && toggle('delay')} danger={overdue}
+                summary={overdue ? 'Required — task is overdue' : f.delay_category || f.delay_reason?.trim() ? [f.delay_category, f.delay_reason].filter(Boolean).join(' · ') : 'Not delayed'}>
+                <Grid>
+                  <SelectField className={col('sm:col-span-4')} label="Delay Category" allowEmpty value={f.delay_category} onChange={(v) => set('delay_category', v)} options={delayOpts} disabled={!editable} />
+                  <TextField className={col('sm:col-span-8')} label="Delay Reason" value={f.delay_reason} onChange={(v) => set('delay_reason', v)} disabled={!editable} required={overdue} />
+                  <TextField className="col-span-12" label="Recovery Action" value={f.recovery_action} onChange={(v) => set('recovery_action', v)} disabled={!editable} required={overdue} />
+                </Grid>
+              </Section>
+            </div>
+          </div>
         )}
         {tab === 'Evidence' && task && <EntityEvidence projectId={project.id} entityType="task" entityId={task.id} canAdd canManage={canManage} />}
         {tab === 'Comments' && task && <CommentThread projectId={project.id} entityType="task" entityId={task.id} canModerate={canManage} />}
