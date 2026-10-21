@@ -51,6 +51,7 @@ export const POLICIES: Record<string, Policy> = {
   app_settings: masterData,
   project_types: masterData,
   document_types: masterData,
+  company_holidays: masterData,
   departments: masterData,
   sections: masterData,
   positions: masterData,

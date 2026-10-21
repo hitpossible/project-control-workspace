@@ -60,6 +60,13 @@ Every request has a **document type** (`document_types`, Admin → Document Type
 - **Request number format** — tokens `{DOC}` (type code) `{YYYY}` `{YY}` `{SEQ:n}`; the running number is kept per prefix, and two types may not produce the same prefix, so each type runs its own numbers.
 - **Approval route** (`approval_route` JSON, see `RouteStep` in `src/lib/approval.ts`) — steps in three stages: Requestor side (position level in the requestor's department) → Receive (exactly one; fills in Project Type / Template / Leader) → System Service side (picked people). The route is copied to `approval_steps` on submit, so editing it only affects requests submitted afterwards.
 
+### Working days
+
+Admin → Working Days sets the **work week** (Mon–Fri or Mon–Sat, `app_settings.work_week`) and the **company holidays** (`company_holidays`). The calendar (`src/lib/workdays.ts`, loaded per request by `workCalendar()` on the server) is used to:
+
+- schedule template activities and tasks at **Convert**: `duration_days` are working days, and no start / finish / due date falls on a non-working day;
+- count **schedule variance** (forecast − baseline / target) and **delay / overdue days** in working days: project health, the projects view, KPI, Smart Insights and the overdue / escalation reminders. Idle / waiting ages stay in calendar days.
+
 ### Approval route
 
 Nobody picks approvers on the form; the requestor never approves their own request. The Software Request route:

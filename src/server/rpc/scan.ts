@@ -1,6 +1,6 @@
 import { AppError, type Ctx, addDays, daysBetween } from '../db';
 import { updateRow } from '../engine';
-import { fmtD, notifyEvent } from '../logic/common';
+import { fmtD, notifyEvent, workCalendar } from '../logic/common';
 import { recomputeProject } from '../logic/project';
 import { isStaff } from '../perms';
 
@@ -8,6 +8,7 @@ type RuleCfg = { escalation_days: number | null; escalate_after_days: number | n
 
 /** Scheduled scan: due / overdue reminders with escalation, auto Delayed, health (was run_notification_scan) */
 export async function runNotificationScan(ctx: Ctx) {
+  const cal = await workCalendar(ctx);
   const today = ctx.today;
   const tomorrow = addDays(today, 1);
   let due = 0, over = 0, delayed = 0, fix = 0, ret = 0, evd = 0;
@@ -31,7 +32,8 @@ export async function runNotificationScan(ctx: Ctx) {
   for (const t of await ctx.q<{ id: number; project_id: number; owner_id: number; task_no: string; name: string; due_date: string; project_code: string }>(
     `SELECT it.id, it.project_id, it.owner_id, it.task_no, it.name, it.due_date, p.project_code FROM internal_tasks it JOIN projects p ON p.id = it.project_id
       WHERE it.due_date < ? AND it.status NOT IN ('completed','cancelled') AND p.status NOT IN ('completed','cancelled','on_hold')`, [today])) {
-    const days = daysBetween(t.due_date, today);
+    // overdue / escalation counted in working days (at least 1 once past due, e.g. on a weekend)
+    const days = Math.max(cal.workdaysBetween(t.due_date, today), 1);
     over += await notifyEvent(ctx, {
       event: 'task_overdue', projectId: t.project_id, explicit: [t.owner_id], title: `Overdue ${days} day(s): ${t.task_no} ${t.name}`,
       body: `Project ${t.project_code} — due ${fmtD(t.due_date)}`, link: `/projects/${t.project_id}?tab=internal&task=${t.id}`,
@@ -56,7 +58,7 @@ export async function runNotificationScan(ctx: Ctx) {
   for (const b of await ctx.q<B>(
     `SELECT b.id, b.project_id, b.assigned_dev_id, b.supervisor_id, b.bug_no, b.title, b.severity, b.due_date, p.project_code
        FROM bugs b JOIN projects p ON p.id = b.project_id WHERE b.due_date < ? AND b.status IN ('assigned','in_progress','reopened')`, [today])) {
-    const days = daysBetween(b.due_date, today);
+    const days = Math.max(cal.workdaysBetween(b.due_date, today), 1);
     fix += await notifyEvent(ctx, {
       event: 'fix_overdue', projectId: b.project_id, explicit: [b.assigned_dev_id, b.supervisor_id],
       title: `Fix overdue ${days} day(s): ${b.bug_no} ${b.title} [${b.severity.toUpperCase()}]`,

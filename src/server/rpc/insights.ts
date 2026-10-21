@@ -1,6 +1,6 @@
 import type { Activity, Insight, InsightRule, Project } from '@/lib/types';
 import { type Ctx, addDays, dateOf, daysBetween, inList } from '../db';
-import { fmtD } from '../logic/common';
+import { fmtD, workCalendar } from '../logic/common';
 import { activityIsOverdue, blank } from '../logic/project';
 import { isStaff, visibleProjectIds } from '../perms';
 
@@ -10,6 +10,7 @@ const words = (s: string) => s.replaceAll('_', ' ');
 
 /** Smart Insight (§22) — rule based, thresholds from insight_rules */
 export async function smartInsights(ctx: Ctx, a: { p_project_id?: number | null }): Promise<Insight[]> {
+  const cal = await workCalendar(ctx);
   const projectId = a.p_project_id ?? null;
   const staff = isStaff(ctx);
   const today = ctx.today;
@@ -53,7 +54,7 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: number | null 
       }
       const base = bl.get(p.id);
       if (base && p.forecast_date) {
-        const over = daysBetween(base, p.forecast_date);
+        const over = cal.workdaysBetween(base, p.forecast_date);
         if (over > th('forecast_vs_baseline', 0)) {
           const noRecovery = acts.some((x) => x.project_id === p.id && activityIsOverdue(x, today) && blank(x.recovery_plan));
           add(p, 'forecast_vs_baseline',
@@ -82,7 +83,7 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: number | null 
       const idle = daysBetween(dateOf(x.updated_at)!, today);
       if (overdue) {
         add(p, 'activity_overdue', `Activity overdue: ${x.name}`,
-          `Plan finish ${fmtD(x.plan_finish, false)} — ${daysBetween(x.plan_finish!, today)} day(s) overdue, progress ${Math.round(Number(x.progress))}%.`, 'activity', x.id, '?tab=plan');
+          `Plan finish ${fmtD(x.plan_finish, false)} — ${Math.max(cal.workdaysBetween(x.plan_finish!, today), 1)} working day(s) overdue, progress ${Math.round(Number(x.progress))}%.`, 'activity', x.id, '?tab=plan');
       }
       if ((x.status === 'delayed' || overdue) && blank(x.recovery_plan)) {
         add(p, 'delay_no_recovery', `No recovery plan: ${x.name}`, `Activity is ${overdue ? 'overdue' : 'delayed'} without a Recovery Plan (Rule 15).`, 'activity', x.id, '?tab=plan');
@@ -130,7 +131,7 @@ export async function smartInsights(ctx: Ctx, a: { p_project_id?: number | null 
             `${b.title} — ${words(b.status)}, developer ${b.assigned_dev_id ? name.get(b.assigned_dev_id) ?? 'not assigned' : 'not assigned'}.`, 'bug', b.id, `?tab=qa&bug=${b.id}`);
         }
         if (['assigned', 'in_progress', 'reopened'].includes(b.status) && b.due_date && b.due_date < today) {
-          add(p, 'fix_overdue', `Bug fix overdue: ${b.bug_no}`, `${b.title} — due ${fmtD(b.due_date, false)} (${daysBetween(b.due_date, today)} day(s) late).`, 'bug', b.id, `?tab=qa&bug=${b.id}`);
+          add(p, 'fix_overdue', `Bug fix overdue: ${b.bug_no}`, `${b.title} — due ${fmtD(b.due_date, false)} (${Math.max(cal.workdaysBetween(b.due_date, today), 1)} working day(s) late).`, 'bug', b.id, `?tab=qa&bug=${b.id}`);
         }
       }
       for (const r of await ctx.q<{ project_id: number; tester_id: number | null; due_date: string; bug_id: number; bug_no: string }>(

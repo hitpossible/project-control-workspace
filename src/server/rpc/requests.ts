@@ -1,8 +1,8 @@
 import { ROUTE_STAGES, canActOnStep, formatPrefix, positionsForLevels, routeApprovers, routeProblems, statusForStep, stepStage } from '@/lib/approval';
 import type { ApprovalStep, DocumentType, ProjectRequest } from '@/lib/types';
-import { AppError, type Ctx, type Row, addDays } from '../db';
+import { AppError, type Ctx, type Row } from '../db';
 import { getRow, insertRow, updateRow } from '../engine';
-import { generateCode, notifyEvent, settingValue } from '../logic/common';
+import { generateCode, notifyEvent, settingValue, workCalendar } from '../logic/common';
 import { recomputeProject } from '../logic/project';
 import { hasRole, invalidatePerms } from '../perms';
 
@@ -253,15 +253,17 @@ export async function convertRequestToProject(ctx: Ctx, a: { p_request_id: numbe
     await addMember(r.requestor_id, 'requestor_rep');
     invalidatePerms(ctx);
 
-    // Default activities from template, scheduled sequentially from start date
+    // Default activities from template, scheduled one after another from the start date.
+    // Durations are working days (Admin → Working Days): weekends and company holidays are skipped.
     if (r.template_id) {
       const tpl = await ctx.one<{ default_activities: TplActivity[] }>('SELECT default_activities FROM project_templates WHERE id = ?', [r.template_id]);
-      let cursor = a.p_start_date;
+      const cal = await workCalendar(ctx);
+      let cursor = cal.nextWorkday(a.p_start_date);
       let seq = 0;
       for (const act of tpl?.default_activities ?? []) {
         seq++;
         const astart = cursor;
-        cursor = addDays(astart, Math.max(act.duration_days ?? 1, 1) - 1);
+        cursor = cal.addWorkdays(astart, Math.max(act.duration_days ?? 1, 1) - 1);
         const pic = act.pic_label ?? 'System';
         const created = await insertRow(ctx, 'activities', {
           project_id: pid, seq, name: act.name, pic_label: pic, pic_user_id: pic === 'System' ? r.proposed_leader_id : null,
@@ -272,14 +274,16 @@ export async function convertRequestToProject(ctx: Ctx, a: { p_request_id: numbe
         for (const t of act.tasks ?? []) {
           tseq++;
           const dur = Math.max(t.duration_days ?? 1, 1);
-          const due = addDays(tcursor, dur - 1) < cursor ? addDays(tcursor, dur - 1) : cursor;
+          const end = cal.addWorkdays(tcursor, dur - 1);
+          const due = end < cursor ? end : cursor;
           await insertRow(ctx, 'internal_tasks', {
             project_id: pid, activity_id: created.id, seq: tseq, name: t.name, task_type: t.task_type ?? 'dev',
             owner_id: r.proposed_leader_id, planned_start: tcursor, due_date: due,
           });
-          tcursor = addDays(tcursor, dur) < cursor ? addDays(tcursor, dur) : cursor;
+          const next = cal.addWorkdays(tcursor, dur);
+          tcursor = next < cursor ? next : cursor;
         }
-        cursor = addDays(cursor, 1);
+        cursor = cal.addWorkdays(cursor, 1);
       }
     }
 

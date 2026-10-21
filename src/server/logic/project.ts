@@ -1,7 +1,7 @@
 import type { Activity, Project } from '@/lib/types';
 import { AppError, type Ctx, type Row, daysBetween } from '../db';
 import { insertRow, updateRow } from '../engine';
-import { notifyEvent } from './common';
+import { notifyEvent, workCalendar } from './common';
 
 // ---------------------------------------------------------------------
 // Activity helpers (was activity_forecast / activity_is_overdue)
@@ -94,7 +94,8 @@ export async function recomputeProject(ctx: Ctx, projectId: number) {
   const q = await projectQaStats(ctx, projectId);
   const baseFin = await ctx.val<string>('SELECT planned_finish FROM project_baselines WHERE project_id = ? ORDER BY version_no DESC LIMIT 1', [projectId]);
   const ref = baseFin ?? p.target_date;
-  const variance = forecast && ref ? daysBetween(ref, forecast) : 0;
+  // schedule variance in working days (Admin → Working Days)
+  const variance = forecast && ref ? (await workCalendar(ctx)).workdaysBetween(ref, forecast) : 0;
 
   let health: Project['health'];
   if (['completed', 'cancelled'].includes(p.status)) {

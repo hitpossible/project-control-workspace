@@ -1,3 +1,4 @@
+import { DEFAULT_WORK_WEEK, WORK_WEEK_KEY, type WorkCalendar, makeCalendar } from '@/lib/workdays';
 import type { Ctx } from '../db';
 import { inList } from '../db';
 
@@ -25,6 +26,23 @@ export async function generateCode(ctx: Ctx, format: string, type: string | null
 export async function settingValue<T>(ctx: Ctx, key: string, fallback: T): Promise<T> {
   const v = await ctx.val<T>('SELECT value FROM app_settings WHERE `key` = ?', [key]);
   return v ?? fallback;
+}
+
+// ---------------------------------------------------------------------
+// Working-day calendar (Admin → Working Days) — loaded once per request
+// ---------------------------------------------------------------------
+const calendars = new WeakMap<Ctx, Promise<WorkCalendar>>();
+
+export function workCalendar(ctx: Ctx): Promise<WorkCalendar> {
+  let c = calendars.get(ctx);
+  if (!c) {
+    c = (async () => makeCalendar(
+      await settingValue<number[]>(ctx, WORK_WEEK_KEY, DEFAULT_WORK_WEEK),
+      (await ctx.q<{ d: string }>('SELECT holiday_date d FROM company_holidays')).map((h) => h.d),
+    ))();
+    calendars.set(ctx, c);
+  }
+  return c;
 }
 
 // ---------------------------------------------------------------------

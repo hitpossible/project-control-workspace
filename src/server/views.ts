@@ -1,5 +1,6 @@
 import type { ProjectView } from '@/lib/types';
-import { type Ctx, type Row, daysBetween } from './db';
+import { type Ctx, type Row } from './db';
+import { workCalendar } from './logic/common';
 import { idFilter, visibleProjectIds } from './perms';
 
 /**
@@ -40,9 +41,10 @@ export async function loadProjectsView(ctx: Ctx): Promise<Row[]> {
      WHERE ${vis}`, [t, t, t, t, t, t, t, ...vp]);
 
   const ago14 = new Date(Date.now() - 14 * 86400000).toISOString();
+  const cal = await workCalendar(ctx);
   return rows.map((p) => {
     const done = ['completed', 'cancelled'].includes(p.status);
-    const variance = p.baseline_finish && p.forecast_date ? daysBetween(p.baseline_finish, p.forecast_date) : null;
+    const variance = p.baseline_finish && p.forecast_date ? cal.workdaysBetween(p.baseline_finish, p.forecast_date) : null;
     const oa = Number(p.overdue_activities);
     const attention = [
       !p.leader_id && 'No Project Leader',
@@ -51,7 +53,7 @@ export async function loadProjectsView(ctx: Ctx): Promise<Row[]> {
       !done && p.target_date && p.target_date < t && 'Target date passed',
       oa > 0 && `${oa} overdue activit${oa === 1 ? 'y' : 'ies'}`,
       Number(p.delayed_without_recovery) > 0 && 'Delay without Recovery Plan',
-      variance !== null && variance > 0 && `Forecast exceeds baseline by ${variance} day(s)`,
+      variance !== null && variance > 0 && `Forecast exceeds baseline by ${variance} working day(s)`,
       p.baseline_version === 0 && !done && p.created_at < ago14 && 'No baseline after 14 days',
       ['waiting', 'on_hold'].includes(p.status) && p.updated_at < ago14 && 'Waiting/On Hold > 14 days',
       Number(p.critical_bugs) > 0 && `${p.critical_bugs} critical bug(s) open`,

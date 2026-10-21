@@ -1,6 +1,6 @@
 import type { KpiIndividual, KpiProject, KpiTeam } from '@/lib/types';
-import { AppError, type Ctx, dateOf, daysBetween, inList } from '../db';
-import { settingValue } from '../logic/common';
+import { AppError, type Ctx, dateOf, inList } from '../db';
+import { settingValue, workCalendar } from '../logic/common';
 import { canViewKpiAll, canViewInternal, hasRole, isStaff, visibleProjectIds } from '../perms';
 
 const round1 = (v: number) => Math.round(v * 10) / 10;
@@ -39,6 +39,7 @@ export async function projectWaitingDays(ctx: Ctx, projectIds: number[]): Promis
 // Project KPI (§23.1)
 // ---------------------------------------------------------------------
 export async function kpiProjects(ctx: Ctx): Promise<KpiProject[]> {
+  const cal = await workCalendar(ctx);
   const vis = await visibleProjectIds(ctx);
   const [ph, params] = vis === null ? ['', []] : inList(vis);
   const projects = await ctx.q<KpiProject & { id: number; baseline_version: number }>(
@@ -83,7 +84,7 @@ export async function kpiProjects(ctx: Ctx): Promise<KpiProject[]> {
     out.push({
       project_id: p.id, project_code: p.project_code, project_name: p.project_name, leader_name: p.leader_name, status: p.status, health: p.health,
       progress: p.progress, start_date: p.start_date, target_date: p.target_date, forecast_date: p.forecast_date, baseline_finish: p.baseline_finish,
-      schedule_variance: p.baseline_finish && p.forecast_date ? daysBetween(p.baseline_finish, p.forecast_date) : null,
+      schedule_variance: p.baseline_finish && p.forecast_date ? cal.workdaysBetween(p.baseline_finish, p.forecast_date) : null,
       completed_on: completed ? row.last_finish : null,
       on_time: completed && row.last_finish && (row.first_target ?? p.target_date) ? row.last_finish <= (row.first_target ?? p.target_date)! : null,
       reschedules: Math.max(p.baseline_version - 1, 0),
@@ -146,6 +147,7 @@ export async function kpiTeam(ctx: Ctx, a: { p_from: string; p_to: string }): Pr
 // Late tasks with excluded delay categories (Waiting User, Vendor…) are excused.
 // ---------------------------------------------------------------------
 export async function kpiIndividual(ctx: Ctx, a: { p_from: string; p_to: string }): Promise<KpiIndividual[]> {
+  const cal = await workCalendar(ctx);
   const { p_from: from, p_to: to } = a;
   const excluded = await settingValue<string[]>(ctx, 'kpi_excluded_delay_categories', []);
   const all = canViewKpiAll(ctx);
@@ -184,7 +186,7 @@ export async function kpiIndividual(ctx: Ctx, a: { p_from: string; p_to: string 
       late_tasks: late.filter((x) => !excused(x)).length,
       excused_late: late.filter(excused).length,
       on_time_rate: pct(comp.filter((x) => x.actual_finish! <= x.due_date).length, counted.length),
-      avg_delay_days: avg(late.filter((x) => !excused(x)).map((x) => daysBetween(x.due_date, x.actual_finish!))),
+      avg_delay_days: avg(late.filter((x) => !excused(x)).map((x) => cal.workdaysBetween(x.due_date, x.actual_finish!))),
       overdue_tasks: t.filter((x) => x.status !== 'completed' && x.due_date < ctx.today && !excused(x)).length,
       open_tasks: t.filter((x) => x.status !== 'completed').length,
       bugs_assigned: (bugs.get(pe.id) ?? []).filter((b) => between(dateOf(b.created_at), from, to)).length,
@@ -203,6 +205,7 @@ export async function kpiIndividual(ctx: Ctx, a: { p_from: string; p_to: string 
 // KPI snapshots (trend) — weekly scheduler job
 // ---------------------------------------------------------------------
 export async function takeKpiSnapshot(ctx: Ctx): Promise<number> {
+  const cal = await workCalendar(ctx);
   const projects = await ctx.q<{ id: number; progress: number; health: string; status: string; forecast_date: string | null }>(
     `SELECT id, progress, health, status, forecast_date FROM projects WHERE status NOT IN ('cancelled','draft')`);
   const waiting = await projectWaitingDays(ctx, projects.map((p) => p.id));
@@ -218,7 +221,7 @@ export async function takeKpiSnapshot(ctx: Ctx): Promise<number> {
        VALUES (?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE progress = VALUES(progress), health = VALUES(health), status = VALUES(status), schedule_variance = VALUES(schedule_variance),
          overdue_tasks = VALUES(overdue_tasks), open_bugs = VALUES(open_bugs), evidence_completion = VALUES(evidence_completion), waiting_days = VALUES(waiting_days)`,
-      [p.id, ctx.today, p.progress, p.health, p.status, base && p.forecast_date ? daysBetween(base, p.forecast_date) : null,
+      [p.id, ctx.today, p.progress, p.health, p.status, base && p.forecast_date ? cal.workdaysBetween(base, p.forecast_date) : null,
         overdue, openBugs, pct(Number(ev?.done ?? 0), Number(ev?.total ?? 0)), waiting.get(p.id) ?? 0]);
   }
   return projects.length;
