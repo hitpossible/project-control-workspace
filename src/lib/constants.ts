@@ -1,4 +1,4 @@
-import type { Role } from './types';
+import type { ProjectRequest, Role } from './types';
 
 export type Opt = { value: string; label: string; color?: string };
 
@@ -215,3 +215,10 @@ export function optLabel(list: Opt[], value: string | null | undefined) {
 export function optColor(list: Opt[], value: string | null | undefined) {
   return list.find((o) => o.value === value)?.color ?? '#9e9e9e';
 }
+
+/** Reduction rows on FM-SYS-004: current (From) → expected after the project (To) */
+export const REDUCTION_ROWS = [
+  { label: 'Time (Min / Month)', from: 'reduction_time_from', to: 'reduction_time_to' },
+  { label: 'Man (Man / Month)', from: 'reduction_man_from', to: 'reduction_man_to' },
+  { label: 'Others Cost (THB)', from: 'reduction_cost_from', to: 'reduction_cost_to' },
+] as const satisfies readonly { label: string; from: keyof ProjectRequest; to: keyof ProjectRequest }[];

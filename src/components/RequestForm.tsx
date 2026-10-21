@@ -2,10 +2,11 @@
 
 import { Info } from 'lucide-react';
 import { Fragment, useState } from 'react';
-import { PRIORITIES } from '@/lib/constants';
+import { PRIORITIES, REDUCTION_ROWS } from '@/lib/constants';
 import { errMsg, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { ProjectRequest } from '@/lib/types';
+import AiClarifyDialog from './AiClarifyDialog';
 import { useApp } from './AppProvider';
 import { DateField, Section, SelectField, TextField } from './common';
 import { Alert, AlertDescription } from './ui/alert';
@@ -13,12 +14,7 @@ import { Button } from './ui/button';
 
 export type RequestDraft = Partial<ProjectRequest>;
 
-/** Reduction rows on FM-SYS-004: current (From) → expected after the project (To) */
-export const REDUCTION_ROWS = [
-  { label: 'Time (Min / Month)', from: 'reduction_time_from', to: 'reduction_time_to' },
-  { label: 'Man (Man / Month)', from: 'reduction_man_from', to: 'reduction_man_to' },
-  { label: 'Others Cost (THB)', from: 'reduction_cost_from', to: 'reduction_cost_to' },
-] as const satisfies readonly { label: string; from: keyof ProjectRequest; to: keyof ProjectRequest }[];
+export { REDUCTION_ROWS };
 
 export function emptyRequest(documentTypeId: number): RequestDraft {
   return {
@@ -48,6 +44,7 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
   const { me, notify } = useApp();
   const [f, setF] = useState<RequestDraft>(initial);
   const [busy, setBusy] = useState(false);
+  const [clarify, setClarify] = useState<ProjectRequest | null>(null);
   const set = (k: keyof ProjectRequest) => (v: string | null) => setF((p) => ({ ...p, [k]: v }));
   const txt = (k: keyof ProjectRequest) => ({
     value: (f[k] as string | null) ?? '',
@@ -124,11 +121,13 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
           <Button disabled={busy} onClick={async () => {
             setBusy(true);
             const r = await save();
-            if (r) await onSubmit(r);
             setBusy(false);
+            // the AI asks what is still missing about the project, then the dialog submits
+            if (r) setClarify(r);
           }}>Submit for Approval</Button>
         )}
       </div>
+      {clarify && onSubmit && <AiClarifyDialog request={clarify} onSubmit={onSubmit} onClose={() => setClarify(null)} />}
     </div>
   );
 }

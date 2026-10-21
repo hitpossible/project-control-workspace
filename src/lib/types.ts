@@ -1,4 +1,5 @@
 import type { RouteStep } from './approval';
+import type { AiCoverage, ClarifyCriterion } from './clarify';
 
 export type Role =
   | 'requestor'
@@ -71,6 +72,8 @@ export interface DocumentType {
   form_no: string | null;
   request_no_format: string;
   approval_route: RouteStep[];
+  /** what the AI asks the requestor about before submit; empty = no AI questions */
+  clarify_criteria: ClarifyCriterion[] | null;
   sort_order: number;
   is_active: boolean;
 }
@@ -92,6 +95,15 @@ export interface ProjectTemplate {
   default_activities: TemplateActivity[];
   evidence_checklist: string[];
   is_active: boolean;
+}
+
+export interface AiClarification {
+  /** ClarifyCriterion.key the question is about */
+  criterion?: string | null;
+  question: string;
+  /** null = skipped */
+  answer: string | null;
+  asked_at: string;
 }
 
 export interface ProjectRequest {
@@ -122,6 +134,10 @@ export interface ProjectRequest {
   reduction_man_to: number | null;
   reduction_cost_from: number | null;
   reduction_cost_to: number | null;
+  /** Follow-up questions the AI asked before submit, with the requestor's answers */
+  ai_clarifications: AiClarification[] | null;
+  /** the AI's last check of the document type's criteria */
+  ai_coverage: AiCoverage | null;
   /** legacy: approvers were picked per request before the fixed approval route */
   requestor_approver_id: number | null;
   authority_approver_id: number | null;

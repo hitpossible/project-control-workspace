@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { BoardGroup, DateField, MultiSelect, PageHeader, Person, SelectField, TextField } from '@/components/common';
@@ -20,6 +20,7 @@ import { DELAY_CATEGORIES, INSIGHT_SEVERITIES, MEMBER_ROLES, ROLE_LABELS } from 
 import { errMsg, fmtDate } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { Department, DocumentType, InsightRule, NotificationRule, Position, PositionLevel, Profile, ProjectTemplate, ProjectType, Role, Section } from '@/lib/types';
+import { DEFAULT_CRITERIA, type ClarifyCriterion } from '@/lib/clarify';
 import { POSITION_LEVELS, ROUTE_STAGES, andUp, defaultRoute, formatPrefix, routeApprovers, routeProblems, type RouteStage, type RouteStep } from '@/lib/approval';
 import { cn } from '@/lib/utils';
 import { DEFAULT_WORK_WEEK, WORK_WEEKS, WORK_WEEK_KEY, makeCalendar } from '@/lib/workdays';
@@ -466,7 +467,7 @@ function SettingsAdmin() {
 
 type DocDraft = Omit<DocumentType, 'id'> & { id?: number };
 const newDoc = (sort: number): DocDraft => ({
-  code: '', name: '', form_no: '', request_no_format: '{DOC}-{YYYY}-{SEQ:4}', approval_route: defaultRoute(), sort_order: sort, is_active: true,
+  code: '', name: '', form_no: '', request_no_format: '{DOC}-{YYYY}-{SEQ:4}', approval_route: defaultRoute(), clarify_criteria: DEFAULT_CRITERIA, sort_order: sort, is_active: true,
 });
 
 function DocumentTypesAdmin() {
@@ -498,6 +499,7 @@ function DocumentTypesAdmin() {
     const year = String(new Date().getFullYear());
     const clash = rows.find((o) => o.id !== d.id && formatPrefix(o.request_no_format, o.code, year) === formatPrefix(d.request_no_format, d.code, year));
     if (clash) out.push(`the request number format gives the same numbers as ${clash.name} — use {DOC} or another prefix`);
+    if ((d.clarify_criteria ?? []).some((c) => !c.label.trim())) out.push('every AI criterion needs a name');
     return [...out, ...routeProblems(d.approval_route)];
   };
 
@@ -506,7 +508,8 @@ function DocumentTypesAdmin() {
     const p = problems(edit);
     if (p.length) return notify(`Cannot save: ${p.join('; ')}`, 'error');
     const { id, code, name, form_no, request_no_format, approval_route, sort_order, is_active } = edit;
-    const payload = { code: code.trim(), name: name.trim(), form_no: form_no?.trim() || null, request_no_format: request_no_format.trim(), approval_route, sort_order, is_active };
+    const clarify_criteria = (edit.clarify_criteria ?? []).map((c) => ({ ...c, label: c.label.trim(), hint: c.hint.trim() }));
+    const payload = { code: code.trim(), name: name.trim(), form_no: form_no?.trim() || null, request_no_format: request_no_format.trim(), approval_route, clarify_criteria, sort_order, is_active };
     const res = id
       ? await db.from('document_types').update(payload).eq('id', id).select().single()
       : await db.from('document_types').insert(payload).select().single();
@@ -534,6 +537,19 @@ function DocumentTypesAdmin() {
     const next = [...route];
     [next[i], next[j]] = [next[j], next[i]];
     setRoute(next);
+  };
+  const criteria = edit?.clarify_criteria ?? [];
+  const setCriteria = (c: ClarifyCriterion[]) => edit && setEdit({ ...edit, clarify_criteria: c });
+  const patchCriterion = (i: number, patch: Partial<ClarifyCriterion>) => setCriteria(criteria.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  const addCriterion = () => {
+    let n = 1;
+    while (criteria.some((c) => c.key === `custom_${n}`)) n++;
+    setCriteria([...criteria, { key: `custom_${n}`, label: '', hint: '', required: false }]);
+  };
+  const moveCriterion = (i: number, d: -1 | 1) => {
+    const next = [...criteria];
+    [next[i], next[i + d]] = [next[i + d], next[i]];
+    setCriteria(next);
   };
   const personOpts = (selected: number[]) => profiles.filter((p) => p.is_active || selected.includes(p.id)).map((p) => ({ value: String(p.id), label: p.full_name }));
   const stepNo = (i: number) => <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{i + 1}</span>;
@@ -634,6 +650,40 @@ function DocumentTypesAdmin() {
               {stageBlock('requestor', "Anyone at that position or higher in the requestor's own department (positions come from AD).")}
               {stageBlock('receive', 'Receives the request and fills in Project Type / Template / Project Leader.')}
               {stageBlock('authority', 'Pick one or more people per step — whoever acts first completes it.')}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> AI Clarification Criteria</CardTitle>
+              <CardDescription>
+                What the team needs to know about a project at request time. When the requestor submits, the AI checks which ones the form already
+                covers and asks about the rest — required ones first, optional ones only when they apply — for up to 3 rounds. No criteria = no AI questions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {criteria.length === 0 && <p className="mb-2 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">No criteria — requests are submitted without AI questions</p>}
+              <ol className="space-y-1.5">
+                {criteria.map((c, i) => (
+                  <li key={c.key} className="flex items-center gap-2 rounded-lg border px-3 py-2">
+                    {stepNo(i)}
+                    <Input className="h-9 w-48 shrink-0" placeholder="Name" value={c.label} onChange={(e) => patchCriterion(i, { label: e.target.value })} />
+                    <Input className="h-9 flex-1" placeholder="What to find out — guides the AI's question" value={c.hint} onChange={(e) => patchCriterion(i, { hint: e.target.value })} />
+                    <label className="flex shrink-0 items-center gap-1.5 text-xs">
+                      <Switch checked={c.required} onCheckedChange={(v) => patchCriterion(i, { required: v })} /> Required
+                    </label>
+                    <div className="flex shrink-0">
+                      <Button size="icon" variant="ghost" className="size-9" disabled={i === 0} onClick={() => moveCriterion(i, -1)}><ArrowUp /></Button>
+                      <Button size="icon" variant="ghost" className="size-9" disabled={i === criteria.length - 1} onClick={() => moveCriterion(i, 1)}><ArrowDown /></Button>
+                      <Button size="icon" variant="ghost" className="size-9 text-destructive" onClick={() => setCriteria(criteria.filter((_, j) => j !== i))}><Trash2 /></Button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="ghost" className="h-7" onClick={addCriterion}><Plus /> Add criterion</Button>
+                <Button size="sm" variant="ghost" className="h-7" onClick={() => setCriteria(DEFAULT_CRITERIA)}><RotateCcw /> Reset to defaults</Button>
+              </div>
             </CardContent>
           </Card>
 

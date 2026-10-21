@@ -1,10 +1,11 @@
 'use client';
 
 import dayjs from 'dayjs';
-import { Ban, Check, CircleHelp, Hourglass, MessageCircleQuestion, Rocket, Send, Undo2, Users, X, type LucideIcon } from 'lucide-react';
+import { Ban, Check, CircleHelp, Hourglass, MessageCircleQuestion, Rocket, Send, Sparkles, Undo2, Users, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import { CoverageIcon } from '@/components/AiClarifyDialog';
 import AuditHistory from '@/components/AuditHistory';
 import { dispatchEmails, useApp } from '@/components/AppProvider';
 import { ActionButton, CommentDialog, DateField, Field, PageHeader, PriorityChip, Section, SelectField, StatusChip, TextField, UserSelect } from '@/components/common';
@@ -13,6 +14,7 @@ import RequestForm, { REDUCTION_ROWS } from '@/components/RequestForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useDocumentTypes } from '@/components/useDocumentTypes';
+import { coverageCount } from '@/lib/clarify';
 import { canActOnStep, canConvertRequest, stepAudience, stepGroup, stepStage } from '@/lib/approval';
 import { APPROVAL_ACTION_LABELS, REQUEST_STATUSES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, fmtNum } from '@/lib/format';
@@ -224,6 +226,49 @@ export default function RequestDetailPage() {
               )}
             </>
           )}
+
+          {(!!r.ai_clarifications?.length || !!r.ai_coverage) && (() => {
+            const { covered, total, missing } = coverageCount(r.ai_coverage);
+            return (
+              <Section title={<span className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> Project Clarifications</span>}
+                actions={r.ai_coverage && <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', missing.length ? 'bg-[#fff1d6] text-[#b45309]' : 'bg-[#e3f8ee] text-[#00854d]')}>Required {covered}/{total} covered</span>}>
+                {r.ai_coverage && (
+                  <>
+                    {missing.length > 0 && (
+                      <Alert className="mb-3 border-[#fdab3d] bg-[#fff6e5]"><CircleHelp /><AlertDescription>
+                        Still missing: <b>{missing.map((m) => m.label).join(', ')}</b>
+                      </AlertDescription></Alert>
+                    )}
+                    <ul className="mb-4 grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                      {r.ai_coverage.criteria.map((c) => (
+                        <li key={c.key} className="flex items-start gap-1.5 text-sm">
+                          <span className="mt-1"><CoverageIcon c={c} /></span>
+                          <span className="min-w-0">
+                            <span className={cn(c.status === 'not_applicable' && 'text-muted-foreground')}>{c.label}</span>
+                            {c.required && <span className="text-xs text-muted-foreground"> · required</span>}
+                            {c.note && <span className="block text-xs text-muted-foreground">{c.note}</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {!!r.ai_clarifications?.length && (
+                  <ol className="space-y-3 border-t pt-3">
+                    {r.ai_clarifications.map((c, i) => (
+                      <li key={i} className="text-sm">
+                        <div className="font-medium">{i + 1}. {c.question}</div>
+                        {c.answer
+                          ? <div className="mt-0.5 whitespace-pre-wrap break-words text-muted-foreground">{c.answer}</div>
+                          : <div className="mt-0.5 text-xs text-muted-foreground italic">Skipped by the requestor</div>}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                <p className="mt-3 text-xs text-muted-foreground">Checked by AI before submit{r.ai_coverage && ` · ${fmtDateTime(r.ai_coverage.checked_at)}`} — please double-check.</p>
+              </Section>
+            );
+          })()}
 
           <Section title="Attachments">
             <EvidencePanel entityType="request" entityId={r.id} requestId={r.id} canAdd={editable || (mine && !['converted', 'cancelled', 'rejected'].includes(r.status)) || hasRole('system_reviewer')} defaultInternal={false} />
