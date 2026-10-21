@@ -105,8 +105,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className={cn('space-y-0.5', mini ? 'px-2' : 'px-3')}>{main.filter((n) => n.show).map((n) => item(n, mini))}</div>
         {group('System Service workspace', workspace)}
         {group('Management intelligence', intelligence)}
-        <div className="flex-1" />
-        {!mini && <div className="px-4 pb-2 text-xs text-muted-foreground">Phase 1–3 · Project Control Workspace</div>}
       </nav>
     );
   };
