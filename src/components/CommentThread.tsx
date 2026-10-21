@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
 import { EmptyState, Person, Tip } from './common';
 import { Button } from './ui/button';
+import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 import { Textarea } from './ui/textarea';
 
 const MENTION_AT_CARET = /(^|\s)@([^\s@]{0,30})$/;
@@ -28,6 +29,7 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const listRef = useRef<HTMLUListElement>(null);
 
   // System Service staff can open internal tasks / bugs (the server re-checks every mention)
   const candidates = useMemo(() => profiles.filter((p) => p.is_active && p.id !== me?.id
@@ -45,6 +47,12 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
     load();
   }, [load]);
+
+  // newest is at the bottom — keep it in view when the thread loads or grows
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [items.length]);
 
   const post = async (body: string, mentions: number[]) => {
     setSaving(true);
@@ -81,21 +89,23 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
   return (
     <div className="space-y-3">
       {loaded && items.length === 0 && <EmptyState text="No comments yet — start the discussion. Type @ to mention someone." />}
-      <ul className="space-y-3">
+      {items.length > 0 && <div className="text-xs font-medium text-muted-foreground">{items.length} comment{items.length > 1 ? 's' : ''}</div>}
+      {/* the thread scrolls on its own so the composer below never gets pushed out of view */}
+      <ul ref={listRef} className="-mx-1 max-h-[min(45vh,26rem)] space-y-2 overflow-y-auto px-1">
         {items.map((c) => {
           const mine = c.created_by === me?.id;
           return (
-            <li key={c.id} className="flex gap-2.5">
-              <Person name={profileName(c.created_by)} showName={false} size={30} />
-              <div className="min-w-0 flex-1 rounded-lg bg-muted/60 px-3 py-2">
-                <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
-                  <span className="text-sm font-semibold">{profileName(c.created_by)}</span>
+            <li key={c.id} className="group/comment flex gap-2">
+              <Person name={profileName(c.created_by)} showName={false} size={26} />
+              <div className="min-w-0 flex-1 rounded-lg bg-muted/60 px-3 py-1.5">
+                <div className="flex min-h-6 flex-wrap items-center gap-x-2 text-xs">
+                  <span className="text-[13px] font-semibold">{profileName(c.created_by)}</span>
                   <Tip title={fmtDateTime(c.created_at)}><span className="text-muted-foreground">{dayjs(c.created_at).format('DD MMM HH:mm')}</span></Tip>
                   {c.edited_at && <Tip title={`Edited ${fmtDateTime(c.edited_at)}`}><span className="text-muted-foreground">(edited)</span></Tip>}
                   {!editing && (mine || canModerate) && (
-                    <span className="ml-auto flex gap-0.5">
-                      {mine && <Button variant="ghost" size="icon-sm" aria-label="Edit comment" onClick={() => setEditing(c.id)}><Pencil /></Button>}
-                      <Button variant="ghost" size="icon-sm" aria-label="Delete comment" onClick={() => remove(c)}><Trash2 /></Button>
+                    <span className="ml-auto flex gap-0.5 opacity-0 transition-opacity group-hover/comment:opacity-100 focus-within:opacity-100">
+                      {mine && <Button variant="ghost" size="icon-xs" aria-label="Edit comment" onClick={() => setEditing(c.id)}><Pencil /></Button>}
+                      <Button variant="ghost" size="icon-xs" aria-label="Delete comment" onClick={() => remove(c)}><Trash2 /></Button>
                     </span>
                   )}
                 </div>
@@ -182,60 +192,68 @@ function Composer({ candidates, initial, saving, submitLabel, onSubmit, onCancel
   };
 
   return (
-    <div className="relative mt-1">
-      <Textarea
-        ref={ref}
-        value={text}
-        rows={2}
-        placeholder="Write a comment… type @ to mention (Ctrl + Enter to send)"
-        className="bg-white"
-        aria-label="Comment"
-        aria-autocomplete="list"
-        aria-expanded={matches.length > 0}
-        onChange={(e) => {
-          setText(e.target.value);
-          detect(e.target.value, e.target.selectionStart);
-        }}
-        onClick={(e) => detect(text, e.currentTarget.selectionStart)}
-        onKeyDown={(e) => {
-          if (matches.length) {
-            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-              e.preventDefault();
-              setActive((a) => (a + (e.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length);
-              return;
-            }
-            if (e.key === 'Enter' || e.key === 'Tab') {
-              e.preventDefault();
-              choose(matches[active]);
-              return;
-            }
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              e.stopPropagation();
-              setQuery(null);
-              return;
-            }
-          }
-          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
-            submit();
-          }
-        }}
-      />
-      {matches.length > 0 && (
-        <ul role="listbox" className="absolute top-full left-0 z-50 mt-1 w-72 overflow-hidden rounded-md border bg-popover py-1 shadow-lg">
-          {matches.map((p, i) => (
-            <li key={p.id} role="option" aria-selected={i === active}>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); choose(p); }} onMouseEnter={() => setActive(i)}
-                className={cn('flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm', i === active && 'bg-selected')}>
-                <Person name={p.full_name} showName={false} size={22} />
-                <span className="truncate">{p.full_name}</span>
-                <span className="ml-auto truncate text-xs text-muted-foreground">{p.department}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="mt-1">
+      {/* the suggestion list is portalled (Radix popover) so a dialog's scroll area can't clip it */}
+      <Popover open={matches.length > 0} onOpenChange={(o) => !o && setQuery(null)}>
+        <PopoverAnchor asChild>
+          <Textarea
+            ref={ref}
+            value={text}
+            rows={2}
+            placeholder="Write a comment… type @ to mention (Ctrl + Enter to send)"
+            className="bg-white"
+            aria-label="Comment"
+            aria-autocomplete="list"
+            aria-expanded={matches.length > 0}
+            onChange={(e) => {
+              setText(e.target.value);
+              detect(e.target.value, e.target.selectionStart);
+            }}
+            onClick={(e) => detect(text, e.currentTarget.selectionStart)}
+            onKeyDown={(e) => {
+              if (matches.length) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setActive((a) => (a + (e.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length);
+                  return;
+                }
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                  e.preventDefault();
+                  choose(matches[active]);
+                  return;
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setQuery(null);
+                  return;
+                }
+              }
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+          />
+        </PopoverAnchor>
+        <PopoverContent align="start" className="w-72 gap-0 p-1"
+          // keep typing in the textarea while the list is open
+          onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => { if (e.target === ref.current) e.preventDefault(); }}>
+          <ul role="listbox">
+            {matches.map((p, i) => (
+              <li key={p.id} role="option" aria-selected={i === active}>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); choose(p); }} onMouseEnter={() => setActive(i)}
+                  className={cn('flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm', i === active && 'bg-selected')}>
+                  <Person name={p.full_name} showName={false} size={22} />
+                  <span className="truncate">{p.full_name}</span>
+                  <span className="ml-auto truncate text-xs text-muted-foreground">{p.department}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </PopoverContent>
+      </Popover>
       <div className="mt-1.5 flex justify-end gap-2">
         {onCancel && <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>}
         <Button size="sm" disabled={!text.trim() || saving} onClick={submit}>
