@@ -1,7 +1,7 @@
 'use client';
 
 import dayjs from 'dayjs';
-import { Ban, Check, CircleHelp, Hourglass, MessageCircleQuestion, Rocket, Send, Sparkles, Undo2, Users, X, type LucideIcon } from 'lucide-react';
+import { Ban, Check, ChevronRight, CircleHelp, Hourglass, MessageCircleQuestion, Rocket, Send, Sparkles, Undo2, Users, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Fragment, useCallback, useEffect, useState } from 'react';
@@ -227,7 +227,7 @@ export default function RequestDetailPage() {
             </>
           )}
 
-          {(!!r.ai_clarifications?.length || !!r.ai_coverage) && (() => {
+          {(!!r.ai_clarifications?.length || !!r.ai_coverage || !!r.ai_chat?.length) && (() => {
             const { covered, total, missing } = coverageCount(r.ai_coverage);
             return (
               <Section title={<span className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> Project Clarifications</span>}
@@ -239,22 +239,41 @@ export default function RequestDetailPage() {
                         Still missing: <b>{missing.map((m) => m.label).join(', ')}</b>
                       </AlertDescription></Alert>
                     )}
-                    <ul className="mb-4 grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                    <dl className="divide-y rounded-lg border">
                       {r.ai_coverage.criteria.map((c) => (
-                        <li key={c.key} className="flex items-start gap-1.5 text-sm">
-                          <span className="mt-1"><CoverageIcon c={c} /></span>
-                          <span className="min-w-0">
-                            <span className={cn(c.status === 'not_applicable' && 'text-muted-foreground')}>{c.label}</span>
-                            {c.required && <span className="text-xs text-muted-foreground"> · required</span>}
-                            {c.note && <span className="block text-xs text-muted-foreground">{c.note}</span>}
-                          </span>
-                        </li>
+                        <div key={c.key} className="grid gap-1 px-3 py-2 text-sm sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-3">
+                          <dt className="flex items-start gap-1.5 font-medium">
+                            <span className="mt-1"><CoverageIcon c={c} /></span>
+                            <span className={cn(c.status === 'not_applicable' && 'text-muted-foreground')}>
+                              {c.label}{c.required && <span className="text-xs font-normal text-muted-foreground"> · required</span>}
+                            </span>
+                          </dt>
+                          <dd className="break-words whitespace-pre-wrap text-muted-foreground" title={c.note ?? undefined}>
+                            {c.summary || (c.status === 'not_applicable' ? 'Not applicable' : c.status === 'missing' ? <i>Not covered</i> : c.note)}
+                          </dd>
+                        </div>
                       ))}
-                    </ul>
+                    </dl>
                   </>
                 )}
+                {!!r.ai_chat?.length && (
+                  <details className="group mt-3 rounded-lg border">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium select-none">
+                      <ChevronRight className="size-4 transition-transform group-open:rotate-90" /> Conversation with the AI
+                      <span className="text-xs font-normal text-muted-foreground">· {r.ai_chat.length} messages</span>
+                    </summary>
+                    <div className="space-y-2 border-t px-3 py-3">
+                      {r.ai_chat.map((m, i) => (
+                        <div key={i} className={cn('flex', m.role === 'user' && 'justify-end')}>
+                          <div className={cn('max-w-[85%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
+                            m.role === 'user' ? 'rounded-br-md bg-primary text-white' : 'rounded-bl-md bg-muted')}>{m.content}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
                 {!!r.ai_clarifications?.length && (
-                  <ol className="space-y-3 border-t pt-3">
+                  <ol className="mt-3 space-y-3 border-t pt-3">
                     {r.ai_clarifications.map((c, i) => (
                       <li key={i} className="text-sm">
                         <div className="font-medium">{i + 1}. {c.question}</div>
@@ -265,7 +284,7 @@ export default function RequestDetailPage() {
                     ))}
                   </ol>
                 )}
-                <p className="mt-3 text-xs text-muted-foreground">Checked by AI before submit{r.ai_coverage && ` · ${fmtDateTime(r.ai_coverage.checked_at)}`} — please double-check.</p>
+                <p className="mt-3 text-xs text-muted-foreground">Gathered by AI before submit and confirmed by the requestor{r.ai_coverage && ` · ${fmtDateTime(r.ai_coverage.checked_at)}`} — please double-check.</p>
               </Section>
             );
           })()}

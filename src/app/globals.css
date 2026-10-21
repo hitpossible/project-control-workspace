@@ -149,3 +149,19 @@
   .no-print { display: none !important; }
   body { background: #fff !important; }
 }
+
+/* AI clarification chat (AiClarifyDialog) */
+@keyframes pcw-typing {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
+@keyframes pcw-caret {
+    50% { opacity: 0; }
+}
+@keyframes pcw-glow {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 35%, transparent); }
+    50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--primary) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pcw-motion { animation: none !important; transition: none !important; }
+}

@@ -1,5 +1,5 @@
 import type { RouteStep } from './approval';
-import type { AiCoverage, ClarifyCriterion } from './clarify';
+import type { AiCoverage, ChatMessage, ClarifyCriterion } from './clarify';
 
 export type Role =
   | 'requestor'
@@ -134,10 +134,12 @@ export interface ProjectRequest {
   reduction_man_to: number | null;
   reduction_cost_from: number | null;
   reduction_cost_to: number | null;
-  /** Follow-up questions the AI asked before submit, with the requestor's answers */
+  /** legacy: follow-up questions from the form-style AI dialog, with the requestor's answers */
   ai_clarifications: AiClarification[] | null;
   /** the AI's last check of the document type's criteria */
   ai_coverage: AiCoverage | null;
+  /** the requestor's conversation with the AI before submit */
+  ai_chat: ChatMessage[] | null;
   /** legacy: approvers were picked per request before the fixed approval route */
   requestor_approver_id: number | null;
   authority_approver_id: number | null;

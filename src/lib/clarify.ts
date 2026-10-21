@@ -1,7 +1,8 @@
 /**
  * AI clarification before submit: each document type has a list of criteria — what the team needs to know about a
- * project at request time. The AI checks which ones the form and the earlier answers already cover and asks about
- * the rest, round after round, until the required ones are covered (or MAX_ROUNDS is reached / the requestor skips).
+ * project at request time. The requestor chats with the AI, which checks after every answer which criteria are covered
+ * and asks about the rest, until the required (and the relevant optional) ones are covered, MAX_AI_TURNS is reached or
+ * the requestor stops. The requestor then reviews the AI's summary per criterion before submitting.
  */
 export interface ClarifyCriterion {
   key: string;
@@ -21,6 +22,16 @@ export interface CriterionCoverage {
   status: CoverageStatus;
   /** the AI's short reason — lets the reviewer double-check */
   note: string | null;
+  /** what is known about it, 1–2 lines — written by the AI, confirmed / edited by the requestor */
+  summary?: string | null;
+}
+
+export interface ChatMessage {
+  role: 'assistant' | 'user';
+  content: string;
+  at: string;
+  /** criterion keys an assistant message asks about */
+  criteria?: string[];
 }
 
 export interface AiCoverage {
@@ -28,10 +39,13 @@ export interface AiCoverage {
   criteria: CriterionCoverage[];
 }
 
-export const MAX_ROUNDS = 3;
-export const QUESTIONS_PER_ROUND = 3;
-/** a criterion is not asked again after this many questions — the requestor may simply not know */
+/** AI messages per conversation before it wraps up */
+export const MAX_AI_TURNS = 10;
+/** criteria one AI message may ask about */
+export const CRITERIA_PER_TURN = 2;
+/** a criterion is not asked again after this many messages — the requestor may simply not know */
 export const MAX_ASKS_PER_CRITERION = 2;
+export const MAX_CHAT_MESSAGE = 2000;
 
 export const DEFAULT_CRITERIA: ClarifyCriterion[] = [
   { key: 'users', label: 'Users', hint: 'Who will use the system, which departments, roughly how many people', required: true },

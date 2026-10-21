@@ -657,8 +657,8 @@ function DocumentTypesAdmin() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> AI Clarification Criteria</CardTitle>
               <CardDescription>
-                What the team needs to know about a project at request time. When the requestor submits, the AI checks which ones the form already
-                covers and asks about the rest — required ones first, optional ones only when they apply — for up to 3 rounds. No criteria = no AI questions.
+                What the team needs to know about a project at request time. When the requestor submits, the AI chats with them about what the form
+                does not cover yet — required ones first, optional ones only when they apply — then the requestor confirms a summary per criterion. No criteria = no AI chat.
               </CardDescription>
             </CardHeader>
             <CardContent>
