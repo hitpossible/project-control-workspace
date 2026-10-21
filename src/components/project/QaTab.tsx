@@ -1,10 +1,10 @@
 'use client';
 
-import { Bug as BugIcon, CalendarClock, FlaskConical, Info, Plus } from 'lucide-react';
+import { Bug as BugIcon, FlaskConical, Info, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { ActionButton, BoardGroup, EmptyState, Person, SelectField, StatCard, StatusChip } from '@/components/common';
-import KanbanBoard from '@/components/KanbanBoard';
+import KanbanBoard, { KanbanDue, KanbanTag } from '@/components/KanbanBoard';
 import { BugDialog, ReportBugDialog, TestRoundDialog, bugTestRoundLabel } from '@/components/QaDialogs';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -112,25 +112,25 @@ export default function QaTab({ data, perm, reload, memberProfiles, focusBug, fo
             onOpen={(b) => setOpenBug(b.id)}
             emptyText="No bugs"
             renderCard={(b) => {
-              const od = ['assigned', 'in_progress', 'reopened'].includes(b.status) && isOverdue(b.due_date, 'open');
               const pending = data.retests.find((r) => r.bug_id === b.id && r.status === 'pending');
               return (
-                <div className="space-y-2">
-                  <div>
-                    <div className="leading-snug font-medium">{b.title}</div>
-                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {b.bug_no} · {bugTestRoundLabel(data.rounds, b.test_round_id)}
-                      {b.reopen_count > 0 && <span className="ml-1 rounded bg-[#e2445c] px-1 text-[10px] text-white">↺{b.reopen_count}</span>}
+                <div className="space-y-2.5">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span className="font-mono">{b.bug_no}</span>
+                      <span className="truncate rounded bg-muted px-1.5 py-px font-medium">{bugTestRoundLabel(data.rounds, b.test_round_id)}</span>
+                      {b.reopen_count > 0 && <span className="rounded-full bg-red-50 px-1.5 font-medium text-red-600" title="Reopened">↺ {b.reopen_count}</span>}
                     </div>
+                    <div className="line-clamp-2 leading-snug font-medium">{b.title}</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-20"><StatusChip list={SEVERITIES} value={b.severity} fullWidth /></div>
-                    <span className={cn('flex items-center gap-1 text-xs whitespace-nowrap', od ? 'font-semibold text-destructive' : 'text-muted-foreground')}>
-                      <CalendarClock className="size-3.5" />{od && '⚠ '}{fmtDate(b.due_date)}
-                    </span>
-                    <span className="ml-auto"><Person name={b.assigned_dev_id ? profileName(b.assigned_dev_id) : null} showName={false} size={24} /></span>
+                  <div className="flex items-end gap-1.5">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                      <KanbanTag list={SEVERITIES} value={b.severity} />
+                      <KanbanDue date={b.due_date} open={['assigned', 'in_progress', 'reopened'].includes(b.status)} />
+                    </div>
+                    <span className="shrink-0"><Person name={b.assigned_dev_id ? profileName(b.assigned_dev_id) : null} showName={false} size={22} /></span>
                   </div>
-                  {pending && <div className="text-xs text-muted-foreground">Retest: {profileName(pending.tester_id)} · due {fmtDate(pending.due_date)}</div>}
+                  {pending && <div className="rounded-md bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground">Retest: {profileName(pending.tester_id)} · due {fmtDate(pending.due_date)}</div>}
                 </div>
               );
             }}

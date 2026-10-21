@@ -1,14 +1,14 @@
 'use client';
 
-import { CalendarClock, GitBranch } from 'lucide-react';
-import { TASK_STATUSES, TASK_TYPES, optLabel } from '@/lib/constants';
+import { GitBranch } from 'lucide-react';
+import { PRIORITIES, TASK_STATUSES, TASK_TYPES, optLabel } from '@/lib/constants';
 import { dbClient } from '@/lib/db/client';
-import { errMsg, fmtDate, isOverdue } from '@/lib/format';
+import { errMsg } from '@/lib/format';
 import type { InternalTask } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
-import KanbanBoard from './KanbanBoard';
-import { Person, PriorityChip, ProgressBar } from './common';
+import KanbanBoard, { KanbanDue, KanbanProgress, KanbanTag } from './KanbanBoard';
+import { Person } from './common';
 
 /**
  * Internal tasks as a board. Dropping a card changes the task status on the server, where the usual
@@ -46,30 +46,30 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
       onMove={move}
       emptyText="No tasks"
       renderCard={(t) => {
-        const od = isOverdue(t.due_date, t.status);
         const subs = subCount(t);
+        const open = !['completed', 'cancelled'].includes(t.status);
         return (
-          <div className="space-y-2">
-            <div>
-              <div className="leading-snug font-medium">{t.name}</div>
-              <div className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                <span>{t.task_no}</span>
-                <span>·</span>
-                <span>{optLabel(TASK_TYPES, t.task_type)}</span>
-                {subtitle && <><span>·</span><span className="truncate">{subtitle(t)}</span></>}
+          <div className="space-y-2.5">
+            <div className="space-y-1 pr-5">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="font-mono">{t.task_no}</span>
+                <span className="rounded bg-muted px-1.5 py-px font-medium">{optLabel(TASK_TYPES, t.task_type)}</span>
               </div>
+              <div className={cn('line-clamp-2 leading-snug font-medium', !open && 'text-muted-foreground')}>{t.name}</div>
+              {subtitle && <div className="truncate text-xs text-muted-foreground">{subtitle(t)}</div>}
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-20"><PriorityChip value={t.priority} fullWidth /></div>
-              <span className={cn('flex items-center gap-1 text-xs whitespace-nowrap', od ? 'font-semibold text-destructive' : 'text-muted-foreground')}>
-                <CalendarClock className="size-3.5" />{od && '⚠ '}{fmtDate(t.due_date)}
-              </span>
-              {subs > 0 && (
-                <span className="flex items-center gap-0.5 text-xs text-muted-foreground" title={`${subs} sub-task(s)`}><GitBranch className="size-3.5" />{subs}</span>
-              )}
-              <span className="ml-auto"><Person name={profileName(t.owner_id)} showName={false} size={24} /></span>
+            {open && t.status !== 'todo' && <KanbanProgress value={t.progress} />}
+            {/* tags wrap to a second line on narrow cards; the avatar stays pinned right */}
+            <div className="flex items-end gap-1.5">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                <KanbanTag list={PRIORITIES} value={t.priority} />
+                <KanbanDue date={t.due_date} open={open} />
+                {subs > 0 && (
+                  <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground" title={`${subs} sub-task(s)`}><GitBranch className="size-3" />{subs}</span>
+                )}
+              </div>
+              <span className="shrink-0"><Person name={profileName(t.owner_id)} showName={false} size={22} /></span>
             </div>
-            {t.status !== 'todo' && <ProgressBar value={t.progress} className="min-w-0" />}
           </div>
         );
       }}
