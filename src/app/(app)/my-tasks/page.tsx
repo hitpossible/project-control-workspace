@@ -79,6 +79,7 @@ function MyWork() {
         )}
       </div>
 
+      <div key={`${tab}-${layout}`} className="motion-rise">
       {!loaded && <BoardSkeleton groups={2} rows={4} cols={6} />}
 
       {loaded && tab === 'tasks' && layout === 'kanban' && (
@@ -93,7 +94,8 @@ function MyWork() {
 
       {loaded && tab === 'tasks' && layout === 'list' && (
         <>
-          {list.length === 0 && <EmptyState text="No tasks" />}
+          {list.length === 0 && (filter === 'all' ? <EmptyState text="No tasks" />
+            : <EmptyState done text={filter === 'overdue' ? 'Nothing overdue — nice work' : 'All caught up — no open tasks'} />)}
           {projects.map(([pid, p], i) => {
             const items = list.filter((t) => t.project_id === pid);
             return (
@@ -127,7 +129,7 @@ function MyWork() {
 
       {loaded && tab === 'bugs' && (
         <BoardGroup title="Bugs to fix" color="#e2445c" count={bugList.length}>
-          {bugList.length === 0 ? <EmptyState text="No bugs 🎉" /> : (
+          {bugList.length === 0 ? <EmptyState done text="No bugs to fix" /> : (
             <Table className="board-table">
               <TableHeader><TableRow><TableHead className="text-left">Bug</TableHead><TableHead>Project</TableHead><TableHead>Severity</TableHead><TableHead>Status</TableHead><TableHead>Developer</TableHead><TableHead>Fix Due</TableHead></TableRow></TableHeader>
               <TableBody>
@@ -152,7 +154,7 @@ function MyWork() {
 
       {loaded && tab === 'retests' && (
         <BoardGroup title="Waiting for retest" color="#a25ddc" count={retests.length}>
-          {retests.length === 0 ? <EmptyState text="Nothing to retest" /> : (
+          {retests.length === 0 ? <EmptyState done text="Nothing to retest" /> : (
             <Table className="board-table">
               <TableHeader><TableRow><TableHead className="text-left">Bug</TableHead><TableHead>Project</TableHead><TableHead>Severity</TableHead><TableHead>Retest Round</TableHead><TableHead>Tester</TableHead><TableHead>Due</TableHead></TableRow></TableHeader>
               <TableBody>
@@ -174,6 +176,7 @@ function MyWork() {
           )}
         </BoardGroup>
       )}
+      </div>
     </>
   );
 }

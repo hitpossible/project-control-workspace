@@ -233,7 +233,33 @@
     animation: pcw-shimmer 1.4s linear infinite;
 }
 
+/* success burst (components/motion.tsx → celebrate()) */
+@keyframes pcw-burst-in {
+    0% { opacity: 0; transform: scale(.6); }
+    60% { opacity: 1; transform: scale(1.06); }
+    100% { opacity: 1; transform: scale(1); }
+}
+@keyframes pcw-burst-out {
+    to { opacity: 0; transform: scale(.96) translateY(-6px); }
+}
+@keyframes pcw-ring {
+    from { opacity: .5; transform: scale(.8); }
+    to { opacity: 0; transform: scale(1.8); }
+}
+@utility motion-burst {
+    animation: pcw-burst-in 420ms cubic-bezier(.2, .9, .3, 1.2) backwards, pcw-burst-out 260ms ease-in 1400ms forwards;
+}
+@utility motion-ring {
+    animation: pcw-ring 900ms ease-out 120ms backwards;
+}
+/* a "your turn" marker that gently pulses */
+@utility motion-pulse {
+    animation: pcw-glow 2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+    .motion-burst { animation: pcw-burst-out 1ms linear 1400ms forwards !important; }
+    .motion-ring, .motion-pulse { animation: none !important; }
     .motion-rise, .motion-grow-x, .motion-grow-y, .motion-draw, .motion-land, .motion-lift { animation: none !important; }
     .motion-leave { animation-duration: 1ms !important; }
     .skeleton { animation: none; }

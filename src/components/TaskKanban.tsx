@@ -35,6 +35,8 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
       notify(`${t.task_no} moved to "${optLabel(TASK_STATUSES, data.status)}" (progress is 100% / workflow rule)`, 'info');
     }
     await onChanged();
+    // false: no "Moved … Undo" toast when the task did not land where it was dropped
+    return !error && data.status === status;
   };
 
   return (

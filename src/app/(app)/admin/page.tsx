@@ -56,6 +56,7 @@ export default function AdminPage() {
           {TABS.map((t) => <TabsTrigger key={t} value={t} className="flex-none px-3">{t}</TabsTrigger>)}
         </TabsList>
       </Tabs>
+      <div key={tab} className="motion-rise">
       {tab === TABS[0] && <UsersAdmin />}
       {tab === TABS[1] && <DepartmentsAdmin />}
       {tab === TABS[2] && <DocumentTypesAdmin />}
@@ -66,6 +67,7 @@ export default function AdminPage() {
       {tab === TABS[7] && <RulesAdmin />}
       {tab === TABS[8] && <InsightRulesAdmin />}
       {tab === TABS[9] && <KpiSettingsAdmin />}
+      </div>
     </>
   );
 }

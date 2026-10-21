@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SYSTEM_STAFF_ROLES } from '@/lib/constants';
 import { dbClient } from '@/lib/db/client';
 import { errMsg, fmtDateTime } from '@/lib/format';
+import { deleteWithUndo } from '@/lib/undo';
 import type { Comment, Profile } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
@@ -30,6 +31,8 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  // deleted, waiting out the Undo window
+  const [hidden, setHidden] = useState<number[]>([]);
   const listRef = useRef<HTMLUListElement>(null);
 
   // System Service staff can open internal tasks / bugs (the server re-checks every mention)
@@ -82,20 +85,32 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
     return true;
   };
 
-  const remove = async (c: Comment) => {
-    if (!confirm('Delete this comment?')) return;
-    const { error } = await db.from('comments').delete().eq('id', c.id);
-    if (error) return notify(errMsg(error), 'error');
-    await load();
+  const remove = (c: Comment) => {
+    const unhide = () => setHidden((h) => h.filter((id) => id !== c.id));
+    setHidden((h) => [...h, c.id]);
+    deleteWithUndo({
+      message: 'Comment deleted',
+      undo: unhide,
+      commit: async () => {
+        const { error } = await db.from('comments').delete().eq('id', c.id);
+        // on success the reload drops the comment; only a failed delete brings it back
+        if (error) {
+          notify(errMsg(error), 'error');
+          unhide();
+        }
+        await load();
+      },
+    });
   };
+  const shown = items.filter((c) => !hidden.includes(c.id));
 
   return (
     <div className="space-y-3">
-      {loaded && items.length === 0 && <EmptyState text="No comments yet — start the discussion. Type @ to mention someone." />}
-      {items.length > 0 && <div className="text-xs font-medium text-muted-foreground">{items.length} comment{items.length > 1 ? 's' : ''}</div>}
+      {loaded && shown.length === 0 && <EmptyState text="No comments yet — start the discussion. Type @ to mention someone." />}
+      {shown.length > 0 && <div className="text-xs font-medium text-muted-foreground">{shown.length} comment{shown.length > 1 ? 's' : ''}</div>}
       {/* the thread scrolls on its own so the composer below never gets pushed out of view */}
       <ul ref={listRef} className="-mx-1 max-h-[min(45vh,26rem)] space-y-2 overflow-y-auto px-1">
-        {items.map((c) => {
+        {shown.map((c) => {
           const fresh = isNew(c.id);
           const mine = c.created_by === me?.id;
           return (

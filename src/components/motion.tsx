@@ -1,5 +1,6 @@
 'use client';
 
+import { Check } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -138,6 +139,50 @@ export function ListSkeleton({ rows = 6 }: { rows?: number }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Success burst — a short check-mark moment for milestones (request submitted,
+// approval given). Call celebrate() from anywhere; <SuccessBurst /> lives in AppShell.
+// ---------------------------------------------------------------------------
+
+const BURST_EVENT = 'pcw:celebrate';
+
+export function celebrate(title: string, detail?: string) {
+  window.dispatchEvent(new CustomEvent(BURST_EVENT, { detail: { title, detail } }));
+}
+
+export function SuccessBurst() {
+  const [burst, setBurst] = useState<{ key: number; title: string; detail?: string } | null>(null);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const on = (e: Event) => {
+      const { title, detail } = (e as CustomEvent<{ title: string; detail?: string }>).detail;
+      clearTimeout(timer);
+      setBurst({ key: Date.now(), title, detail });
+      timer = setTimeout(() => setBurst(null), 1700);
+    };
+    window.addEventListener(BURST_EVENT, on);
+    return () => {
+      window.removeEventListener(BURST_EVENT, on);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  if (!burst) return null;
+  return (
+    <div role="status" aria-live="polite" className="pointer-events-none fixed inset-0 z-[60] grid place-items-center">
+      <div key={burst.key} className="motion-burst flex flex-col items-center rounded-2xl bg-white/95 px-8 py-6 shadow-[0_12px_40px_rgba(16,24,40,.18)] backdrop-blur">
+        <span className="relative grid size-14 place-items-center rounded-full bg-[#00c875] text-white">
+          <span className="motion-ring absolute inset-0 rounded-full bg-[#00c875]" />
+          <Check className="relative size-8" strokeWidth={3} />
+        </span>
+        <div className="mt-3 text-base font-semibold">{burst.title}</div>
+        {burst.detail && <div className="mt-0.5 max-w-64 text-center text-sm text-muted-foreground">{burst.detail}</div>}
+      </div>
     </div>
   );
 }

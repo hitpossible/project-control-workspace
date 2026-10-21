@@ -7,6 +7,7 @@ import {
 import dayjs from 'dayjs';
 import { AlertTriangle, CalendarClock, Check, MoreHorizontal } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { optColor, optLabel, type Opt } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -19,7 +20,9 @@ type Item = { id: number; status: string };
  *   touch: long-press 200 ms to drag, so normal swipes still scroll
  *   menu:  the ⋯ button on a card moves it to any column without dragging
  *   keyboard: focus a card, Alt + ← / → moves it one column, Enter opens it
- * `onMove` persists the new status; the board re-renders from the reloaded data.
+ * `onMove` persists the new status; the board re-renders from the reloaded data. Return false
+ * when the card did not end up where it was dropped (error, workflow rule) — otherwise a
+ * "Moved" toast offers Undo.
  */
 export default function KanbanBoard<T extends Item>({
   columns, items, renderCard, onMove, canDrag = () => true, onOpen, emptyText = 'No items',
@@ -27,7 +30,7 @@ export default function KanbanBoard<T extends Item>({
   columns: Opt[];
   items: T[];
   renderCard: (item: T) => React.ReactNode;
-  onMove?: (item: T, status: string) => Promise<void> | void;
+  onMove?: (item: T, status: string) => Promise<boolean | void> | boolean | void;
   canDrag?: (item: T) => boolean;
   onOpen?: (item: T) => void;
   emptyText?: string;
@@ -73,16 +76,23 @@ export default function KanbanBoard<T extends Item>({
     onDragCancel: () => 'Moving cancelled.',
   };
 
-  const move = async (item: T | undefined, status: string | null) => {
+  const move = async (item: T | undefined, status: string | null, undoing = false) => {
     if (!item || !status || status === item.status || !onMove) return;
     setMoving(item.id);
     setPlaced({ id: item.id, status, from: item.status });
     setLanded(item.id);
+    let ok: boolean | void = false;
     try {
-      await onMove(item, status);
+      ok = await onMove(item, status);
     } finally {
       setMoving(null);
     }
+    if (ok === false || undoing) return;
+    const name = (item as { task_no?: string; name?: string }).task_no ?? (item as { name?: string }).name;
+    toast.success(`Moved${name ? ` ${name}` : ''} to ${label(status)}`, {
+      duration: 6000,
+      action: { label: 'Undo', onClick: () => void move({ ...item, status }, item.status, true) },
+    });
   };
 
   const end = ({ active: a, over }: DragEndEvent) => {

@@ -155,6 +155,8 @@ function Workspace() {
         </TabsList>
       </Tabs>
 
+      {/* keyed so the panel eases in on every tab switch */}
+      <div key={tab} className="motion-rise">
       {tab === 'overview' && <OverviewTab {...ctx} />}
       {tab === 'plan' && <PlanTab {...ctx} />}
       {tab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={toId(params.get('task'))} focusPanel={params.get('panel')} />}
@@ -163,6 +165,7 @@ function Workspace() {
       {tab === 'baseline' && <BaselineTab {...ctx} />}
       {tab === 'evidence' && <EvidenceTab {...ctx} names={names} />}
       {tab === 'history' && perm.internal && <AuditHistory projectId={p.id} names={names} />}
+      </div>
     </>
   );
 }

@@ -3,6 +3,7 @@
 import { CircleCheck, CircleDashed, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { errMsg } from '@/lib/format';
+import { deleteWithUndo } from '@/lib/undo';
 import { dbClient } from '@/lib/db/client';
 import type { Evidence, EvidenceRequirement } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -18,7 +19,7 @@ export function isSatisfied(r: EvidenceRequirement, evidence: Evidence[]) {
 }
 
 /** Evidence checklist (PRD §18): mandatory items block completion until evidence is attached */
-export default function EvidenceChecklist({ projectId, requirements, evidence, canManage, entityOptions, fixedEntity, onChange, labelFor }: {
+export default function EvidenceChecklist({ projectId, requirements: allRequirements, evidence, canManage, entityOptions, fixedEntity, onChange, labelFor }: {
   projectId: number;
   requirements: EvidenceRequirement[];
   evidence: Evidence[];
@@ -35,8 +36,11 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
   const [name, setName] = useState('');
   const [target, setTarget] = useState(fixedEntity ? `${fixedEntity.type}:${fixedEntity.id}` : `project:${projectId}`);
   const [mandatory, setMandatory] = useState(true);
+  // removed, waiting out the Undo window
+  const [hidden, setHidden] = useState<number[]>([]);
 
   // the parent passes [] until its data arrives — only items added after that animate in
+  const requirements = allRequirements.filter((r) => !hidden.includes(r.id));
   const isNew = useNewIds(requirements.map((r) => r.id), requirements.length > 0);
   const done = requirements.filter((r) => isSatisfied(r, evidence)).length;
   const mandatoryMissing = requirements.filter((r) => r.is_mandatory && !isSatisfied(r, evidence)).length;
@@ -50,11 +54,22 @@ export default function EvidenceChecklist({ projectId, requirements, evidence, c
     onChange();
   };
 
-  const remove = async (r: EvidenceRequirement) => {
-    if (!confirm(`Remove checklist item "${r.name}"?`)) return;
-    const { error } = await db.from('evidence_requirements').delete().eq('id', r.id);
-    if (error) return notify(errMsg(error), 'error');
-    onChange();
+  const remove = (r: EvidenceRequirement) => {
+    const unhide = () => setHidden((h) => h.filter((id) => id !== r.id));
+    setHidden((h) => [...h, r.id]);
+    deleteWithUndo({
+      message: `Removed "${r.name}"`,
+      undo: unhide,
+      commit: async () => {
+        const { error } = await db.from('evidence_requirements').delete().eq('id', r.id);
+        // on success the reload drops the row; only a failed delete brings it back
+        if (error) {
+          notify(errMsg(error), 'error');
+          unhide();
+        }
+        onChange();
+      },
+    });
   };
 
   return (

@@ -138,7 +138,7 @@ export default function QaTab({ data, perm, reload, memberProfiles, focusBug, fo
         </>
       ) : view === 'bugs' ? (
         <>
-          {bugs.length === 0 && <EmptyState text="No bugs 🎉" />}
+          {bugs.length === 0 && <EmptyState done text="No bugs" />}
           {BUG_GROUPS.map((g) => {
             const items = bugs.filter((b) => g.statuses.includes(b.status));
             if (!items.length) return null;

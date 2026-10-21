@@ -10,6 +10,7 @@ import AuditHistory from '@/components/AuditHistory';
 import { dispatchEmails, useApp } from '@/components/AppProvider';
 import { ActionButton, CommentDialog, DateField, Field, PageHeader, PriorityChip, Section, SelectField, StatusChip, TextField, UserSelect } from '@/components/common';
 import EvidencePanel from '@/components/EvidencePanel';
+import { celebrate } from '@/components/motion';
 import RequestForm, { REDUCTION_ROWS } from '@/components/RequestForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -233,7 +234,9 @@ export default function RequestDetailPage() {
               key={formKey}
               initial={r}
               onSaved={() => load()}
-              onSubmit={async (saved) => { await rpc('submit_request', { p_request_id: saved.id }, 'Request submitted for approval'); }}
+              onSubmit={async (saved) => {
+                if (await rpc('submit_request', { p_request_id: saved.id }, 'Request submitted for approval') !== null) celebrate('Request submitted', 'It is now waiting for approval.');
+              }}
             />
           ) : (
             <>
@@ -489,7 +492,7 @@ export default function RequestDetailPage() {
                           <div className="flex items-start gap-2">
                             <span className={cn('flex-1 pt-1 text-sm font-semibold', !meta && 'text-muted-foreground')}>{s.step_name}</span>
                             <span
-                              className="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                              className={cn('mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', isWaiting && canAct && 'motion-pulse')}
                               style={meta ? { background: meta.bg, color: meta.fg } : { background: '#eef0f4', color: '#676879' }}
                             >
                               {isWaiting && canAct ? 'Your turn' : meta?.label ?? s.status.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase())}
@@ -543,7 +546,9 @@ export default function RequestDetailPage() {
           onClose={() => setDialog(null)}
           onConfirm={async (comment) => {
             const ok = await rpc('act_on_approval', { p_step_id: waiting.id, p_action: dialog, p_comment: comment || null }, `${ACT_META[dialog].label}: done`);
-            if (ok) setDialog(null);
+            if (!ok) return;
+            setDialog(null);
+            if (dialog === 'approve') celebrate('Approved', waiting.step_name);
           }}
         />
       )}

@@ -90,6 +90,7 @@ export default function KpiPage() {
         </Tabs>
       </div>
 
+      <div key={tab} className="motion-rise">
       {!loaded && (
         <>
           <StatCardsSkeleton className="mb-5 md:grid-cols-4 xl:grid-cols-6" />
@@ -215,6 +216,7 @@ export default function KpiPage() {
           </BoardGroup>
         </>
       )}
+      </div>
     </>
   );
 }

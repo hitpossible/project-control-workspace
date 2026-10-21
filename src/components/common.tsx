@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarIcon, Check, ChevronDown, ChevronsUpDown, Search, X } from 'lucide-react';
+import { CalendarIcon, Check, CheckCheck, ChevronDown, ChevronsUpDown, Search, X } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { fmtDate } from '@/lib/format';
@@ -197,8 +197,19 @@ export function SearchBox({ value, onChange, className, placeholder = 'Search' }
   );
 }
 
-export function EmptyState({ text }: { text: string }) {
-  return <div className="py-8 text-center text-sm text-muted-foreground">{text}</div>;
+/** `done`: an "all clear" state (nothing overdue, no bugs…) gets a small green check */
+export function EmptyState({ text, done }: { text: string; done?: boolean }) {
+  return (
+    <div className="motion-rise flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
+      {done && (
+        <span className="relative grid size-10 place-items-center rounded-full bg-[#00c875]/12 text-[#00a862]">
+          <span className="motion-ring absolute inset-0 rounded-full bg-[#00c875]/30" />
+          <CheckCheck className="relative size-5" />
+        </span>
+      )}
+      {text}
+    </div>
+  );
 }
 
 export function StatCard({ label, value, color, hint, onClick }: { label: string; value: React.ReactNode; color?: string; hint?: string; onClick?: () => void }) {

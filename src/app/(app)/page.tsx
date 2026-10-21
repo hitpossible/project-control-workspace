@@ -146,7 +146,7 @@ function InternalDashboard() {
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-12 xl:col-span-7">
           <BoardGroup title={<span className="inline-flex items-center gap-1.5"><TriangleAlert className="size-4" /> Projects Need Attention</span>} color="#e2445c" count={attention.length}>
-            {attention.length === 0 ? <EmptyState text="All projects on track 🎉" /> : (
+            {attention.length === 0 ? <EmptyState done text="All projects on track" /> : (
               <Table className="board-table">
                 <TableBody>
                   {attention.map((p) => (
@@ -166,7 +166,7 @@ function InternalDashboard() {
           </BoardGroup>
 
           <BoardGroup title="Upcoming Due Date (next 7 days) & Overdue" color="#fdab3d" count={Math.min(15, overdue.length + upcoming.length)}>
-            {overdue.length + upcoming.length === 0 ? <EmptyState text="Nothing due" /> : (
+            {overdue.length + upcoming.length === 0 ? <EmptyState done text="Nothing due" /> : (
               <Table className="board-table">
                 <TableHeader><TableRow><TableHead className="text-left">Task</TableHead><TableHead>Project</TableHead><TableHead>Owner</TableHead><TableHead>Status</TableHead><TableHead>Due</TableHead></TableRow></TableHeader>
                 <TableBody>

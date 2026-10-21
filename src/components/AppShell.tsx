@@ -3,11 +3,12 @@
 import { Bell, CalendarDays, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ROLE_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
 import GlobalSearch from './GlobalSearch';
+import { SuccessBurst } from './motion';
 import { Person, Tip } from './common';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
@@ -69,6 +70,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   ];
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
+  // page content eases in on every route change (not on first load)
+  const content = useRef<HTMLDivElement>(null);
+  const firstRoute = useRef(true);
+  useEffect(() => {
+    if (firstRoute.current) {
+      firstRoute.current = false;
+      return;
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    content.current?.animate(
+      [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 220, easing: 'cubic-bezier(.2,.7,.3,1)' },
+    );
+  }, [pathname]);
+
   const item = (n: NavItem, mini: boolean) => {
     const link = (
       <Link
@@ -76,10 +92,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         href={n.href}
         onClick={() => setOpen(false)}
         aria-label={n.label}
+        aria-current={isActive(n.href) ? 'page' : undefined}
         className={cn(
           'relative flex items-center gap-2.5 rounded py-1.5 text-sm text-foreground transition-colors [&_svg]:size-4 [&_svg]:shrink-0',
           mini ? 'justify-center px-0' : 'px-2.5',
-          isActive(n.href) ? 'bg-selected' : 'hover:bg-sidebar-accent',
+          // the active background is the sliding <NavIndicator>
+          isActive(n.href) ? 'font-medium' : 'hover:bg-sidebar-accent',
         )}
       >
         {n.icon}
@@ -101,7 +119,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </>
     );
     return (
-      <nav className="flex h-full flex-col overflow-x-hidden overflow-y-auto">
+      <nav className="relative flex h-full flex-col overflow-x-hidden overflow-y-auto">
+        <NavIndicator active={pathname} mini={mini} />
         <div className={cn('space-y-0.5', mini ? 'px-2' : 'px-3')}>{main.filter((n) => n.show).map((n) => item(n, mini))}</div>
         {group('System Service workspace', workspace)}
         {group('Management intelligence', intelligence)}
@@ -169,9 +188,63 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="min-h-0 flex-1">{nav(collapsed)}</div>
         </aside>
         <main className="min-h-[calc(100vh-3.5rem)] min-w-0 flex-1 bg-white p-3 shadow-[0_0_0_1px_#e1e4ef] md:p-7 lg:rounded-tl-2xl">
-          {children}
+          <div ref={content}>{children}</div>
         </main>
       </div>
+      <SuccessBurst />
     </div>
+  );
+}
+
+/** "You are here" highlight that slides to the active link (the link carries aria-current). */
+function NavIndicator({ active, mini }: { active: string; mini: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const shown = useRef(false);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const nav = el?.parentElement;
+    if (!el || !nav) return;
+    const place = (animate: boolean) => {
+      const link = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      el.style.opacity = link ? '1' : '0';
+      if (!link) return;
+      const n = nav.getBoundingClientRect();
+      const l = link.getBoundingClientRect();
+      if (!animate) el.style.transition = 'none';
+      el.style.transform = `translate(${l.left - n.left + nav.scrollLeft}px, ${l.top - n.top + nav.scrollTop}px)`;
+      el.style.width = `${l.width}px`;
+      el.style.height = `${l.height}px`;
+      if (!animate) {
+        void el.offsetWidth; // commit the jump before transitions come back
+        el.style.transition = '';
+      }
+    };
+    // first placement jumps; later route changes slide
+    place(shown.current);
+    shown.current = true;
+    // the sidebar resizing (collapse / expand) re-places it without sliding
+    let initial = true;
+    const ro = new ResizeObserver(() => {
+      if (initial) {
+        initial = false;
+        return;
+      }
+      place(false);
+    });
+    ro.observe(nav);
+    // items appearing later (role-based links once the profile loads, badges) shift the
+    // active link without resizing the nav
+    const mo = new MutationObserver(() => place(false));
+    mo.observe(nav, { childList: true, subtree: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [active, mini]);
+
+  return (
+    <span ref={ref} aria-hidden
+      className="pointer-events-none absolute top-0 left-0 rounded bg-selected opacity-0 transition-[transform,width,height] duration-300 ease-[cubic-bezier(.2,.7,.3,1)] motion-reduce:transition-none" />
   );
 }

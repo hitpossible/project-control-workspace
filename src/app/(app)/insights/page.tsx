@@ -35,7 +35,7 @@ export default function InsightsPage() {
         <SelectField className="w-60" label="Rule" value={rule} allowEmpty placeholder="All rules" onChange={setRule}
           options={rules.map(([v, l]) => ({ value: v, label: l.charAt(0).toUpperCase() + l.slice(1) }))} />
       </div>
-      {rows === null ? <EmptyState text="Analysing…" /> : list.length === 0 ? <EmptyState text="No insights — everything looks on track 🎉" /> : groups.map((g, i) => {
+      {rows === null ? <EmptyState text="Analysing…" /> : list.length === 0 ? <EmptyState done text="No insights — everything looks on track" /> : groups.map((g, i) => {
         const items = list.filter((r) => (r.project_code ?? 'Team') === g);
         return (
           <BoardGroup key={g} title={g === 'Team' ? 'Team / Resources' : g} color={GROUP_COLORS[i % GROUP_COLORS.length]} count={items.length}>

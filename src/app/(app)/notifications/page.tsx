@@ -141,6 +141,7 @@ export default function NotificationsPage() {
           </TabsList>
         </Tabs>
 
+        <div key={tab} className="motion-rise">
         {!loaded ? <ListSkeleton /> : rows.length === 0 ? <EmptyList tab={tab} /> : groups.map((g) => (
           <section key={g.label}>
             <div className="sticky top-14 z-10 border-b border-grid bg-muted/60 px-4 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase backdrop-blur">
@@ -158,6 +159,7 @@ export default function NotificationsPage() {
             </ul>
           </section>
         ))}
+        </div>
       </div>
     </div>
   );
