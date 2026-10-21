@@ -31,26 +31,30 @@ npm run dev                  # http://localhost:3000
 
 The `Dockerfile` builds a small production image (Next.js `output: 'standalone'`, Node 22 Alpine, `TZ=Asia/Bangkok`, non-root, health check on `/login`) plus a `tools` image that runs `db:migrate` / `seed`.
 
-**Local — whole stack in Docker** (MySQL 8.4 + MinIO + Mailpit + migrations + the app, settings from `.env.local`; inside the containers the DB / MinIO / SMTP settings point at the Docker services):
+There is no MySQL container: locally the database is MAMP, in production the company MySQL server.
+
+**Local — the app in Docker** (migrations + the app next to MinIO + Mailpit, settings from `.env.local`; inside the containers MinIO / SMTP point at the Docker services). Containers reach MAMP through `host.docker.internal`, so add to `.env.local`:
 
 ```bash
-npm run docker:up      # build + start, migrations run first   → http://localhost:3000 (APP_PORT=3010 npm run docker:up to change)
-npm run docker:seed    # drop + migrate + demo data in the Docker MySQL (localhost:3307, root / DOCKER_MYSQL_PASSWORD, default "pcw")
-npm run docker:logs
-npm run docker:down    # data stays in the mysql-data / minio-data volumes
+DOCKER_DATABASE_URL=mysql://root:<password>@host.docker.internal:8889/tbkk_pcw
 ```
 
-`npm run services:up` still starts only MinIO + Mailpit for `npm run dev`.
+```bash
+npm run docker:up      # build + start, new migrations run first   → http://localhost:3000 (APP_PORT=3010 npm run docker:up to change)
+npm run docker:logs
+npm run docker:down    # also stops MinIO + Mailpit; files stay in the minio-data volume
+```
 
-**Production** (`docker-compose.prod.yml`: app + migrate + MinIO, optional MySQL):
+Demo data: `npm run db:reset` on the host as before. `npm run services:up` still starts only MinIO + Mailpit for `npm run dev`.
+
+**Production** (`docker-compose.prod.yml`: app + migrate + MinIO; `DATABASE_URL` = company MySQL server with an empty schema):
 
 ```bash
 cp .env.production.example .env.production   # fill in secrets, DATABASE_URL, SMTP, APP_URL
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-# add --profile mysql to run MySQL in Docker as well (DATABASE_URL=mysql://root:…@mysql:3306/tbkk_pcw)
 ```
 
-Every start applies new migrations before the app starts. Publish port `APP_PORT` (3000) through the company reverse proxy with HTTPS. To ship a prebuilt image instead of building on the server, set `APP_IMAGE` / `APP_TAG` and `docker compose … pull`.
+Every start applies new migrations to the company database before the app starts. Publish port `APP_PORT` (3000) through the company reverse proxy with HTTPS. To ship a prebuilt image instead of building on the server, set `APP_IMAGE` / `APP_TAG` and `docker compose … pull`.
 
 ### Login
 

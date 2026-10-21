@@ -1,6 +1,6 @@
 # Production.  cp .env.production.example .env.production  → fill in, then:
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-# Add `--profile mysql` to also run MySQL in Docker (otherwise DATABASE_URL points at an existing server).
+# Database = the company MySQL server (DATABASE_URL); no MySQL container.
 # Migrations run on every start (only new files in db/migrations are applied) before the app starts.
 # Put the app behind the company reverse proxy / HTTPS (COOKIE_SECURE=true; the mic for voice chat needs HTTPS).
 name: tbkk-pcw
@@ -24,8 +24,6 @@ services:
     build: { context: ., target: tools }
     image: ${APP_IMAGE:-tbkk-pcw}-tools:${APP_TAG:-latest}
     env_file: .env.production
-    depends_on:
-      mysql: { condition: service_healthy, required: false }
     restart: "no"
     logging: *logging
 
@@ -48,22 +46,5 @@ services:
     restart: always
     logging: *logging
 
-  mysql:
-    profiles: [mysql]
-    image: mysql:8.4
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env.production}
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-    restart: always
-    logging: *logging
-
 volumes:
   minio-data:
-  mysql-data:

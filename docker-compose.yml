@@ -4,13 +4,15 @@
 #      MinIO (evidence files)  API http://localhost:9100, console http://localhost:9101
 #      Mailpit (e-mail)        UI  http://localhost:8025, SMTP 1025
 #
-# 2) Whole stack in Docker (profile "app": + MySQL, migrations, the app):   npm run docker:up
+# 2) The app in Docker too (profile "app": migrations + the app):   npm run docker:up
 #      App   http://localhost:3000  (production build of the current source; APP_PORT=3010 to change)
-#      MySQL localhost:3307  root / ${DOCKER_MYSQL_PASSWORD:-pcw}
-#    Demo data:  npm run docker:seed      Logs:  npm run docker:logs      Stop:  npm run docker:down
-#    Inside the containers DATABASE_URL / MINIO_* / SMTP_* point at the services below, whatever .env.local says.
+#      Logs:  npm run docker:logs      Stop:  npm run docker:down
+#    Database = MySQL on the host (MAMP), no MySQL container. 127.0.0.1 inside a container is the container itself, so
+#    set DOCKER_DATABASE_URL in .env.local = DATABASE_URL with host.docker.internal, e.g.
+#      DOCKER_DATABASE_URL=mysql://root:<password>@host.docker.internal:8889/tbkk_pcw
+#    Inside the containers MINIO_* / SMTP_* point at the services below, whatever .env.local says.
 x-app-env: &app-env
-  DATABASE_URL: mysql://root:${DOCKER_MYSQL_PASSWORD:-pcw}@mysql:3306/tbkk_pcw
+  DATABASE_URL: ${DOCKER_DATABASE_URL:?set DOCKER_DATABASE_URL in .env.local (DATABASE_URL with host.docker.internal instead of 127.0.0.1)}
   MINIO_ENDPOINT: minio
   MINIO_PORT: "9000"
   MINIO_USE_SSL: "false"
@@ -43,35 +45,14 @@ services:
       - "8025:8025"
     restart: unless-stopped
 
-  mysql:
-    profiles: [app]
-    image: mysql:8.4
-    container_name: tbkk-pcw-mysql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DOCKER_MYSQL_PASSWORD:-pcw}
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DOCKER_MYSQL_PASSWORD:-pcw}"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-    restart: unless-stopped
 
-  # applies db/migrations, then exits; `npm run docker:seed` reuses this image for demo data
+  # applies new db/migrations to the MAMP database, then exits
   migrate:
     profiles: [app]
     build: { context: ., target: tools }
     image: tbkk-pcw-tools
     env_file: [{ path: .env.local, required: false }]
-    environment:
-      <<: *app-env
-      NODE_ENV: development
-    depends_on:
-      mysql: { condition: service_healthy }
+    environment: *app-env
 
   app:
     profiles: [app]
@@ -90,4 +71,3 @@ services:
 
 volumes:
   minio-data:
-  mysql-data:
