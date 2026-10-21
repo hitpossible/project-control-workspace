@@ -7,6 +7,7 @@ import { canActOnStep, canConvertRequest } from '@/lib/approval';
 import { SYSTEM_STAFF_ROLES } from '@/lib/constants';
 import { dbClient, handleUnauthorized } from '@/lib/db/client';
 import type { ApprovalStep, Profile, ProjectRequest, Role } from '@/lib/types';
+import { useLiveNotifications } from './useLiveNotifications';
 
 interface AppCtx {
   me: Profile | null;
@@ -80,6 +81,8 @@ export default function AppProvider({ children }: { children: React.ReactNode })
     const t = setInterval(refreshUnread, 30000);
     return () => clearInterval(t);
   }, [refreshProfiles, refreshUnread]);
+
+  useLiveNotifications(!!me, refreshUnread);
 
   const value = useMemo<AppCtx>(() => {
     const roles = me?.roles ?? [];

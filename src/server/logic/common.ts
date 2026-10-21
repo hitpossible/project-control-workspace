@@ -1,6 +1,7 @@
 import { DEFAULT_WORK_WEEK, WORK_WEEK_KEY, type WorkCalendar, makeCalendar } from '@/lib/workdays';
 import type { Ctx } from '../db';
 import { inList } from '../db';
+import { publishNotification } from '../notify-bus';
 
 // ---------------------------------------------------------------------
 // Numbering (was next_sequence / generate_code)
@@ -85,6 +86,7 @@ export async function notifyEvent(ctx: Ctx, e: {
     if (res.affectedRows !== 1) continue; // deduplicated
     const id = res.insertId;
     count++;
+    ctx.onCommit(() => publishNotification(uid, { id, title, body: e.body ?? null, link: e.link ?? null }));
     if (rule.channels.includes('email')) {
       const email = await ctx.val<string>('SELECT email FROM profiles WHERE id = ?', [uid]);
       if (email) {
