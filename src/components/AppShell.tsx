@@ -31,7 +31,7 @@ export function Brand() {
 type NavItem = { href: string; label: string; icon: React.ReactNode; show: boolean; count?: number };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { me, hasRole, isStaff, unread, signOut } = useApp();
+  const { me, hasRole, isStaff, unread, pendingApprovals, signOut } = useApp();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -56,7 +56,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/notifications', label: 'Notifications', icon: <Bell />, show: true, count: unread },
   ];
   const workspace: NavItem[] = [
-    { href: '/requests', label: 'Project Requests', icon: <ClipboardList />, show: true },
+    { href: '/requests', label: 'Project Requests', icon: <ClipboardList />, show: true, count: pendingApprovals },
     { href: '/projects', label: 'Projects', icon: <LayoutDashboard />, show: true },
     { href: '/management', label: 'Management View', icon: <LineChart />, show: isStaff || hasRole('management_view') },
     { href: '/workforce', label: 'Workforce Plan', icon: <CalendarDays />, show: isStaff },

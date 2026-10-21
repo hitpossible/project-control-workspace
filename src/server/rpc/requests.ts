@@ -1,5 +1,5 @@
-import { APPROVAL_ROUTE, RECEIVE_STEPS, canActOnStep, positionsForLevels } from '@/lib/approval';
-import type { ApprovalStep, ProjectRequest } from '@/lib/types';
+import { ROUTE_STAGES, canActOnStep, formatPrefix, positionsForLevels, routeApprovers, routeProblems, statusForStep, stepStage } from '@/lib/approval';
+import type { ApprovalStep, DocumentType, ProjectRequest } from '@/lib/types';
 import { AppError, type Ctx, type Row, addDays } from '../db';
 import { getRow, insertRow, updateRow } from '../engine';
 import { generateCode, notifyEvent, settingValue } from '../logic/common';
@@ -8,21 +8,13 @@ import { hasRole, invalidatePerms } from '../perms';
 
 const blank = (s: unknown) => !s || String(s).trim() === '';
 
-const STATUS_FOR_STEP: Record<string, ProjectRequest['status']> = {
-  requestor_check: 'waiting_requestor_approval',
-  requestor_approve: 'waiting_requestor_approval',
-  ss_receive: 'waiting_system_review',
-  ss_gm_approve: 'waiting_authority_approval',
-  ss_fm_approve: 'waiting_authority_approval',
-  final_approve: 'waiting_authority_approval',
-  // steps created before the fixed route
-  requestor_approval: 'waiting_requestor_approval',
-  system_review: 'waiting_system_review',
-  authority_approval: 'waiting_authority_approval',
-};
-
 /** Active users who may act on a step (the requestor never approves their own request) */
-async function stepApprovers(ctx: Ctx, step: Pick<ApprovalStep, 'approver_id' | 'approver_role' | 'approver_levels' | 'approver_department'>, requestorId: number) {
+async function stepApprovers(ctx: Ctx, step: Pick<ApprovalStep, 'approver_id' | 'approver_ids' | 'approver_role' | 'approver_levels' | 'approver_department'>, requestorId: number) {
+  if (step.approver_ids?.length) {
+    return (await ctx.q<{ id: number }>(
+      `SELECT id FROM profiles WHERE is_active = 1 AND id <> ? AND id IN (${step.approver_ids.map(() => '?').join(',')})`,
+      [requestorId, ...step.approver_ids])).map((p) => p.id);
+  }
   if (step.approver_levels) {
     const positions = positionsForLevels(step.approver_levels);
     if (!positions.length) return [];
@@ -35,7 +27,7 @@ async function stepApprovers(ctx: Ctx, step: Pick<ApprovalStep, 'approver_id' | 
     return rows.map((p) => p.id);
   }
   return step.approver_id
-    ? [step.approver_id]
+    ? (await ctx.q<{ id: number }>('SELECT id FROM profiles WHERE id = ? AND is_active = 1', [step.approver_id])).map((p) => p.id)
     : (await ctx.q<{ id: number }>('SELECT id FROM profiles WHERE is_active = 1 AND JSON_CONTAINS(roles, JSON_QUOTE(?))', [step.approver_role])).map((p) => p.id);
 }
 
@@ -55,6 +47,16 @@ async function lockRequest(ctx: Ctx, id: number): Promise<ProjectRequest> {
   return r as unknown as ProjectRequest;
 }
 
+/** Next request number of a document type — its own format, so its own running number */
+async function requestNo(ctx: Ctx, doc: DocumentType) {
+  const year = ctx.today.slice(0, 4);
+  const prefix = formatPrefix(doc.request_no_format, doc.code, year);
+  const others = await ctx.q<DocumentType>('SELECT code, name, request_no_format FROM document_types WHERE id <> ?', [doc.id]);
+  const clash = others.find((o) => formatPrefix(o.request_no_format, o.code, year) === prefix);
+  if (clash) throw new AppError(`${doc.name} and ${clash.name} use the same request number format — give each its own prefix in Admin → Document Types`);
+  return generateCode(ctx, doc.request_no_format, null, doc.code);
+}
+
 export async function submitRequest(ctx: Ctx, a: { p_request_id: number }) {
   let r = await lockRequest(ctx, a.p_request_id);
   if (r.requestor_id !== ctx.uid) throw new AppError('Only the requestor can submit this request', 403);
@@ -70,22 +72,31 @@ export async function submitRequest(ctx: Ctx, a: { p_request_id: number }) {
     throw new AppError('Your user profile has no name or department — ask an administrator to update it in Admin → Users');
   }
 
-  const ssDept = (await settingValue<string>(ctx, 'system_service_department', '')).trim();
-  if (!ssDept) throw new AppError('System Service department is not set — ask an administrator to set it in Admin → Numbering & Route');
-  const steps: Row[] = APPROVAL_ROUTE.map((s, i) => ({
-    step_no: i + 1, step_code: s.step_code, step_name: s.step_name, approver_id: null, approver_role: s.group,
-    approver_levels: s.levels,
-    approver_department: s.department === 'requestor' ? r.req_department : s.department === 'system_service' ? ssDept : null,
+  // Each document type has its own route and running number
+  const doc = await ctx.one<DocumentType>('SELECT * FROM document_types WHERE id = ?', [r.document_type_id]);
+  if (!doc) throw new AppError('The request has no document type');
+  if (!doc.is_active && !r.request_no) throw new AppError(`${doc.name} is no longer accepted — ask an administrator`);
+  const problems = routeProblems(doc.approval_route ?? []);
+  if (problems.length) throw new AppError(`The ${doc.name} approval route is not set up: ${problems.join('; ')}. Ask an administrator to fix it in Admin → Document Types.`);
+  const steps: Row[] = doc.approval_route.map((s, i) => ({
+    step_no: i + 1, step_code: s.step_code, step_name: s.step_name, stage: s.stage,
+    approver_role: ROUTE_STAGES.find((x) => x.value === s.stage)!.group,
+    approver_id: null,
+    approver_ids: s.stage === 'requestor' ? null : routeApprovers(s),
+    approver_levels: s.stage === 'requestor' ? s.levels : null,
+    approver_department: s.stage === 'requestor' ? r.req_department : null,
     status: i === 0 ? 'waiting' : 'pending',
   }));
   // Every step needs someone who can act on it, otherwise the request gets stuck
   const nobody: string[] = [];
   for (const s of steps) {
     if (!(await stepApprovers(ctx, s as unknown as ApprovalStep, r.requestor_id)).length) {
-      nobody.push(`${s.step_name} (${(s.approver_levels as string[]).join('/')}${s.approver_department ? ` in ${s.approver_department}` : ''})`);
+      nobody.push(s.approver_levels
+        ? `${s.step_name} (${(s.approver_levels as string[]).join('/')} in ${s.approver_department}) — check Position / Department in Admin → Users`
+        : `${s.step_name} — pick at least one active approver (other than the requestor) for ${doc.name} in Admin → Document Types`);
     }
   }
-  if (nobody.length) throw new AppError(`No approver found for: ${nobody.join(', ')} — ask an administrator to check Position / Department in Admin → Users`);
+  if (nobody.length) throw new AppError(`No approver found for: ${nobody.join('; ')}. Ask an administrator to fix this.`);
 
   return ctx.asWorkflow(async () => {
     // Resume after "Request More Information": same step goes back to waiting
@@ -93,7 +104,7 @@ export async function submitRequest(ctx: Ctx, a: { p_request_id: number }) {
       const s = await ctx.one<ApprovalStep>(`SELECT * FROM approval_steps WHERE request_id = ? AND status = 'more_info' LIMIT 1`, [r.id]);
       if (s) {
         const step = (await updateRow(ctx, 'approval_steps', s.id, { status: 'waiting', action: null, acted_at: null, acted_by: null })) as unknown as ApprovalStep;
-        r = (await updateRow(ctx, 'project_requests', r.id, { status: STATUS_FOR_STEP[step.step_code] })) as unknown as ProjectRequest;
+        r = (await updateRow(ctx, 'project_requests', r.id, { status: statusForStep(step) })) as unknown as ProjectRequest;
         await insertRow(ctx, 'approval_actions', { request_id: r.id, step_id: step.id, step_code: step.step_code, action: 'resubmit', comment: 'Information provided' });
         await notifyStepWaiting(ctx, step);
         return r;
@@ -108,10 +119,10 @@ export async function submitRequest(ctx: Ctx, a: { p_request_id: number }) {
       first ??= row;
     }
     r = (await updateRow(ctx, 'project_requests', r.id, {
-      request_no: r.request_no ?? await generateCode(ctx, await settingValue(ctx, 'request_no_format', 'REQ-SYS-{YYYY}-{SEQ:4}'), null),
+      request_no: r.request_no ?? await requestNo(ctx, doc),
       date_submitted: ctx.today,
       submitted_at: new Date().toISOString(),
-      status: 'waiting_requestor_approval',
+      status: statusForStep(first!),
     })) as unknown as ProjectRequest;
     await insertRow(ctx, 'approval_actions', { request_id: r.id, action: cycle === 1 ? 'submit' : 'resubmit', comment: null });
     await notifyStepWaiting(ctx, first!);
@@ -125,9 +136,8 @@ export async function saveReview(ctx: Ctx, a: {
   p_proposed_leader_id: number | null; p_authority_approver_id?: number | null; p_scope_assessment: string | null;
 }) {
   const r = await lockRequest(ctx, a.p_request_id);
-  const s = await ctx.one<ApprovalStep>(
-    `SELECT * FROM approval_steps WHERE request_id = ? AND status = 'waiting' AND step_code IN (${RECEIVE_STEPS.map(() => '?').join(',')}) LIMIT 1`,
-    [r.id, ...RECEIVE_STEPS]);
+  const w = await ctx.one<ApprovalStep>(`SELECT * FROM approval_steps WHERE request_id = ? AND status = 'waiting' LIMIT 1`, [r.id]);
+  const s = w && stepStage(w) === 'receive' ? w : null;
   if (!s) throw new AppError('Request is not waiting to be received by System Service');
   if (!canActOnStep(s, ctx.me, r.requestor_id)) throw new AppError(`You cannot act on ${s.step_name}`, 403);
   return ctx.asWorkflow(async () => {
@@ -152,11 +162,11 @@ export async function actOnApproval(ctx: Ctx, a: { p_step_id: number; p_action: 
 
   // Validate status before update (never skip approval)
   if (s.status !== 'waiting') throw new AppError(`This step is not waiting for action (status: ${s.status})`);
-  if (r.status !== STATUS_FOR_STEP[s.step_code]) throw new AppError(`Request status ${r.status} does not match step ${s.step_code}`);
+  if (r.status !== statusForStep(s)) throw new AppError(`Request status ${r.status} does not match step ${s.step_code}`);
   if (!canActOnStep(s, ctx.me, r.requestor_id)) throw new AppError(`You are not an approver for ${s.step_name}`, 403);
   if (!['approve', 'reject', 'send_back', 'request_more_info'].includes(a.p_action)) throw new AppError(`Unsupported action ${a.p_action}`);
   if (a.p_action !== 'approve' && blank(a.p_comment)) throw new AppError(`A comment is required for ${a.p_action.replaceAll('_', ' ')}`);
-  if (a.p_action === 'approve' && RECEIVE_STEPS.includes(s.step_code)
+  if (a.p_action === 'approve' && stepStage(s) === 'receive'
     && (!r.project_type_id || !r.proposed_leader_id || (s.step_code === 'system_review' && !r.authority_approver_id))) {
     throw new AppError('Complete the review (Project Type, Project Leader) before approving');
   }
@@ -173,7 +183,7 @@ export async function actOnApproval(ctx: Ctx, a: { p_step_id: number; p_action: 
         const patch: Row = { status: 'waiting' };
         if (next.step_code === 'authority_approval') patch.approver_id = r.authority_approver_id;
         const step = (await updateRow(ctx, 'approval_steps', next.id, patch)) as unknown as ApprovalStep;
-        r = (await updateRow(ctx, 'project_requests', r.id, { status: STATUS_FOR_STEP[step.step_code] })) as unknown as ProjectRequest;
+        r = (await updateRow(ctx, 'project_requests', r.id, { status: statusForStep(step) })) as unknown as ProjectRequest;
         await notifyStepWaiting(ctx, step);
       } else {
         r = (await updateRow(ctx, 'project_requests', r.id, { status: 'approved' })) as unknown as ProjectRequest;

@@ -9,6 +9,7 @@ import { BoardGroup, EmptyState, PageHeader, Person, PriorityChip, SearchBox, Se
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDocumentTypes } from '@/components/useDocumentTypes';
 import { canActOnStep } from '@/lib/approval';
 import { REQUEST_STATUSES } from '@/lib/constants';
 import { fmtDate } from '@/lib/format';
@@ -33,6 +34,9 @@ export default function RequestsPage() {
   const [tab, setTab] = useState<'action' | 'mine' | 'all'>('mine');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
+  const [docType, setDocType] = useState('');
+  const docTypes = useDocumentTypes();
+  const docName = (id: number) => docTypes.find((t) => t.id === id)?.name ?? '';
 
   useEffect(() => {
     db.from('project_requests').select('*').order('created_at', { ascending: false }).then(({ data }) => setRows(data ?? []));
@@ -53,6 +57,7 @@ export default function RequestsPage() {
     if (tab === 'mine' && r.requestor_id !== me?.id) return false;
     if (tab === 'action' && !myActionIds.has(r.id)) return false;
     if (status && r.status !== status) return false;
+    if (docType && String(r.document_type_id) !== docType) return false;
     const s = q.toLowerCase();
     return !s || [r.request_no, r.project_name, r.req_full_name, r.req_department].some((x) => x?.toLowerCase().includes(s));
   });
@@ -76,6 +81,10 @@ export default function RequestsPage() {
           </TabsList>
         </Tabs>
         <SearchBox value={q} onChange={setQ} className="mb-2 w-56" />
+        {docTypes.length > 1 && (
+          <SelectField className="mb-2 w-48" value={docType} allowEmpty placeholder="All document types" onChange={setDocType}
+            options={docTypes.map((t) => ({ value: String(t.id), label: t.name }))} />
+        )}
         <SelectField className="mb-2 w-56" value={status} allowEmpty placeholder="All statuses" onChange={setStatus} options={REQUEST_STATUSES} />
       </div>
       {list.length === 0 && <EmptyState text="No requests" />}
@@ -88,6 +97,7 @@ export default function RequestsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-72 text-left">Request</TableHead>
+                  <TableHead>Document</TableHead>
                   <TableHead>Requestor</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Priority</TableHead>
@@ -106,6 +116,7 @@ export default function RequestsPage() {
                         {myActionIds.has(r.id) && <span className="font-semibold text-[#d97706]"> · waiting for you</span>}
                       </div>
                     </TableCell>
+                    <TableCell className="text-center">{docName(r.document_type_id)}</TableCell>
                     <TableCell><Person name={r.req_full_name} /></TableCell>
                     <TableCell className="text-center">{r.req_department}</TableCell>
                     <TableCell className="p-1"><PriorityChip value={r.priority} fullWidth /></TableCell>

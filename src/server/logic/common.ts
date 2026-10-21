@@ -11,11 +11,11 @@ export async function nextSequence(ctx: Ctx, scope: string): Promise<number> {
   return Number(await ctx.val('SELECT LAST_INSERT_ID()'));
 }
 
-/** Format tokens: {TYPE} {YYYY} {YY} {SEQ:n}. Sequence scope = format with SEQ removed. */
-export async function generateCode(ctx: Ctx, format: string, type: string | null): Promise<string> {
+/** Format tokens: {TYPE} {DOC} {YYYY} {YY} {SEQ:n}. Sequence scope = format with SEQ removed. */
+export async function generateCode(ctx: Ctx, format: string, type: string | null, doc: string | null = null): Promise<string> {
   const width = Number(/\{SEQ:(\d+)\}/.exec(format)?.[1] ?? 3);
   const yyyy = ctx.today.slice(0, 4);
-  let fmt = format.replaceAll('{YYYY}', yyyy).replaceAll('{YY}', yyyy.slice(2));
+  let fmt = format.replaceAll('{YYYY}', yyyy).replaceAll('{YY}', yyyy.slice(2)).replaceAll('{DOC}', doc ?? '');
   fmt = type ? fmt.replaceAll('{TYPE}', type) : fmt.replaceAll('-{TYPE}', '').replaceAll('{TYPE}', '');
   const scope = fmt.replace(/\{SEQ:\d+\}/g, '#');
   const seq = await nextSequence(ctx, scope);

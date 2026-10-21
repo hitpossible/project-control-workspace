@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 const DEMO_ACCOUNTS = [
   ['requestor', 'Requestor'],
   ['req.manager', 'Requestor Approver'],
+  ['ss.manager', 'System Manager'],
   ['reviewer', 'System Reviewer / Supervisor'],
   ['authority', 'Authority / Manager'],
   ['leader', 'Project Leader'],

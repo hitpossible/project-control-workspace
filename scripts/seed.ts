@@ -4,6 +4,7 @@
 import { config } from 'dotenv';
 import { hashPassword, loadProfile } from '../src/server/users';
 import { POSITION_LEVELS } from '../src/lib/approval';
+import type { DocumentType } from '../src/lib/types';
 import { pool } from '../src/server/db';
 import { localDb } from '../src/server/local-db';
 
@@ -21,6 +22,7 @@ const USERS = [
   { key: 'reqmgr',    email: 'req.manager@tbkk.test',full_name: 'Suda Manee',          employee_id: 'P1002', department: 'K1PD01', section: 'K1B000', roles: ['requestor', 'requestor_approver'], level: 'manager' },
   { key: 'reqgm',     email: 'req.gm@tbkk.test',     full_name: 'Prasert Production GM', employee_id: 'P1003', department: 'K1PD01', section: 'K1B000', roles: ['requestor'], level: 'gm' },
   { key: 'reviewer',  email: 'reviewer@tbkk.test',   full_name: 'Anan Reviewer',       employee_id: 'S2001', department: 'K1SS00', section: 'K1SS00', roles: ['system_reviewer', 'supervisor', 'requestor'], level: 'supervisor' },
+  { key: 'ssmgr',     email: 'ss.manager@tbkk.test', full_name: 'Kanya System Manager', employee_id: 'S2007', department: 'K1SS00', section: 'K1SS00', roles: ['requestor', 'requestor_approver'], level: 'manager' },
   { key: 'ssgm',      email: 'ss.gm@tbkk.test',      full_name: 'Chaiwat System GM',   employee_id: 'S2000', department: 'K1SS00', section: 'K1SS00', roles: ['manager'], level: 'gm' },
   { key: 'factory',   email: 'factory@tbkk.test',    full_name: 'Somsak Factory Mgr',  employee_id: 'M3003', department: 'K1EX00', section: 'K1EX00', roles: ['management_view'], level: 'factory_manager' },
   { key: 'authority', email: 'authority@tbkk.test',  full_name: 'Kittipong Director',  employee_id: 'M3001', department: 'K1EX00', section: 'K1EX00', roles: ['authority_approver', 'manager'], level: 'president' },
@@ -33,6 +35,7 @@ const USERS = [
 ];
 
 const ids: Record<string, number> = {};
+let docTypeId = 0;
 const clients: Record<string, Db> = {};
 
 const localIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -85,11 +88,18 @@ async function createUsers() {
     clients[u.key] = localDb(await loadProfile(id));
   }
   console.log(`✓ ${USERS.length} users`);
+  // Software Request route (migration 005): pick the System Service approvers
+  const swr = must(await admin.from('document_types').select('*').eq('code', 'SWR').single(), 'software request type') as DocumentType;
+  const picked: Record<string, number[]> = { ss_receive: [ids.reviewer, ids.supervisor], ss_gm_approve: [ids.ssgm], ss_fm_approve: [ids.factory], final_approve: [ids.authority] };
+  must(await admin.from('document_types').update({
+    approval_route: swr.approval_route.map((s) => (picked[s.step_code] ? { ...s, approvers: picked[s.step_code] } : s)),
+  }).eq('id', swr.id), 'route approvers');
+  docTypeId = swr.id;
 }
 
 async function newRequest(fields: Record<string, unknown>) {
   const req = must(
-    await clients.requestor.from('project_requests').insert(fields).select().single(),
+    await clients.requestor.from('project_requests').insert({ document_type_id: docTypeId, ...fields }).select().single(),
     'insert request',
   );
   return req;
@@ -123,10 +133,10 @@ async function fullyApprove(r: any, typeCode: string, tplCode: string) {
   await approve('reqmgr', r.id, 'Agree, please proceed.');      // Checked By (Manager up)
   await approve('reqgm', r.id, 'Approved.');                    // Approved By (GM up)
   await review(r.id, typeCode, tplCode);
-  await approve('reviewer', r.id, 'Received by System Service.'); // Received Request By (Supervisor up)
-  await approve('ssgm', r.id, 'Approved.');                     // Approved Request By (GM up)
-  await approve('factory', r.id, 'Approved.');                  // Approved Request By (Factory Manager)
-  await approve('authority', r.id, 'Final approval.');          // Final Approved By (President)
+  await approve('reviewer', r.id, 'Received by System Service.'); // Received Request By (picked)
+  await approve('ssgm', r.id, 'Approved.');                     // Approved Request By (picked)
+  await approve('factory', r.id, 'Approved.');                  // Approved Request By (picked)
+  await approve('authority', r.id, 'Final approval.');          // Final Approved By (picked)
 }
 
 async function convert(r: any, start: string, target: string, sponsor: string) {

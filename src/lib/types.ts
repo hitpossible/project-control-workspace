@@ -1,3 +1,5 @@
+import type { RouteStep } from './approval';
+
 export type Role =
   | 'requestor'
   | 'requestor_approver'
@@ -61,6 +63,18 @@ export interface ProjectType {
   is_active: boolean;
 }
 
+/** Kind of request document — own number format (running number) and approval route */
+export interface DocumentType {
+  id: number;
+  code: string;
+  name: string;
+  form_no: string | null;
+  request_no_format: string;
+  approval_route: RouteStep[];
+  sort_order: number;
+  is_active: boolean;
+}
+
 export interface TemplateActivity {
   name: string;
   pic_label?: string;
@@ -83,6 +97,7 @@ export interface ProjectTemplate {
 export interface ProjectRequest {
   id: number;
   request_no: string | null;
+  document_type_id: number;
   status: string;
   requestor_id: number;
   req_employee_id: string | null;
@@ -126,10 +141,14 @@ export interface ApprovalStep {
   request_id: number;
   cycle: number;
   step_no: number;
-  /** see APPROVAL_ROUTE; requestor_approval / system_review / authority_approval = steps created before the fixed route */
+  /** copied from the document type's route; requestor_approval / system_review / authority_approval = steps created before the fixed route */
   step_code: string;
   step_name: string;
+  /** RouteStage; null = step created before stages (see stepStage) */
+  stage: string | null;
   approver_id: number | null;
+  /** picked approvers (any one may act); null = matched by approver_levels or legacy */
+  approver_ids: number[] | null;
   approver_role: string;
   /** levels allowed to act; null = legacy step (approver_id / approver_role) */
   approver_levels: PositionLevel[] | null;

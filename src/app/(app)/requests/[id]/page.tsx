@@ -1,18 +1,19 @@
 'use client';
 
 import dayjs from 'dayjs';
-import { CircleCheck, CircleDashed, CircleHelp, CircleX, Hourglass, Undo2 } from 'lucide-react';
+import { Ban, Check, CircleHelp, Hourglass, MessageCircleQuestion, Rocket, Send, Undo2, Users, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import AuditHistory from '@/components/AuditHistory';
 import { dispatchEmails, useApp } from '@/components/AppProvider';
 import { ActionButton, CommentDialog, DateField, Field, PageHeader, PriorityChip, Section, SelectField, StatusChip, TextField, UserSelect } from '@/components/common';
 import EvidencePanel from '@/components/EvidencePanel';
-import RequestForm, { ApprovalRoutePreview, REDUCTION_ROWS } from '@/components/RequestForm';
+import RequestForm, { REDUCTION_ROWS } from '@/components/RequestForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { RECEIVE_STEPS, canActOnStep, routeGroup, stepAudience } from '@/lib/approval';
+import { useDocumentTypes } from '@/components/useDocumentTypes';
+import { canActOnStep, stepAudience, stepGroup, stepStage } from '@/lib/approval';
 import { APPROVAL_ACTION_LABELS, REQUEST_STATUSES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, fmtNum } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -20,23 +21,38 @@ import type { ApprovalAction, ApprovalStep, ProjectRequest, ProjectTemplate, Pro
 import { cn } from '@/lib/utils';
 
 type Act = 'approve' | 'reject' | 'send_back' | 'request_more_info';
-const ACT_META: Record<Act, { label: string; tone: 'success' | 'destructive' | 'warning' | 'secondary'; required: boolean }> = {
-  approve: { label: 'Approve', tone: 'success', required: false },
-  reject: { label: 'Reject', tone: 'destructive', required: true },
-  send_back: { label: 'Send Back', tone: 'warning', required: true },
-  request_more_info: { label: 'Request More Information', tone: 'secondary', required: true },
+const ACT_META: Record<Act, { label: string; short: string; icon: LucideIcon; tone: 'success' | 'destructive' | 'warning' | 'secondary'; required: boolean }> = {
+  approve: { label: 'Approve', short: 'Approve', icon: Check, tone: 'success', required: false },
+  reject: { label: 'Reject', short: 'Reject', icon: X, tone: 'destructive', required: true },
+  send_back: { label: 'Send Back', short: 'Send Back', icon: Undo2, tone: 'warning', required: true },
+  request_more_info: { label: 'Request More Information', short: 'Ask for Info', icon: MessageCircleQuestion, tone: 'secondary', required: true },
 };
 
-function StepIcon({ status }: { status: string }) {
-  const cls = 'size-5 shrink-0';
-  switch (status) {
-    case 'approved': return <CircleCheck className={cn(cls, 'text-[#00c875]')} />;
-    case 'waiting': return <Hourglass className={cn(cls, 'text-[#fdab3d]')} />;
-    case 'rejected': return <CircleX className={cn(cls, 'text-[#e2445c]')} />;
-    case 'sent_back': return <Undo2 className={cn(cls, 'text-[#fdab3d]')} />;
-    case 'more_info': return <CircleHelp className={cn(cls, 'text-[#a25ddc]')} />;
-    default: return <CircleDashed className={cn(cls, 'text-muted-foreground/50')} />;
-  }
+type Tone = { label: string; icon: LucideIcon; fg: string; bg: string };
+const STEP_META: Record<string, Tone> = {
+  approved: { label: 'Approved', icon: Check, fg: '#00854d', bg: '#e3f8ee' },
+  waiting: { label: 'Waiting', icon: Hourglass, fg: '#b45309', bg: '#fff1d6' },
+  rejected: { label: 'Rejected', icon: X, fg: '#d83a52', bg: '#fdebee' },
+  sent_back: { label: 'Sent Back', icon: Undo2, fg: '#b45309', bg: '#fff1d6' },
+  more_info: { label: 'More Info', icon: MessageCircleQuestion, fg: '#784bd1', bg: '#f1eafc' },
+};
+const HISTORY_META: Record<string, Tone> = {
+  submit: { label: '', icon: Send, fg: '#0073ea', bg: '#e6f1fd' },
+  resubmit: { label: '', icon: Send, fg: '#0073ea', bg: '#e6f1fd' },
+  approve: STEP_META.approved,
+  reject: STEP_META.rejected,
+  send_back: STEP_META.sent_back,
+  request_more_info: STEP_META.more_info,
+  cancel: { label: '', icon: Ban, fg: '#676879', bg: '#eef0f4' },
+  convert: { label: '', icon: Rocket, fg: '#00854d', bg: '#e3f8ee' },
+};
+
+function Bubble({ tone, children }: { tone: Pick<Tone, 'fg' | 'bg'>; children: React.ReactNode }) {
+  return (
+    <span className="relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-4 ring-card" style={{ background: tone.bg, color: tone.fg }}>
+      {children}
+    </span>
+  );
 }
 
 export default function RequestDetailPage() {
@@ -54,6 +70,7 @@ export default function RequestDetailPage() {
   const [conv, setConv] = useState({ start: dayjs().format('YYYY-MM-DD'), target: '', sponsor: '' });
   const [notFound, setNotFound] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const docType = useDocumentTypes().find((t) => t.id === r?.document_type_id);
 
   const load = useCallback(async () => {
     const { data, error } = await db.from('project_requests').select('*').eq('id', id).maybeSingle();
@@ -87,8 +104,9 @@ export default function RequestDetailPage() {
   const cycle = Math.max(0, ...steps.map((s) => s.cycle));
   const current = steps.filter((s) => s.cycle === cycle);
   const waiting = current.find((s) => s.status === 'waiting');
+  const approvedCount = current.filter((s) => s.status === 'approved').length;
   const canAct = !!waiting && canActOnStep(waiting, me, r.requestor_id);
-  const isReview = canAct && !!waiting && RECEIVE_STEPS.includes(waiting.step_code);
+  const isReview = canAct && !!waiting && stepStage(waiting) === 'receive';
   const legacyReview = waiting?.step_code === 'system_review';
   const canConvert = r.status === 'approved' && (hasRole('system_reviewer') || r.proposed_leader_id === me.id || r.reviewed_by === me.id);
 
@@ -118,6 +136,7 @@ export default function RequestDetailPage() {
       <PageHeader
         title={<>{r.request_no ?? 'Draft request'} — {r.project_name}</>}
         subtitle={<div className="flex flex-wrap items-center gap-2">
+          {docType && <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">{docType.name}</span>}
           <StatusChip list={REQUEST_STATUSES} value={r.status} /> <PriorityChip value={r.priority} />
           <span className="text-xs">Requested by {r.req_full_name} · {r.req_department}</span>
         </div>}
@@ -212,32 +231,67 @@ export default function RequestDetailPage() {
         </div>
 
         <div className="col-span-12 xl:col-span-4">
-          <Section title="Approval Route">
+          <Section
+            title="Approval Route"
+            actions={current.length > 0 && <span className="text-xs font-medium text-muted-foreground">{approvedCount} / {current.length} approved</span>}
+          >
             {current.length === 0 ? (
-              <>
-                <p className="mb-3 text-sm text-muted-foreground">Not submitted yet. Once submitted it follows:</p>
-                <ApprovalRoutePreview department={r.req_department} />
-              </>
+              <p className="text-sm text-muted-foreground">Not submitted yet.</p>
             ) : (
-              <ol className="relative space-y-4">
-                {current.map((s, i) => (
-                  <li key={s.id} className="relative flex gap-3">
-                    {i < current.length - 1 && <span className="absolute top-6 left-[9px] h-[calc(100%-4px)] w-px bg-border" />}
-                    <StepIcon status={s.status} />
-                    <div className="min-w-0">
-                      {routeGroup(s.step_code) && routeGroup(s.step_code) !== routeGroup(current[i - 1]?.step_code ?? '') && (
-                        <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{routeGroup(s.step_code)}</div>
-                      )}
-                      <div className={cn('text-sm font-semibold', s.status === 'waiting' && 'text-[#d97706]')}>{s.step_name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {s.approver_levels ? stepAudience(s) : s.approver_id ? profileName(s.approver_id) : `Any ${ROLE_LABELS[s.approver_role as Role] ?? s.approver_role}`} · {s.status.replace('_', ' ')}
-                      </div>
-                      {s.acted_at && <div className="text-xs">{profileName(s.acted_by)} · {fmtDateTime(s.acted_at)}</div>}
-                      {s.comment && <div className="text-sm italic">“{s.comment}”</div>}
-                    </div>
-                  </li>
-                ))}
-              </ol>
+              <>
+                <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-[#00c875] transition-all" style={{ width: `${(approvedCount / current.length) * 100}%` }} />
+                </div>
+                <ol>
+                  {current.map((s, i) => {
+                    const meta = STEP_META[s.status];
+                    const group = stepGroup(s);
+                    const newGroup = i === 0 || group !== stepGroup(current[i - 1]);
+                    const isWaiting = s.status === 'waiting';
+                    return (
+                      <Fragment key={s.id}>
+                        {newGroup && (
+                          <li className={cn('relative pb-2 pl-10', i > 0 && 'pt-1')}>
+                            {i > 0 && <span className={cn('absolute inset-y-0 left-[13px] w-0.5', current[i - 1].status === 'approved' ? 'bg-[#00c875]' : 'bg-border')} />}
+                            <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{group}</span>
+                          </li>
+                        )}
+                        <li className="relative flex gap-3 pb-4 last:pb-0">
+                          {i < current.length - 1 && (
+                            <span className={cn('absolute top-7 bottom-0 left-[13px] w-0.5', s.status === 'approved' ? 'bg-[#00c875]' : 'bg-border')} />
+                          )}
+                          <Bubble tone={meta ?? { fg: '#676879', bg: '#eef0f4' }}>
+                            {meta ? <meta.icon className="size-3.5" strokeWidth={2.5} /> : s.step_no}
+                          </Bubble>
+                          <div className={cn('min-w-0 flex-1', isWaiting && '-mt-1 rounded-lg border border-[#fdab3d]/60 bg-[#fff8eb] px-3 py-2')}>
+                            <div className="flex items-start gap-2">
+                              <span className={cn('flex-1 pt-1 text-sm font-semibold', !meta && 'text-muted-foreground')}>{s.step_name}</span>
+                              <span
+                                className="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                style={meta ? { background: meta.bg, color: meta.fg } : { background: '#eef0f4', color: '#676879' }}
+                              >
+                                {isWaiting && canAct ? 'Your turn' : meta?.label ?? s.status.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase())}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                              <Users className="size-3 shrink-0" />
+                              <span className="truncate">
+                                {s.approver_levels ? stepAudience(s) : s.approver_ids?.length ? s.approver_ids.map(profileName).join(' / ') : s.approver_id ? profileName(s.approver_id) : `Any ${ROLE_LABELS[s.approver_role as Role] ?? s.approver_role}`}
+                              </span>
+                            </div>
+                            {s.acted_at && (
+                              <div className="mt-0.5 text-xs text-muted-foreground">
+                                by <span className="font-medium text-foreground">{profileName(s.acted_by)}</span> · {fmtDateTime(s.acted_at)}
+                              </div>
+                            )}
+                            {s.comment && <div className="mt-1.5 rounded-md border-l-2 bg-muted/60 px-2.5 py-1.5 text-xs italic" style={{ borderColor: meta?.fg }}>“{s.comment}”</div>}
+                          </div>
+                        </li>
+                      </Fragment>
+                    );
+                  })}
+                </ol>
+              </>
             )}
           </Section>
 
@@ -258,18 +312,43 @@ export default function RequestDetailPage() {
           )}
 
           {canAct && waiting && (
-            <Section title={`Your action — ${waiting.step_name}`} className="ring-2 ring-primary">
-              <div className="flex flex-col gap-2">
-                {(Object.keys(ACT_META) as Act[]).map((a) => (
-                  <ActionButton key={a} tone={ACT_META[a].tone} outline={a !== 'approve'} className="h-9 w-full" onClick={async () => {
-                    if (a === 'approve' && isReview) {
-                      const saved = await saveReview();
-                      if (!saved) return;
-                    }
-                    setDialog(a);
-                  }}>{ACT_META[a].label}</ActionButton>
-                ))}
+            <Section className="overflow-hidden bg-gradient-to-b from-[#eef5ff] to-card to-60% ring-2 ring-primary/70">
+              <div className="mb-4 flex items-start gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-white"><Hourglass className="size-4" /></span>
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-primary">Your action required · Step {current.indexOf(waiting) + 1} of {current.length}</div>
+                  <h3 className="text-base font-semibold">{waiting.step_name}</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Review the request, then approve it or pick another action. A comment is required unless you approve.</p>
+                </div>
               </div>
+              {(() => {
+                const go = async (a: Act) => {
+                  if (a === 'approve' && isReview) {
+                    const saved = await saveReview();
+                    if (!saved) return;
+                  }
+                  setDialog(a);
+                };
+                const others = (Object.keys(ACT_META) as Act[]).filter((a) => a !== 'approve');
+                return (
+                  <>
+                    <ActionButton tone="success" className="h-11 w-full gap-2 text-sm shadow-sm" onClick={() => go('approve')}>
+                      <Check className="size-4" strokeWidth={3} /> Approve
+                    </ActionButton>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {others.map((a) => {
+                        const Icon = ACT_META[a].icon;
+                        return (
+                          <ActionButton key={a} tone={ACT_META[a].tone} outline title={ACT_META[a].label} className="h-auto flex-col gap-1 px-1 py-2 text-xs whitespace-normal" onClick={() => go(a)}>
+                            <Icon className="size-4" />
+                            {ACT_META[a].short}
+                          </ActionButton>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
             </Section>
           )}
 
@@ -290,18 +369,25 @@ export default function RequestDetailPage() {
 
           <Section title="Approval History">
             {actions.length === 0 ? <p className="text-sm text-muted-foreground">No actions yet.</p> : (
-              <div className="divide-y divide-grid">
-                {[...actions].reverse().map((a) => (
-                  <div key={a.id} className="py-2">
-                    <div className="text-sm font-semibold">
-                      {APPROVAL_ACTION_LABELS[a.action] ?? a.action}
-                      {a.step_code && <span className="text-xs font-normal text-muted-foreground"> · {steps.find((s) => s.id === a.step_id)?.step_name ?? a.step_code.replace('_', ' ')}</span>}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{profileName(a.action_by)} · {fmtDateTime(a.created_at)}</div>
-                    {a.comment && <div className="text-sm italic">“{a.comment}”</div>}
-                  </div>
-                ))}
-              </div>
+              <ol>
+                {[...actions].reverse().map((a, i, all) => {
+                  const meta = HISTORY_META[a.action] ?? HISTORY_META.cancel;
+                  return (
+                    <li key={a.id} className="relative flex gap-3 pb-4 last:pb-0">
+                      {i < all.length - 1 && <span className="absolute top-7 bottom-0 left-[13px] w-0.5 bg-border" />}
+                      <Bubble tone={meta}><meta.icon className="size-3.5" strokeWidth={2.5} /></Bubble>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <div className="text-sm">
+                          <span className="font-semibold" style={{ color: meta.fg }}>{APPROVAL_ACTION_LABELS[a.action] ?? a.action}</span>
+                          {a.step_code && <span className="text-xs text-muted-foreground"> · {steps.find((s) => s.id === a.step_id)?.step_name ?? a.step_code.replace('_', ' ')}</span>}
+                        </div>
+                        <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{profileName(a.action_by)}</span> · {fmtDateTime(a.created_at)}</div>
+                        {a.comment && <div className="mt-1.5 rounded-md border-l-2 bg-muted/60 px-2.5 py-1.5 text-xs italic" style={{ borderColor: meta.fg }}>“{a.comment}”</div>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
             )}
           </Section>
 

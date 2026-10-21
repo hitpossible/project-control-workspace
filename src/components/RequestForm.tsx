@@ -2,7 +2,6 @@
 
 import { Info } from 'lucide-react';
 import { Fragment, useState } from 'react';
-import { APPROVAL_ROUTE, stepAudience } from '@/lib/approval';
 import { PRIORITIES } from '@/lib/constants';
 import { errMsg, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -21,8 +20,9 @@ export const REDUCTION_ROWS = [
   { label: 'Others Cost (THB)', from: 'reduction_cost_from', to: 'reduction_cost_to' },
 ] as const satisfies readonly { label: string; from: keyof ProjectRequest; to: keyof ProjectRequest }[];
 
-export function emptyRequest(): RequestDraft {
+export function emptyRequest(documentTypeId: number): RequestDraft {
   return {
+    document_type_id: documentTypeId,
     project_name: '',
     description: '',
     reason: '',
@@ -67,7 +67,7 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
     const payload = nullify(Object.fromEntries(EDITABLE.map((k) => [k, f[k] ?? null])));
     const res = f.id
       ? await db.from('project_requests').update(payload).eq('id', f.id).select().single()
-      : await db.from('project_requests').insert(payload).select().single();
+      : await db.from('project_requests').insert({ ...payload, document_type_id: f.document_type_id }).select().single();
     if (res.error) {
       notify(errMsg(res.error), 'error');
       return null;
@@ -109,10 +109,6 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
         </div>
       </Section>
 
-      <Section title="Approval Route">
-        <ApprovalRoutePreview department={me?.department ?? null} />
-      </Section>
-
       {!f.id && (
         <Alert className="mb-4"><Info /><AlertDescription>Save the draft first to attach documents (PDF, Excel, Word, screenshot, e-mail, links…).</AlertDescription></Alert>
       )}
@@ -133,35 +129,6 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
           }}>Submit for Approval</Button>
         )}
       </div>
-    </div>
-  );
-}
-
-/** The fixed route a request follows once submitted — approvers are matched by Position Level, not picked */
-export function ApprovalRoutePreview({ department }: { department: string | null }) {
-  const groups = [...new Set(APPROVAL_ROUTE.map((s) => s.group))];
-  return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {groups.map((g, gi) => (
-        <div key={g}>
-          <div className="mb-2 text-sm font-semibold">{gi + 1}. {g}</div>
-          <ol className="space-y-1.5">
-            {APPROVAL_ROUTE.filter((s) => s.group === g).map((s) => (
-              <li key={s.step_code} className="flex items-baseline gap-2 text-sm">
-                <span className="size-1.5 shrink-0 translate-y-[-2px] rounded-full bg-muted-foreground/50" />
-                <span>
-                  {s.step_name}{' '}
-                  <span className="text-muted-foreground">
-                    ({stepAudience({ approver_levels: s.levels, approver_department: s.department === 'requestor' ? department : null })}
-                    {s.department === 'system_service' ? ' · System Service' : ''})
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      ))}
-      <p className="text-xs text-muted-foreground md:col-span-2">Approved requests are then converted to a Controlled Project.</p>
     </div>
   );
 }

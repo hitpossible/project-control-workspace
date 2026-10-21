@@ -70,9 +70,9 @@ export async function canManageProject(ctx: Ctx, projectId: number) {
 /** Ids of requests I raised, acted on, or may approve (my Position Level / department matches one of its steps) */
 export function myRequestIds(ctx: Ctx): [string, unknown[]] {
   return [`SELECT id FROM project_requests WHERE requestor_id = ? OR requestor_approver_id = ? OR authority_approver_id = ?
-    UNION SELECT request_id FROM approval_steps WHERE acted_by = ? OR approver_id = ?
+    UNION SELECT request_id FROM approval_steps WHERE acted_by = ? OR approver_id = ? OR JSON_CONTAINS(approver_ids, CAST(? AS JSON))
       OR (JSON_CONTAINS(approver_levels, JSON_QUOTE(?)) AND (approver_department IS NULL OR approver_department = ?))`,
-  [ctx.uid, ctx.uid, ctx.uid, ctx.uid, ctx.uid, levelOfPosition(ctx.me?.position) ?? '', ctx.me?.department ?? '']];
+  [ctx.uid, ctx.uid, ctx.uid, ctx.uid, ctx.uid, String(ctx.uid), levelOfPosition(ctx.me?.position) ?? '', ctx.me?.department ?? '']];
 }
 
 export async function canViewRequest(ctx: Ctx, requestId: number) {

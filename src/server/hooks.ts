@@ -53,17 +53,14 @@ export const HOOKS: Record<string, Hooks> = {
     },
   },
 
-  departments: {
-    async afterUpdate(ctx, d, o) {
-      if (d.name === o.name) return;
-      await ctx.exec("UPDATE app_settings SET value = ? WHERE `key` = 'system_service_department' AND JSON_UNQUOTE(value) = ?", [JSON.stringify(d.name), o.name]);
-    },
-  },
-
   project_requests: {
-    beforeInsert(ctx, r) {
+    async beforeInsert(ctx, r) {
       r.status ??= 'draft';
-      if (!ctx.bypass) Object.assign(r, requestorInfo(ctx));
+      if (ctx.bypass) return;
+      Object.assign(r, requestorInfo(ctx));
+      if (!(await ctx.val('SELECT 1 FROM document_types WHERE id = ? AND is_active = 1', [r.document_type_id ?? null]))) {
+        throw new AppError('Choose an active document type for the request');
+      }
     },
     beforeUpdate(ctx, n, o) {
       if (ctx.bypass) return;
@@ -71,6 +68,8 @@ export const HOOKS: Record<string, Hooks> = {
       if (changed(n, o, 'status', 'request_no', 'date_submitted', 'submitted_at', 'project_id', 'requestor_id', 'reviewed_by')) {
         throw new AppError('Protected request fields can only be changed through the approval workflow', 403);
       }
+      // The request number belongs to the document type's running number
+      if (Number(n.document_type_id) !== Number(o.document_type_id)) throw new AppError('The document type of a request cannot be changed', 403);
       if (!['draft', 'need_more_information'].includes(String(o.status))) {
         throw new AppError(`Request ${o.request_no ?? o.id} is locked (status: ${o.status})`, 409);
       }

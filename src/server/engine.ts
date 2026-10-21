@@ -114,7 +114,8 @@ export async function getRow(ctx: Ctx, table: string, pk: unknown, lock = false)
 }
 
 export async function insertRow(ctx: Ctx, table: string, input: Row): Promise<Row> {
-  const meta = await tableMeta(ctx, table);
+  // pass the keys so a column added by a migration while the server is up is not silently dropped
+  const meta = await tableMeta(ctx, table, Object.keys(input));
   const row: Row = { ...JSON_DEFAULTS[table] };
   for (const [k, v] of Object.entries(input)) if (v !== undefined && meta.columns.has(k)) row[k] = v;
   for (const c of ME_DEFAULTS[table] ?? []) if (row[c] === undefined) row[c] = ctx.uid;
@@ -138,7 +139,7 @@ export async function insertRow(ctx: Ctx, table: string, input: Row): Promise<Ro
 }
 
 export async function updateRow(ctx: Ctx, table: string, pk: unknown, patch: Row): Promise<Row | null> {
-  const meta = await tableMeta(ctx, table);
+  const meta = await tableMeta(ctx, table, Object.keys(patch));
   const old = await getRow(ctx, table, pk, true);
   if (!old) return null;
   const next: Row = { ...old };

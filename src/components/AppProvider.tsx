@@ -3,9 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { canActOnStep } from '@/lib/approval';
 import { SYSTEM_STAFF_ROLES } from '@/lib/constants';
 import { dbClient, handleUnauthorized } from '@/lib/db/client';
-import type { Profile, Role } from '@/lib/types';
+import type { ApprovalStep, Profile, Role } from '@/lib/types';
 
 interface AppCtx {
   me: Profile | null;
@@ -16,6 +17,8 @@ interface AppCtx {
   notify: (message: string, severity?: 'success' | 'error' | 'info' | 'warning') => void;
   refreshProfiles: () => Promise<void>;
   unread: number;
+  /** requests waiting for my approval (same rule as the Waiting My Action tab) */
+  pendingApprovals: number;
   refreshUnread: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -34,6 +37,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const [me, setMe] = useState<Profile | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [unread, setUnread] = useState(0);
+  const [waitingSteps, setWaitingSteps] = useState<{ steps: ApprovalStep[]; requestor: Map<number, number> }>({ steps: [], requestor: new Map() });
 
   const refreshProfiles = useCallback(async () => {
     const [auth, { data }] = await Promise.all([
@@ -57,6 +61,13 @@ export default function AppProvider({ children }: { children: React.ReactNode })
   const refreshUnread = useCallback(async () => {
     const { count } = await db.from('notifications').select('id', { count: 'exact', head: true }).eq('is_read', false);
     setUnread(count ?? 0);
+    const { data: steps } = await db.from('approval_steps').select('*').eq('status', 'waiting');
+    const ids = [...new Set(((steps ?? []) as ApprovalStep[]).map((x) => x.request_id))];
+    const { data: reqs } = ids.length ? await db.from('project_requests').select('id,requestor_id').in('id', ids) : { data: [] };
+    setWaitingSteps({
+      steps: (steps ?? []) as ApprovalStep[],
+      requestor: new Map(((reqs ?? []) as { id: number; requestor_id: number }[]).map((r) => [r.id, r.requestor_id])),
+    });
   }, [db]);
 
   useEffect(() => {
@@ -79,6 +90,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
       notify: (message, severity = 'success') => toast[severity](message, { duration: severity === 'error' ? 8000 : 3500 }),
       refreshProfiles,
       unread,
+      pendingApprovals: new Set(waitingSteps.steps.filter((x) => canActOnStep(x, me, waitingSteps.requestor.get(x.request_id))).map((x) => x.request_id)).size,
       refreshUnread,
       signOut: async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
@@ -86,7 +98,7 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         router.refresh();
       },
     };
-  }, [me, profiles, unread, refreshProfiles, refreshUnread, router]);
+  }, [me, profiles, unread, waitingSteps, refreshProfiles, refreshUnread, router]);
 
   return (
     <Ctx.Provider value={value}>

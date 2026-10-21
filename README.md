@@ -53,16 +53,21 @@ Username = the name below, local password = `SEED_PASSWORD` in `scripts/seed.ts`
 | mgmt | Management / User View | Manager · EXECUTIVE |
 | admin | Administrator | Staff |
 
+### Document types
+
+Every request has a **document type** (`document_types`, Admin → Document Types; first type: **Software Request**, `SWR`, FM-SYS-004). The requestor picks it when creating the request (skipped while only one type is active) and it can't be changed afterwards. Each type has its own:
+
+- **Request number format** — tokens `{DOC}` (type code) `{YYYY}` `{YY}` `{SEQ:n}`; the running number is kept per prefix, and two types may not produce the same prefix, so each type runs its own numbers.
+- **Approval route** (`approval_route` JSON, see `RouteStep` in `src/lib/approval.ts`) — steps in three stages: Requestor side (position level in the requestor's department) → Receive (exactly one; fills in Project Type / Template / Leader) → System Service side (picked people). The route is copied to `approval_steps` on submit, so editing it only affects requests submitted afterwards.
+
 ### Approval route
 
-Fixed for every request (`src/lib/approval.ts`) — nobody picks approvers on the form. Each step is open to every active user whose **position** matches (SUPERVISOR, MANAGER, GENERAL MANAGER, FACTORY MANAGER, PRESIDENT — other positions cannot approve), and for some steps whose department matches; the requestor never approves their own request.
+Nobody picks approvers on the form; the requestor never approves their own request. The Software Request route:
+
+1. **Requestor Approval** (automatic): Checked By (Manager up) → Approved By (GM up). Open to every active user in the **requestor's department** whose **position** is at that level or higher (SUPERVISOR, MANAGER, GENERAL MANAGER, FACTORY MANAGER, PRESIDENT — other positions cannot approve).
+2. **System Service Approval** (picked): Received Request By (fills in Project Type / Template / Leader) → Approved Request By → Approved Request By → Final Approved By. Each step goes to the people picked in Admin → Document Types (the type's `approval_route`, copied to `approval_steps.approver_ids` on submit) — whoever acts first completes it; a request can't be submitted until every step has at least one active approver.
 
 Profiles store `department_id` / `section_id` / `position_id`. At every AD login the `department`, `section` and `position` names from AD are matched (by name) to those tables; a name that is not found becomes empty.
-
-1. **Requestor Approval** (requestor's department): Checked By (Manager up) → Approved By (GM up)
-2. **System Service Approval**: Received Request By (Supervisor up, System Service department — fills in Project Type / Template / Leader) → Approved Request By (GM up, System Service department) → Approved Request By (Factory Manager) → Final Approved By (President)
-
-The System Service department is set in Admin → Numbering & Route (default `SYSTEM`).
 
 All tables use INT AUTO_INCREMENT ids (`audit_logs`: BIGINT). Ids are per table, so code that mixes rows of several tables in one map / set keys them with `entityKey(type, id)` (`src/components/common.tsx`), and audit lookups always filter by `table_name`.
 

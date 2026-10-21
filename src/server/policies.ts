@@ -50,6 +50,7 @@ export const POLICIES: Record<string, Policy> = {
   // Master data: read for all, write for admin
   app_settings: masterData,
   project_types: masterData,
+  document_types: masterData,
   departments: masterData,
   sections: masterData,
   positions: masterData,
@@ -69,7 +70,7 @@ export const POLICIES: Record<string, Policy> = {
     check: (ctx, n) => n.requestor_id === ctx.uid,
     delete: (ctx, o) => o.requestor_id === ctx.uid && o.status === 'draft' && o.request_no === null,
   },
-  approval_steps: { read: (ctx) => (isStaff(ctx) ? all : or(requestFilter(ctx), ['approver_id = ?', [ctx.uid]])) },
+  approval_steps: { read: (ctx) => (isStaff(ctx) ? all : or(requestFilter(ctx), ['approver_id = ? OR JSON_CONTAINS(approver_ids, CAST(? AS JSON))', [ctx.uid, String(ctx.uid)]])) },
   approval_actions: { read: (ctx) => requestFilter(ctx) },
 
   // Projects

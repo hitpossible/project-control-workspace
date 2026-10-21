@@ -1,22 +1,25 @@
 'use client';
 
-import { Plus } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { BoardGroup, MultiSelect, PageHeader, Person, SelectField, TextField } from '@/components/common';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DELAY_CATEGORIES, INSIGHT_SEVERITIES, MEMBER_ROLES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
-import type { Department, InsightRule, NotificationRule, Position, Profile, ProjectTemplate, ProjectType, Role, Section } from '@/lib/types';
-import { APPROVAL_ROUTE, POSITION_LEVELS, stepAudience } from '@/lib/approval';
+import type { Department, DocumentType, InsightRule, NotificationRule, Position, PositionLevel, Profile, ProjectTemplate, ProjectType, Role, Section } from '@/lib/types';
+import { POSITION_LEVELS, ROUTE_STAGES, andUp, defaultRoute, formatPrefix, routeApprovers, routeProblems, type RouteStage, type RouteStep } from '@/lib/approval';
 import { cn } from '@/lib/utils';
 
 const ROLE_OPTS = (Object.keys(ROLE_LABELS) as Role[]).map((r) => ({ value: r, label: ROLE_LABELS[r] }));
@@ -36,7 +39,7 @@ function wheelScrollX(el: HTMLDivElement | null) {
   return () => el.removeEventListener('wheel', onWheel);
 }
 
-const TABS = ['Users & Roles', 'Departments', 'Project Types', 'Project Templates', 'Numbering & Route', 'Notification Rules', 'Insight Rules', 'KPI Settings'];
+const TABS = ['Users & Roles', 'Departments', 'Document Types', 'Project Types', 'Project Templates', 'Project Code', 'Notification Rules', 'Insight Rules', 'KPI Settings'];
 
 export default function AdminPage() {
   const { hasRole } = useApp();
@@ -52,12 +55,13 @@ export default function AdminPage() {
       </Tabs>
       {tab === TABS[0] && <UsersAdmin />}
       {tab === TABS[1] && <DepartmentsAdmin />}
-      {tab === TABS[2] && <TypesAdmin />}
-      {tab === TABS[3] && <TemplatesAdmin />}
-      {tab === TABS[4] && <SettingsAdmin />}
-      {tab === TABS[5] && <RulesAdmin />}
-      {tab === TABS[6] && <InsightRulesAdmin />}
-      {tab === TABS[7] && <KpiSettingsAdmin />}
+      {tab === TABS[2] && <DocumentTypesAdmin />}
+      {tab === TABS[3] && <TypesAdmin />}
+      {tab === TABS[4] && <TemplatesAdmin />}
+      {tab === TABS[5] && <SettingsAdmin />}
+      {tab === TABS[6] && <RulesAdmin />}
+      {tab === TABS[7] && <InsightRulesAdmin />}
+      {tab === TABS[8] && <KpiSettingsAdmin />}
     </>
   );
 }
@@ -386,51 +390,260 @@ function TemplatesAdmin() {
   );
 }
 
+const TOKENS: [string, string][] = [['{TYPE}', 'Project type code'], ['{YYYY}', 'Year, 4 digits'], ['{YY}', 'Year, 2 digits'], ['{SEQ:n}', 'Running number, n digits — restarts for each new prefix']];
+const DOC_TOKENS: [string, string][] = [['{DOC}', 'Document type code'], ...TOKENS.slice(1)];
+
+/** Same substitution as generateCode() on the server, with the first sequence number */
+function previewCode(format: string | undefined, type: string | null, doc: string | null = null) {
+  if (!format) return '';
+  const yyyy = String(new Date().getFullYear());
+  let fmt = format.replaceAll('{YYYY}', yyyy).replaceAll('{YY}', yyyy.slice(2)).replaceAll('{DOC}', doc ?? '');
+  fmt = type ? fmt.replaceAll('{TYPE}', type) : fmt.replaceAll('-{TYPE}', '').replaceAll('{TYPE}', '');
+  return fmt.replace(/\{SEQ:(\d+)\}/g, (_, n) => '1'.padStart(Number(n), '0'));
+}
+
+function TokenHints({ tokens }: { tokens: [string, string][] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {tokens.map(([t, d]) => (
+        <Tooltip key={t}>
+          <TooltipTrigger asChild><Badge variant="outline" className="cursor-help font-mono">{t}</Badge></TooltipTrigger>
+          <TooltipContent>{d}</TooltipContent>
+        </Tooltip>
+      ))}
+      <span className="self-center text-xs text-muted-foreground">Hover a token to see what it does</span>
+    </div>
+  );
+}
+
 function SettingsAdmin() {
   const db = dbClient();
   const { notify } = useApp();
-  const { departments } = useDepartments();
   const [vals, setVals] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState<Record<string, string>>({});
+  const [typeCode, setTypeCode] = useState('DEV');
+  const key = 'project_code_format';
   useEffect(() => {
-    db.from('app_settings').select('*').then(({ data }) => setVals(Object.fromEntries((data ?? []).map((s: { key: string; value: unknown }) => [s.key, String(s.value)]))));
+    db.from('app_settings').select('*').then(({ data }) => {
+      const v = Object.fromEntries((data ?? []).map((s: { key: string; value: unknown }) => [s.key, String(s.value)]));
+      setVals(v);
+      setSaved(v);
+    });
+    db.from('project_types').select('*').eq('is_active', true).order('code').then(({ data }) => {
+      const t = (data as ProjectType[] | null)?.[0];
+      if (t) setTypeCode(t.code);
+    });
   }, [db]);
-  const save = async (key: string) => {
+  const save = async () => {
     const { error } = await db.from('app_settings').update({ value: vals[key], updated_at: new Date().toISOString() }).eq('key', key);
+    if (!error) setSaved({ ...saved, [key]: vals[key] });
     notify(error ? errMsg(error) : 'Saved', error ? 'error' : 'success');
   };
-  return (
-    <div className="max-w-xl">
-      <p className="mb-4 text-sm text-muted-foreground">
-        Tokens: <b>{'{TYPE}'}</b> project type code · <b>{'{YYYY}'}</b> / <b>{'{YY}'}</b> year · <b>{'{SEQ:n}'}</b> running number with n digits (resets per prefix, e.g. per type and year). Codes are unique and never re-used.
-      </p>
-      <div className="space-y-4">
-        {[['project_code_format', 'Project Code format (e.g. SYS-{TYPE}-{YYYY}-{SEQ:3})'], ['request_no_format', 'Request Number format (e.g. REQ-SYS-{YYYY}-{SEQ:4})']].map(([k, l]) => (
-          <div key={k} className="flex items-end gap-2">
-            <TextField className="flex-1" label={l} value={vals[k]} onChange={(v) => setVals({ ...vals, [k]: v })} />
-            <Button variant="outline" className="h-9" onClick={() => save(k)}>Save</Button>
-          </div>
-        ))}
-      </div>
 
-      <h3 className="mt-8 mb-2 text-sm font-semibold">Approval Route</h3>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Fixed for every request — approvers are matched by their Position (Admin → Users, synced from AD), nobody picks them on the form.
-      </p>
-      <ol className="mb-4 space-y-1 text-sm">
-        {APPROVAL_ROUTE.map((s, i) => (
-          <li key={s.step_code}>
-            <span className="text-muted-foreground">{i + 1}. {s.group} —</span> <b>{s.step_name}</b>{' '}
-            ({stepAudience({ approver_levels: s.levels, approver_department: null })}
-            {s.department === 'requestor' ? ', requestor\'s department' : s.department === 'system_service' ? ', System Service department' : ''})
-          </li>
-        ))}
-      </ol>
-      <div className="flex items-end gap-2">
-        <SelectField className="flex-1" label="System Service department" value={vals.system_service_department}
-          options={departments.filter((d) => d.is_active || d.name === vals.system_service_department).map((d) => ({ value: d.name, label: d.name }))}
-          onChange={(v) => setVals({ ...vals, system_service_department: v })} />
-        <Button variant="outline" className="h-9" onClick={() => save('system_service_department')}>Save</Button>
+  return (
+    <Card className="max-w-xl">
+      <CardHeader>
+        <CardTitle>Project Code</CardTitle>
+        <CardDescription>How new project codes are generated. Request numbers are set per document type in Admin → Document Types.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div>
+          <div className="flex items-end gap-2">
+            <TextField className="flex-1" label="Project Code" mono value={vals[key]} onChange={(v) => setVals({ ...vals, [key]: v })} />
+            <Button variant={vals[key] !== saved[key] ? 'default' : 'outline'} className="h-9" disabled={vals[key] === saved[key]} onClick={save}>Save</Button>
+          </div>
+          <div className="mt-1.5 text-xs text-muted-foreground">
+            Next looks like <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">{previewCode(vals[key], typeCode) || '—'}</span>
+          </div>
+        </div>
+        <div className="border-t pt-4"><TokenHints tokens={TOKENS} /></div>
+      </CardContent>
+    </Card>
+  );
+}
+
+type DocDraft = Omit<DocumentType, 'id'> & { id?: number };
+const newDoc = (sort: number): DocDraft => ({
+  code: '', name: '', form_no: '', request_no_format: '{DOC}-{YYYY}-{SEQ:4}', approval_route: defaultRoute(), sort_order: sort, is_active: true,
+});
+
+function DocumentTypesAdmin() {
+  const db = dbClient();
+  const { notify, profiles } = useApp();
+  const [rows, setRows] = useState<DocumentType[]>([]);
+  const [edit, setEdit] = useState<DocDraft | null>(null);
+  const [savedEdit, setSavedEdit] = useState('');
+  const dirty = !!edit && JSON.stringify(edit) !== savedEdit;
+  const load = useCallback(async () => {
+    const list = ((await db.from('document_types').select('*').order('sort_order').order('name')).data ?? []) as DocumentType[];
+    setRows(list);
+    return list;
+  }, [db]);
+  const open = (d: DocDraft) => {
+    setEdit(d);
+    setSavedEdit(JSON.stringify(d));
+  };
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch
+    load().then((list) => list[0] && open(list[0]));
+  }, [load]);
+
+  const problems = (d: DocDraft) => {
+    const out: string[] = [];
+    if (!d.code.trim()) out.push('code is required');
+    if (!d.name.trim()) out.push('name is required');
+    if (!/\{SEQ:\d+\}/.test(d.request_no_format)) out.push('the request number format needs a {SEQ:n} running number');
+    const year = String(new Date().getFullYear());
+    const clash = rows.find((o) => o.id !== d.id && formatPrefix(o.request_no_format, o.code, year) === formatPrefix(d.request_no_format, d.code, year));
+    if (clash) out.push(`the request number format gives the same numbers as ${clash.name} — use {DOC} or another prefix`);
+    return [...out, ...routeProblems(d.approval_route)];
+  };
+
+  const save = async () => {
+    if (!edit) return;
+    const p = problems(edit);
+    if (p.length) return notify(`Cannot save: ${p.join('; ')}`, 'error');
+    const { id, code, name, form_no, request_no_format, approval_route, sort_order, is_active } = edit;
+    const payload = { code: code.trim(), name: name.trim(), form_no: form_no?.trim() || null, request_no_format: request_no_format.trim(), approval_route, sort_order, is_active };
+    const res = id
+      ? await db.from('document_types').update(payload).eq('id', id).select().single()
+      : await db.from('document_types').insert(payload).select().single();
+    if (res.error) return notify(errMsg(res.error), 'error');
+    notify(`${payload.name} saved`);
+    await load();
+    open(res.data as DocumentType);
+  };
+
+  const route = edit?.approval_route ?? [];
+  const setRoute = (r: RouteStep[]) => edit && setEdit({ ...edit, approval_route: r });
+  const patchStep = (i: number, patch: Partial<RouteStep>) => setRoute(route.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+  const addStep = (stage: RouteStage) => {
+    const at = route.reduce((last, s, j) => (ROUTE_STAGES.findIndex((x) => x.value === s.stage) <= ROUTE_STAGES.findIndex((x) => x.value === stage) ? j + 1 : last), 0);
+    let n = 1;
+    while (route.some((s) => s.step_code === `${stage}_${n}`)) n++;
+    const step: RouteStep = stage === 'requestor'
+      ? { step_code: `${stage}_${n}`, step_name: 'Approved By', stage, levels: andUp('manager') }
+      : { step_code: `${stage}_${n}`, step_name: 'Approved Request By', stage, approvers: [] };
+    setRoute([...route.slice(0, at), step, ...route.slice(at)]);
+  };
+  const move = (i: number, d: -1 | 1) => {
+    const j = i + d;
+    if (route[j]?.stage !== route[i].stage) return;
+    const next = [...route];
+    [next[i], next[j]] = [next[j], next[i]];
+    setRoute(next);
+  };
+  const personOpts = (selected: number[]) => profiles.filter((p) => p.is_active || selected.includes(p.id)).map((p) => ({ value: String(p.id), label: p.full_name }));
+  const stepNo = (i: number) => <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{i + 1}</span>;
+
+  const stageBlock = (stage: RouteStage, hint: string) => {
+    const items = route.map((s, i) => ({ s, i })).filter(({ s }) => s.stage === stage);
+    const fixed = stage === 'receive';
+    return (
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <span className="flex-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{ROUTE_STAGES.find((x) => x.value === stage)!.label}</span>
+          {!fixed && <Button size="sm" variant="ghost" className="h-7" onClick={() => addStep(stage)}><Plus /> Add step</Button>}
+        </div>
+        {items.length === 0 && <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">No steps</p>}
+        <ol className="space-y-1.5">
+          {items.map(({ s, i }) => (
+            <li key={s.step_code} className="flex items-start gap-2 rounded-lg border px-3 py-2">
+              <span className="mt-1.5">{stepNo(i)}</span>
+              <Input className="h-9 w-44 shrink-0" value={s.step_name} onChange={(e) => patchStep(i, { step_name: e.target.value })} />
+              {stage === 'requestor' ? (
+                <SelectField className="flex-1" value={s.levels?.[0] ?? ''} onChange={(v) => patchStep(i, { levels: andUp(v as PositionLevel) })}
+                  options={POSITION_LEVELS.map((l) => ({ value: l.value, label: `${l.label} up` }))} />
+              ) : (
+                <MultiSelect className="flex-1" placeholder="Select people…" value={routeApprovers(s).map(String)}
+                  options={personOpts(routeApprovers(s))} onChange={(v) => patchStep(i, { approvers: v.map(Number) })} />
+              )}
+              {!fixed && (
+                <div className="flex shrink-0">
+                  <Button size="icon" variant="ghost" className="size-9" disabled={route[i - 1]?.stage !== stage} onClick={() => move(i, -1)}><ArrowUp /></Button>
+                  <Button size="icon" variant="ghost" className="size-9" disabled={route[i + 1]?.stage !== stage} onClick={() => move(i, 1)}><ArrowDown /></Button>
+                  <Button size="icon" variant="ghost" className="size-9 text-destructive" onClick={() => setRoute(route.filter((_, j) => j !== i))}><Trash2 /></Button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+        <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
       </div>
+    );
+  };
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start">
+      <BoardGroup title="Document Types" color="#579bfc" count={rows.length}
+        actions={<Button size="sm" onClick={() => open(newDoc((rows.at(-1)?.sort_order ?? 0) + 1))}><Plus /> Add</Button>}>
+        <ul className="divide-y">
+          {rows.map((t) => (
+            <li key={t.id}>
+              <button type="button" onClick={() => open(t)}
+                className={cn('flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/60', edit?.id === t.id && 'bg-primary/5')}>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{t.name}</span>
+                  <span className="block font-mono text-xs text-muted-foreground">{previewCode(t.request_no_format, null, t.code)}</span>
+                </span>
+                {!t.is_active && <Badge variant="secondary">Inactive</Badge>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </BoardGroup>
+
+      {edit && (
+        <div className="space-y-5">
+          <Card>
+            <CardHeader>
+              <CardTitle>{edit.id ? edit.name || 'Document type' : 'New document type'}</CardTitle>
+              <CardDescription>Each document type has its own request number (running number) and approval route</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-12 gap-3">
+                <TextField className="col-span-3" label="Code" required value={edit.code} disabled={!!edit.id}
+                  onChange={(v) => setEdit({ ...edit, code: v.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
+                  helperText={edit.id ? 'Fixed once created' : '{DOC} in the number'} />
+                <TextField className="col-span-6" label="Name" required value={edit.name} onChange={(v) => setEdit({ ...edit, name: v })} />
+                <TextField className="col-span-3" label="Form No." value={edit.form_no} placeholder="FM-SYS-004" onChange={(v) => setEdit({ ...edit, form_no: v })} />
+                <div className="col-span-9">
+                  <TextField label="Request Number" required mono value={edit.request_no_format} onChange={(v) => setEdit({ ...edit, request_no_format: v })} />
+                  <div className="mt-1.5 text-xs text-muted-foreground">
+                    Next looks like <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">{previewCode(edit.request_no_format, null, edit.code) || '—'}</span>
+                    {' '}· numbering continues where it left off for the same prefix
+                  </div>
+                </div>
+                <TextField className="col-span-3" label="Order" type="number" value={edit.sort_order} onChange={(v) => setEdit({ ...edit, sort_order: Number(v) || 0 })} />
+              </div>
+              <TokenHints tokens={DOC_TOKENS} />
+              <label className="flex items-center gap-2 text-sm">
+                <Switch checked={edit.is_active} onCheckedChange={(c) => setEdit({ ...edit, is_active: c })} /> Open for new requests
+              </label>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Approval Route</CardTitle>
+              <CardDescription>The steps every {edit.name || 'request'} goes through, in order. Changes apply to requests submitted from now on.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {stageBlock('requestor', "Anyone at that position or higher in the requestor's own department (positions come from AD).")}
+              {stageBlock('receive', 'Receives the request and fills in Project Type / Template / Project Leader.')}
+              {stageBlock('authority', 'Pick one or more people per step — whoever acts first completes it.')}
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-end gap-3">
+            {problems(edit).length > 0 && <span className="text-xs text-destructive">{problems(edit)[0]}</span>}
+            {route.some((s) => s.stage !== 'requestor' && !routeApprovers(s).length) && !problems(edit).length && (
+              <span className="text-xs text-destructive">Requests can&apos;t be submitted until every step has an approver</span>
+            )}
+            <Button variant={dirty ? 'default' : 'outline'} disabled={!dirty} onClick={save}>Save</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
