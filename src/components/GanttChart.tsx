@@ -34,7 +34,12 @@ export interface GanttRow {
   recovery?: string | null;
 }
 
-const ROW_H = 36;
+const ROW_H = 46;
+// bar geometry inside a row: thin plan bar above, thicker actual bar below, gap between
+const PLAN_Y = 12;
+const PLAN_H = 8;
+const ACT_Y = 24;
+const ACT_H = 12;
 const LEFT_W = 430;
 const TODAY_COLOR = '#0073ea';
 
@@ -124,29 +129,34 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
               <div className="absolute inset-y-0 z-[2] w-0.5 opacity-90" style={{ left: x(today) + dayW / 2, background: TODAY_COLOR }} title={`Today ${today.format('DD MMM YYYY')}`} />
             </div>
 
-            {rows.map((r) => {
+            {rows.map((r, i) => {
               const hasPlan = r.planStart && r.planFinish;
               const actualEnd = r.actualFinish ?? (r.actualStart ? today.format('YYYY-MM-DD') : null);
               const forecastBeyond = r.forecastFinish && r.planFinish && dayjs(r.forecastFinish).isAfter(dayjs(r.planFinish));
               return (
-                <div key={r.id} className={cn('group flex border-b border-[#f0f2f6]', r.overdue ? 'bg-[#fff1f0] hover:bg-[#ffe5e3]' : 'bg-white hover:bg-[#f5f6f8]')} style={{ height: ROW_H }}>
+                <div key={r.id}
+                  className={cn('group flex border-b border-[#f0f2f6]',
+                    r.overdue ? 'bg-[#fff8f7] hover:bg-[#fff0ee]' : r.level === 0 ? 'bg-[#fafbfc] hover:bg-[#f3f5f8]' : 'bg-white hover:bg-[#f7f8fa]',
+                    // a firmer line above each activity separates the groups
+                    r.level === 0 && i > 0 && 'shadow-[inset_0_1px_0_#dfe3ea]')}
+                  style={{ height: ROW_H }}>
                   <div
                     onClick={() => onRowClick?.(r)}
                     className={cn('sticky left-0 z-[3] grid shrink-0 grid-cols-[1fr_92px_64px] items-center border-r border-grid bg-inherit px-2', onRowClick && 'cursor-pointer')}
                     style={{ width: LEFT_W, borderLeft: `3px solid ${r.risk || r.overdue ? '#e2445c' : 'transparent'}` }}
                   >
-                    <div className="flex min-w-0 items-center" style={{ paddingLeft: r.level * 16 }}>
+                    <div className="flex min-w-0 items-center" style={{ paddingLeft: r.level * 18 }}>
                       {r.hasChildren ? (
                         <button type="button" className="mr-0.5 rounded p-0.5 hover:bg-muted" onClick={(e) => { e.stopPropagation(); onToggle?.(r); }}>
                           {r.expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
                         </button>
                       ) : <span className="w-[22px]" />}
                       <div className="min-w-0">
-                        <div className={cn('truncate text-[13px] leading-tight', r.level === 0 ? 'font-semibold' : '')}>
+                        <div className={cn('truncate text-[13px] leading-snug', r.level === 0 ? 'font-semibold' : '')}>
                           {r.code && <span className="mr-1 text-[11px] text-muted-foreground">{r.code}</span>}
                           {r.label}
                         </div>
-                        <div className={cn('truncate text-[10.5px] leading-tight', r.overdue ? 'text-destructive' : 'text-muted-foreground')}>
+                        <div className={cn('mt-0.5 truncate text-[11px] leading-tight', r.overdue ? 'text-destructive' : 'text-muted-foreground')}>
                           {r.overdue && <TriangleAlert className="mr-0.5 inline size-3 align-[-2px]" />}
                           {fmtDate(r.planStart)} → {fmtDate(r.planFinish)} · <span className="font-semibold" style={{ color: r.statusColor }}>{r.statusLabel}</span>
                         </div>
@@ -158,26 +168,26 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
                   <div className="relative shrink-0" style={{ width }} onClick={() => onRowClick?.(r)}>
                     {hasPlan && !r.milestone && (
                       <Tip title={`Plan: ${fmtDate(r.planStart)} → ${fmtDate(r.planFinish)}`}>
-                        <div className="absolute top-1.5 z-[1] h-2.5 rounded-md border border-[#c3c6d4] bg-grid" style={{ left: x(r.planStart!), width: x(r.planFinish!) - x(r.planStart!) + dayW }} />
+                        <div className="absolute z-[1] rounded-full border border-[#cdd1dc] bg-[#e9ebf1]" style={{ top: PLAN_Y, height: PLAN_H, left: x(r.planStart!) + 1, width: x(r.planFinish!) - x(r.planStart!) + dayW - 2 }} />
                       </Tip>
                     )}
                     {r.milestone && r.planFinish && (
                       <Tip title={`Milestone: ${fmtDate(r.planFinish)}`}>
-                        <div className="absolute top-[7px] z-[1] size-4 rotate-45" style={{ left: x(r.planFinish) + dayW / 2 - 8, background: r.status === 'completed' ? '#00c875' : '#784bd1' }} />
+                        <div className="absolute z-[1] size-4 rotate-45 rounded-[3px]" style={{ top: (ROW_H - 16) / 2, left: x(r.planFinish) + dayW / 2 - 8, background: r.status === 'completed' ? '#00c875' : '#784bd1' }} />
                       </Tip>
                     )}
                     {r.actualStart && actualEnd && !r.milestone && (
                       <Tip title={`Actual: ${fmtDate(r.actualStart)} → ${r.actualFinish ? fmtDate(r.actualFinish) : 'today'} · ${Math.round(r.progress)}%`}>
-                        <div className="absolute top-[19px] z-[1] h-[11px] overflow-hidden rounded-md"
-                          style={{ left: x(r.actualStart), width: Math.max(x(actualEnd) - x(r.actualStart) + dayW, dayW), background: `${r.statusColor}55` }}>
+                        <div className="absolute z-[1] overflow-hidden rounded-full"
+                          style={{ top: ACT_Y, height: ACT_H, left: x(r.actualStart) + 1, width: Math.max(x(actualEnd) - x(r.actualStart) + dayW - 2, dayW - 2), background: `${r.statusColor}40` }}>
                           <div className="h-full" style={{ width: `${r.progress}%`, background: r.statusColor }} />
                         </div>
                       </Tip>
                     )}
                     {forecastBeyond && (
                       <Tip title={`Forecast / Recovery: ${fmtDate(r.forecastFinish)}${r.recovery ? ` — ${r.recovery}` : ''}`}>
-                        <div className="absolute top-1.5 z-[1] h-2.5 rounded-r-md border-[1.5px] border-l-0 border-dashed border-[#e2445c] bg-[#e2445c12]"
-                          style={{ left: x(r.planFinish!) + dayW, width: x(r.forecastFinish!) - x(r.planFinish!) }} />
+                        <div className="absolute z-[1] rounded-r-full border-[1.5px] border-l-0 border-dashed border-[#e2445c] bg-[#e2445c12]"
+                          style={{ top: PLAN_Y, height: PLAN_H, left: x(r.planFinish!) + dayW - 1, width: x(r.forecastFinish!) - x(r.planFinish!) }} />
                       </Tip>
                     )}
                   </div>
@@ -198,11 +208,11 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
                   const rb = rows[b];
                   if (!ra.planFinish || !rb.planStart) return null;
                   const x1 = x(ra.planFinish) + dayW;
-                  const y1 = a * ROW_H + 11;
+                  const y1 = a * ROW_H + PLAN_Y + PLAN_H / 2;
                   const x2 = x(rb.planStart);
-                  const y2 = b * ROW_H + 11;
+                  const y2 = b * ROW_H + PLAN_Y + PLAN_H / 2;
                   const mid = x1 + 8;
-                  return <path key={`${d.from}-${d.to}`} d={`M${x1},${y1} H${mid} V${y2} H${x2 - 1}`} fill="none" stroke="#784bd1" strokeWidth="1.3" markerEnd="url(#arr)" />;
+                  return <path key={`${d.from}-${d.to}`} d={`M${x1},${y1} H${mid} V${y2} H${x2 - 1}`} fill="none" stroke="#784bd1" strokeWidth="1.3" strokeOpacity="0.8" markerEnd="url(#arr)" />;
                 })}
               </svg>
             )}
