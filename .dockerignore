@@ -1,0 +1,16 @@
+.git
+.next
+node_modules
+supabase
+.env*
+!.env.example
+*.sql
+!db/**/*.sql
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+npm-debug.log*
+Dockerfile
+docker-compose*.yml
+.dockerignore
+README.md

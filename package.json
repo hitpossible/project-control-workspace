@@ -11,8 +11,12 @@
     "services:up": "docker compose --env-file .env.local up -d",
     "services:down": "docker compose --env-file .env.local down",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:reset": "tsx scripts/migrate.ts --reset && tsx scripts/seed.ts",
-    "seed": "tsx scripts/seed.ts"
+    "db:reset": "tsx scripts/migrate.ts --reset && tsx --conditions=react-server scripts/seed.ts",
+    "seed": "tsx --conditions=react-server scripts/seed.ts",
+    "docker:up": "docker compose --env-file .env.local --profile app up -d --build",
+    "docker:down": "docker compose --env-file .env.local --profile app down",
+    "docker:logs": "docker compose --env-file .env.local --profile app logs -f app",
+    "docker:seed": "docker compose --env-file .env.local --profile app run --rm migrate npm run db:reset"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -8,7 +8,7 @@ import { publishNotification } from '../notify-bus';
 // ---------------------------------------------------------------------
 export async function nextSequence(ctx: Ctx, scope: string): Promise<number> {
   await ctx.exec(
-    'INSERT INTO doc_sequences(scope, last_value) VALUES (?, LAST_INSERT_ID(1)) ON DUPLICATE KEY UPDATE last_value = LAST_INSERT_ID(last_value + 1)',
+    'INSERT INTO doc_sequences(scope, `last_value`) VALUES (?, LAST_INSERT_ID(1)) ON DUPLICATE KEY UPDATE `last_value` = LAST_INSERT_ID(`last_value` + 1)',
     [scope]);
   return Number(await ctx.val('SELECT LAST_INSERT_ID()'));
 }

@@ -30,7 +30,7 @@ async function mentionable(ctx: Ctx, projectId: number, ids: number[]): Promise<
   const rows = await ctx.q<{ id: number; roles: string[]; member: number }>(
     `SELECT p.id, p.roles,
             EXISTS (SELECT 1 FROM project_members m WHERE m.project_id = ? AND m.user_id = p.id
-                     AND m.member_role IN ('leader','developer','qa','support','supervisor','manager')) member
+                     AND m.member_role IN ('leader','developer','qa','support','supervisor','manager')) \`member\`
        FROM profiles p WHERE p.is_active = 1 AND p.id IN (${ph})`, [projectId, ...params]);
   return rows.filter((r) => Number(r.member) === 1 || r.roles.some((x) => STAFF_ROLES.includes(x))).map((r) => r.id);
 }

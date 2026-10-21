@@ -27,6 +27,31 @@ npm run dev                  # http://localhost:3000
 
 `npm run db:migrate` applies only new files in `db/migrations/` (tracked in `schema_migrations`) — use it on shared / production databases. `db:reset` drops the database.
 
+### Docker
+
+The `Dockerfile` builds a small production image (Next.js `output: 'standalone'`, Node 22 Alpine, `TZ=Asia/Bangkok`, non-root, health check on `/login`) plus a `tools` image that runs `db:migrate` / `seed`.
+
+**Local — whole stack in Docker** (MySQL 8.4 + MinIO + Mailpit + migrations + the app, settings from `.env.local`; inside the containers the DB / MinIO / SMTP settings point at the Docker services):
+
+```bash
+npm run docker:up      # build + start, migrations run first   → http://localhost:3000 (APP_PORT=3010 npm run docker:up to change)
+npm run docker:seed    # drop + migrate + demo data in the Docker MySQL (localhost:3307, root / DOCKER_MYSQL_PASSWORD, default "pcw")
+npm run docker:logs
+npm run docker:down    # data stays in the mysql-data / minio-data volumes
+```
+
+`npm run services:up` still starts only MinIO + Mailpit for `npm run dev`.
+
+**Production** (`docker-compose.prod.yml`: app + migrate + MinIO, optional MySQL):
+
+```bash
+cp .env.production.example .env.production   # fill in secrets, DATABASE_URL, SMTP, APP_URL
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# add --profile mysql to run MySQL in Docker as well (DATABASE_URL=mysql://root:…@mysql:3306/tbkk_pcw)
+```
+
+Every start applies new migrations before the app starts. Publish port `APP_PORT` (3000) through the company reverse proxy with HTTPS. To ship a prebuilt image instead of building on the server, set `APP_IMAGE` / `APP_TAG` and `docker compose … pull`.
+
 ### Login
 
 - **Company accounts** sign in with their AD username/password. The app posts `{ username, password }` to `AD_LOGIN_URL`; HTTP 2xx (without `success:false` / `error`) = success. On first login a profile with role *Requestor* is created (`AD_AUTO_PROVISION`); an admin then assigns roles in Admin → Users.

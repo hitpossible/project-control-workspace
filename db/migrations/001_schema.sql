@@ -77,7 +77,7 @@ CREATE TABLE app_settings (
 
 CREATE TABLE doc_sequences (
   scope       VARCHAR(191) NOT NULL PRIMARY KEY,
-  last_value  INT          NOT NULL DEFAULT 0
+  `last_value` INT          NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE project_types (
