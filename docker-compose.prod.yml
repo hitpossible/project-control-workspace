@@ -29,7 +29,8 @@ services:
 
   # evidence files; the app reaches it as MINIO_ENDPOINT=minio, MINIO_PORT=9000
   minio:
-    image: minio/minio:latest # pin a RELEASE.* tag once tested
+    # minio/minio is no longer published; pgsty/minio is a community build of the same server
+    image: ${MINIO_IMAGE:-pgsty/minio:RELEASE.2026-08-04T00-00-00Z}
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?set MINIO_ACCESS_KEY in .env.production}
