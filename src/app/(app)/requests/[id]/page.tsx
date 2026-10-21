@@ -13,7 +13,7 @@ import RequestForm, { REDUCTION_ROWS } from '@/components/RequestForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useDocumentTypes } from '@/components/useDocumentTypes';
-import { canActOnStep, stepAudience, stepGroup, stepStage } from '@/lib/approval';
+import { canActOnStep, canConvertRequest, stepAudience, stepGroup, stepStage } from '@/lib/approval';
 import { APPROVAL_ACTION_LABELS, REQUEST_STATUSES, ROLE_LABELS } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, fmtNum } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -108,7 +108,7 @@ export default function RequestDetailPage() {
   const canAct = !!waiting && canActOnStep(waiting, me, r.requestor_id);
   const isReview = canAct && !!waiting && stepStage(waiting) === 'receive';
   const legacyReview = waiting?.step_code === 'system_review';
-  const canConvert = r.status === 'approved' && (hasRole('system_reviewer') || r.proposed_leader_id === me.id || r.reviewed_by === me.id);
+  const canConvert = canConvertRequest(r, me);
 
   const rpc = async (fn: string, args: Record<string, unknown>, ok: string) => {
     const { data, error } = await db.rpc(fn, args);

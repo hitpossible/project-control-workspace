@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentTypes } from '@/components/useDocumentTypes';
-import { canActOnStep } from '@/lib/approval';
+import { canActOnStep, canConvertRequest } from '@/lib/approval';
 import { REQUEST_STATUSES } from '@/lib/constants';
 import { fmtDate } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -45,7 +45,11 @@ export default function RequestsPage() {
 
   const myActionIds = useMemo(() => {
     const requestor = new Map(rows.map((r) => [r.id, r.requestor_id]));
-    return new Set(steps.filter((s) => canActOnStep(s, me, requestor.get(s.request_id))).map((s) => s.request_id));
+    // approval steps I can act on + approved requests I can convert to a Controlled Project
+    return new Set([
+      ...steps.filter((s) => canActOnStep(s, me, requestor.get(s.request_id))).map((s) => s.request_id),
+      ...rows.filter((r) => canConvertRequest(r, me)).map((r) => r.id),
+    ]);
   }, [rows, steps, me]);
 
   useEffect(() => {
@@ -113,7 +117,7 @@ export default function RequestsPage() {
                       <div>{r.project_name}</div>
                       <div className="text-xs text-muted-foreground">
                         {r.request_no ?? 'Draft'}
-                        {myActionIds.has(r.id) && <span className="font-semibold text-[#d97706]"> · waiting for you</span>}
+                        {myActionIds.has(r.id) && <span className="font-semibold text-[#d97706]"> · {r.status === 'approved' ? 'ready for you to convert' : 'waiting for you'}</span>}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">{docName(r.document_type_id)}</TableCell>

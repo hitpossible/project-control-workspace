@@ -1,5 +1,5 @@
 import type { Opt } from './constants';
-import type { ApprovalStep, PositionLevel, Profile } from './types';
+import type { ApprovalStep, PositionLevel, Profile, ProjectRequest } from './types';
 
 /**
  * Approval levels, lowest → highest ("X up" = X and every level after it).
@@ -100,6 +100,15 @@ export function stepAudience(s: Pick<ApprovalStep, 'approver_levels' | 'approver
   const levels = s.approver_levels ?? [];
   const who = levels.length === 1 ? levelLabel(levels[0]) : `${levelLabel(levels[0])} up`;
   return s.approver_department ? `${who} · ${s.approver_department}` : who;
+}
+
+/** Same rule as the server (convertRequestToProject): may `me` convert this approved request to a Controlled Project? */
+export function canConvertRequest(
+  r: Pick<ProjectRequest, 'status' | 'proposed_leader_id' | 'reviewed_by'>,
+  me: Pick<Profile, 'id' | 'roles'> | null | undefined,
+) {
+  if (!me || r.status !== 'approved') return false;
+  return me.roles.some((x) => x === 'admin' || x === 'system_reviewer') || r.proposed_leader_id === me.id || r.reviewed_by === me.id;
 }
 
 /** Same rule as the server (rpc/requests.ts): may `me` act on this step? */
