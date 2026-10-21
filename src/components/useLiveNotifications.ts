@@ -4,16 +4,13 @@ import { useRouter } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import { createElement, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import { ASKED_KEY, desktopStatus, setDesktopEnabled, showDesktop } from '@/lib/desktopNotify';
 
 type LiveNotification = { id: number; title: string; body: string | null; link: string | null };
 
-const ASKED_KEY = 'pcw:desktop-notify-asked';
-
-const desktopSupported = () => typeof window !== 'undefined' && 'Notification' in window;
-
 /**
  * Live notifications over SSE (/api/notifications/stream): refreshes the unread badge, shows a toast,
- * and — when the tab is in the background and the user allowed it — a desktop notification.
+ * and — when the tab is in the background and desktop notifications are on — an OS notification.
  */
 export function useLiveNotifications(enabled: boolean, onNotification: () => void) {
   const router = useRouter();
@@ -39,34 +36,22 @@ export function useLiveNotifications(enabled: boolean, onNotification: () => voi
         duration: 8000,
         action: open ? { label: 'Open', onClick: open } : undefined,
       });
-      if (document.hidden && desktopSupported() && Notification.permission === 'granted') {
-        // tag collapses the same notification arriving in several open tabs
-        const d = new Notification(n.title, { body: n.body ?? undefined, tag: `pcw-${n.id}`, icon: '/brand/logo.png' });
-        d.onclick = () => {
-          window.focus();
-          open?.();
-          d.close();
-        };
-      }
+      // tag collapses the same notification arriving in several open tabs
+      if (document.hidden) showDesktop({ title: n.title, body: n.body, tag: `pcw-${n.id}`, onClick: open });
     });
     return () => es.close();
   }, [enabled]);
 
   // Browsers only allow the permission prompt from a user gesture, so offer it once via a toast button.
+  // Later changes go through the switch on the Notifications page.
   useEffect(() => {
-    if (!enabled || !desktopSupported() || Notification.permission !== 'default' || localStorage.getItem(ASKED_KEY)) return;
+    if (!enabled || desktopStatus() !== 'ask' || localStorage.getItem(ASKED_KEY)) return;
     const t = setTimeout(() => {
       toast('Get desktop notifications?', {
         toasterId: 'live',
-        description: 'Show a pop-up for new notifications while this tab is in the background.',
+        description: 'Show a pop-up for new notifications while this tab is in the background. You can change this on the Notifications page.',
         duration: Infinity,
-        action: {
-          label: 'Enable',
-          onClick: () => {
-            localStorage.setItem(ASKED_KEY, '1');
-            void Notification.requestPermission();
-          },
-        },
+        action: { label: 'Enable', onClick: () => void setDesktopEnabled(true) },
         cancel: { label: 'Not now', onClick: () => localStorage.setItem(ASKED_KEY, '1') },
       });
     }, 3000);
