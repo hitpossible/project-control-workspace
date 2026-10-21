@@ -1,9 +1,10 @@
 'use client';
 
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { BoardGroup, DateField, MultiSelect, PageHeader, Person, SelectField, TextField } from '@/components/common';
+import { TemplateEditor, draftProblems, fromDraft, toDraft, type TemplateDraft } from '@/components/TemplateEditor';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -319,7 +320,7 @@ function TemplatesAdmin() {
   const { notify } = useApp();
   const [rows, setRows] = useState<ProjectTemplate[]>([]);
   const [types, setTypes] = useState<ProjectType[]>([]);
-  const [edit, setEdit] = useState<(Partial<ProjectTemplate> & { json: string; evid: string }) | null>(null);
+  const [edit, setEdit] = useState<TemplateDraft | null>(null);
   const load = useCallback(async () => {
     setRows(((await db.from('project_templates').select('*').order('name')).data ?? []) as ProjectTemplate[]);
     setTypes(((await db.from('project_types').select('*').order('name')).data ?? []) as ProjectType[]);
@@ -329,17 +330,11 @@ function TemplatesAdmin() {
     load();
   }, [load]);
 
+  const problems = edit ? draftProblems(edit) : [];
   const save = async () => {
     if (!edit) return;
-    let acts, evid;
-    try {
-      acts = JSON.parse(edit.json);
-      evid = JSON.parse(edit.evid);
-      if (!Array.isArray(acts) || !Array.isArray(evid)) throw new Error('Must be JSON arrays');
-    } catch (e) {
-      return notify(`Invalid JSON: ${errMsg(e)}`, 'error');
-    }
-    const payload = { code: edit.code, name: edit.name, description: edit.description ?? null, project_type_id: edit.project_type_id ?? null, default_activities: acts, evidence_checklist: evid, is_active: edit.is_active ?? true };
+    if (problems.length) return notify(problems[0], 'error');
+    const payload = fromDraft(edit);
     const res = edit.id ? await db.from('project_templates').update(payload).eq('id', edit.id) : await db.from('project_templates').insert(payload);
     if (res.error) return notify(errMsg(res.error), 'error');
     notify('Template saved');
@@ -347,23 +342,30 @@ function TemplatesAdmin() {
     load();
   };
 
-  const open = (t?: ProjectTemplate) => setEdit(t
-    ? { ...t, json: JSON.stringify(t.default_activities, null, 2), evid: JSON.stringify(t.evidence_checklist, null, 2) }
-    : { code: '', name: '', is_active: true, json: '[\n  {"name":"Requirement","pic_label":"System","duration_days":5,"tasks":[{"name":"Requirement document","task_type":"doc","duration_days":3}]}\n]', evid: '[]' });
+  const open = (t?: ProjectTemplate) => setEdit(toDraft(t));
+  const duplicate = () => edit && setEdit({ ...edit, id: undefined, code: `${edit.code ?? ''}-COPY`, name: `${edit.name ?? ''} (copy)` });
+  const totalDays = (t: ProjectTemplate) => t.default_activities.reduce((s, a) => s + Math.max(1, a.duration_days ?? 1), 0);
 
   return (
     <>
       <p className="mb-3 text-sm text-muted-foreground">Templates define the default activities (User Control Plan), default internal tasks and milestones created when a request is converted.</p>
       <BoardGroup title="Project Templates" color="#00c875" count={rows.length} actions={<Button size="sm" onClick={() => open()}><Plus /> Add Template</Button>}>
         <Table className="board-table">
-          <TableHeader><TableRow><TableHead>Code</TableHead><TableHead className="text-left">Name</TableHead><TableHead>Type</TableHead><TableHead className="text-left">Activities</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Code</TableHead><TableHead className="text-left">Name</TableHead><TableHead>Type</TableHead><TableHead className="text-left">Activities</TableHead><TableHead>Duration</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
           <TableBody>
             {rows.map((t) => (
-              <TableRow key={t.id} className="cursor-pointer" onClick={() => open(t)}>
+              <TableRow key={t.id} className={cn('cursor-pointer', !t.is_active && 'opacity-50')} onClick={() => open(t)}>
                 <TableCell className="font-semibold">{t.code}</TableCell>
                 <TableCell>{t.name}</TableCell>
                 <TableCell className="text-center">{types.find((x) => x.id === t.project_type_id)?.name}</TableCell>
-                <TableCell className="whitespace-normal text-muted-foreground">{t.default_activities.map((a) => a.name).join(' → ')}</TableCell>
+                <TableCell className="whitespace-normal">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {t.default_activities.map((a, i) => (
+                      <span key={i} className={cn('rounded px-1.5 py-0.5 text-xs', a.is_milestone ? 'bg-amber-100 text-amber-900' : 'bg-secondary')}>{a.name}</span>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell className="text-center text-muted-foreground">{totalDays(t)} days</TableCell>
                 <TableCell className="text-center">{t.is_active ? 'Yes' : 'No'}</TableCell>
               </TableRow>
             ))}
@@ -372,19 +374,17 @@ function TemplatesAdmin() {
       </BoardGroup>
       {edit && (
         <Dialog open onOpenChange={(o) => !o && setEdit(null)}>
-          <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
-            <DialogHeader><DialogTitle>{edit.id ? 'Edit Template' : 'Add Template'}</DialogTitle></DialogHeader>
-            <div className="grid grid-cols-12 gap-3">
-              <TextField className="col-span-4" label="Code" value={edit.code} onChange={(v) => setEdit({ ...edit, code: v })} />
-              <TextField className="col-span-8" label="Name" value={edit.name} onChange={(v) => setEdit({ ...edit, name: v })} />
-              <TextField className="col-span-8" label="Description" value={edit.description} onChange={(v) => setEdit({ ...edit, description: v })} />
-              <SelectField className="col-span-4" label="Project Type" allowEmpty value={edit.project_type_id?.toString()} onChange={(v) => setEdit({ ...edit, project_type_id: v ? Number(v) : null })} options={types.map((t) => ({ value: t.id.toString(), label: t.name }))} />
-              <TextField className="col-span-12" label="Default activities (JSON)" multiline rows={12} mono value={edit.json} onChange={(v) => setEdit({ ...edit, json: v })}
-                helperText='[{"name","pic_label":"System|User|Vendor","duration_days","is_milestone","tasks":[{"name","task_type","duration_days"}]}]' />
-              <TextField className="col-span-12" label="Evidence checklist (JSON array — used in Phase 2)" multiline rows={3} mono value={edit.evid} onChange={(v) => setEdit({ ...edit, evid: v })} />
-              <label className="col-span-12 flex items-center gap-2 text-sm"><Switch checked={!!edit.is_active} onCheckedChange={(c) => setEdit({ ...edit, is_active: c })} /> Active</label>
-            </div>
-            <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button onClick={save}>Save</Button></DialogFooter>
+          <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+            <DialogHeader><DialogTitle>{edit.id ? `Edit Template — ${edit.code}` : 'Add Template'}</DialogTitle></DialogHeader>
+            <TemplateEditor draft={edit} onChange={setEdit} types={types} />
+            <DialogFooter className="items-center sm:justify-between">
+              {edit.id ? <Button variant="ghost" onClick={duplicate}><Copy /> Duplicate as new</Button> : <span />}
+              <div className="flex items-center gap-2">
+                {problems.length > 0 && <span className="text-xs text-destructive">{problems[0]}</span>}
+                <Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button>
+                <Button onClick={save} disabled={problems.length > 0}>Save</Button>
+              </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
