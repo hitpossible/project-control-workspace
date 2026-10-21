@@ -280,6 +280,8 @@ export interface InternalTask {
   activity_id: number;
   parent_task_id: number | null;
   seq: number;
+  /** Kanban order within its status column; null = by due date */
+  board_rank: number | null;
   name: string;
   task_type: string;
   owner_id: number;

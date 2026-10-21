@@ -34,6 +34,8 @@ const JSON_DEFAULTS: Record<string, Row> = {
 
 /** updated_at / updated_by maintained on update (was touch_updated) */
 const TOUCH = new Set(['project_requests', 'projects', 'activities', 'internal_tasks', 'test_rounds', 'bugs']);
+/** board arrangement only (Kanban order) — not an edit of the record, so it does not touch updated_at / updated_by */
+const LAYOUT_ONLY = new Set(['board_rank']);
 
 /** Audit trail: tracked fields per table and which operations are logged (was audit_changes) */
 const AUDIT: Record<string, { ops: ('insert' | 'update' | 'delete')[]; fields: string[] }> = {
@@ -144,7 +146,7 @@ export async function updateRow(ctx: Ctx, table: string, pk: unknown, patch: Row
   if (!old) return null;
   const next: Row = { ...old };
   for (const [k, v] of Object.entries(patch)) if (v !== undefined && meta.columns.has(k) && k !== meta.pk) next[k] = v;
-  if (TOUCH.has(table)) {
+  if (TOUCH.has(table) && !Object.keys(patch).every((k) => LAYOUT_ONLY.has(k))) {
     next.updated_at = new Date().toISOString();
     next.updated_by = ctx.uid ?? next.updated_by;
   }

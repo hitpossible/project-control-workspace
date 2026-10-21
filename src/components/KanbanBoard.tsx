@@ -1,51 +1,69 @@
 'use client';
 
 import {
-  DndContext, DragOverlay, MouseSensor, TouchSensor, pointerWithin, rectIntersection, useDraggable, useDroppable, useSensor, useSensors,
-  type Announcements, type CollisionDetection, type DragEndEvent,
+  DndContext, DragOverlay, MouseSensor, TouchSensor, closestCenter, pointerWithin, rectIntersection, useDroppable, useSensor, useSensors,
+  type Announcements, type CollisionDetection, type DragEndEvent, type DragOverEvent, type UniqueIdentifier,
 } from '@dnd-kit/core';
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy, type SortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import dayjs from 'dayjs';
 import { AlertTriangle, CalendarClock, Check, MoreHorizontal } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { optColor, optLabel, type Opt } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 type Item = { id: number; status: string };
+type Lists = Record<string, number[]>;
+
+/** cards keep their place while another card is dragged through a board that cannot be arranged */
+const noSorting: SortingStrategy = () => null;
 
 /**
  * Generic status board built on @dnd-kit.
  *   mouse: drag after moving 6px (a plain click opens the card)
  *   touch: long-press 200 ms to drag, so normal swipes still scroll
  *   menu:  the ⋯ button on a card moves it to any column without dragging
- *   keyboard: focus a card, Alt + ← / → moves it one column, Enter opens it
- * `onMove` persists the new status; the board re-renders from the reloaded data. Return false
- * when the card did not end up where it was dropped (error, workflow rule) — otherwise a
- * "Moved" toast offers Undo.
+ *   keyboard: focus a card, Alt + ← / → moves it one column, Alt + ↑ / ↓ one place, Enter opens it
+ * With `rankOf`, cards are sorted by it and can be arranged inside a column: a drop passes the
+ * midpoint of the new neighbours' ranks to `onMove`, so only the moved card is written.
+ * `onMove` persists the change; the board re-renders from the reloaded data. Return false
+ * when the card did not end up where it was dropped (error, workflow rule) — otherwise moving
+ * to another column shows a "Moved" toast with Undo.
  */
 export default function KanbanBoard<T extends Item>({
-  columns, items, renderCard, onMove, canDrag = () => true, onOpen, emptyText = 'No items',
+  columns, items, renderCard, onMove, rankOf, canDrag = () => true, onOpen, emptyText = 'No items',
 }: {
   columns: Opt[];
   items: T[];
   renderCard: (item: T) => React.ReactNode;
-  onMove?: (item: T, status: string) => Promise<boolean | void> | boolean | void;
+  onMove?: (item: T, status: string, rank?: number) => Promise<boolean | void> | boolean | void;
+  /** position inside a column (lower = higher up); omit for a board that cannot be arranged */
+  rankOf?: (item: T) => number;
   canDrag?: (item: T) => boolean;
   onOpen?: (item: T) => void;
   emptyText?: string;
 }) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [moving, setMoving] = useState<number | null>(null);
-  // optimistic placement: the card shows in its new column while `onMove` saves
-  const [placed, setPlaced] = useState<{ id: number; status: string; from: string } | null>(null);
+  // while dragging: card ids per column, as they currently sit under the pointer
+  const [drag, setDrag] = useState<Lists | null>(null);
+  // optimistic placement: the card shows in its new spot while `onMove` saves
+  const [placed, setPlaced] = useState<{ id: number; status: string; rank?: number; from: string } | null>(null);
   const [landed, setLanded] = useState<number | null>(null);
-  // the override stays until reloaded data shows the card left its old column
-  // (a workflow rule may have put it somewhere else); if that never happens the save failed
-  const savedStatus = placed ? items.find((i) => i.id === placed.id)?.status : undefined;
+  // the card the dragged one was just inserted next to when it entered a column — a drop
+  // before the pointer moves on keeps that spot instead of applying a same-column reorder
+  const enteredAt = useRef<UniqueIdentifier | null>(null);
+
+  const keyOf = (i: T) => `${i.status}|${rankOf?.(i) ?? ''}`;
+  // the override stays until reloaded data shows the card changed (a workflow rule may have
+  // put it somewhere else); if that never happens the save failed
+  const saved = placed ? items.find((i) => i.id === placed.id) : undefined;
+  const savedKey = saved ? keyOf(saved) : undefined;
   useEffect(() => {
     if (!placed) return;
-    if (savedStatus !== placed.from) {
+    if (savedKey !== placed.from) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reloaded data replaces the optimistic one
       setPlaced(null);
       return;
@@ -53,9 +71,24 @@ export default function KanbanBoard<T extends Item>({
     if (moving !== null) return;
     const t = setTimeout(() => setPlaced(null), 3000);
     return () => clearTimeout(t);
-  }, [savedStatus, placed, moving]);
+  }, [savedKey, placed, moving]);
+
   const statusOf = (i: T) => (placed?.id === i.id ? placed.status : i.status);
-  const active = items.find((i) => i.id === activeId) ?? null;
+  const rankFor = (i: T) => (placed?.id === i.id && placed.rank !== undefined ? placed.rank : rankOf?.(i) ?? 0);
+  const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
+
+  // card ids per column, sorted by rank when the board can be arranged
+  const lists: Lists = Object.fromEntries(columns.map((c) => {
+    const col = items.filter((i) => statusOf(i) === c.value);
+    if (rankOf) col.sort((a, b) => rankFor(a) - rankFor(b));
+    return [c.value, col.map((i) => i.id)];
+  }));
+  const shown = drag ?? lists;
+  const colOf = (id: UniqueIdentifier, ls: Lists = shown) =>
+    typeof id === 'string' ? id : Object.keys(ls).find((c) => ls[c].includes(id));
+
+  const active = activeId === null ? null : byId.get(activeId) ?? null;
+  const overCol = activeId === null ? undefined : colOf(activeId);
   const label = (status: string) => columns.find((c) => c.value === status)?.label ?? status;
 
   const sensors = useSensors(
@@ -63,50 +96,114 @@ export default function KanbanBoard<T extends Item>({
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
   );
 
-  // the column under the pointer wins; fall back to overlap
+  // the column under the pointer wins; inside it, the nearest card
   const collision: CollisionDetection = (args) => {
     const hits = pointerWithin(args);
-    return hits.length ? hits : rectIntersection(args);
+    const col = hits.find((h) => typeof h.id === 'string');
+    if (!col) return hits.length ? hits : rectIntersection(args);
+    const cards = args.droppableContainers.filter((c) => typeof c.id === 'number' && shown[String(col.id)]?.includes(c.id));
+    return cards.length ? closestCenter({ ...args, droppableContainers: cards }) : [col];
   };
 
   const announcements: Announcements = {
     onDragStart: ({ active: a }) => `Picked up ${a.data.current?.title ?? 'card'}.`,
-    onDragOver: ({ over }) => (over ? `Over ${label(String(over.id))}.` : 'Not over a column.'),
-    onDragEnd: ({ active: a, over }) => (over ? `Moved ${a.data.current?.title ?? 'card'} to ${label(String(over.id))}.` : 'Dropped.'),
+    onDragOver: ({ over }) => (over ? `Over ${label(colOf(over.id) ?? '')}.` : 'Not over a column.'),
+    onDragEnd: ({ active: a, over }) => (over ? `Dropped ${a.data.current?.title ?? 'card'} in ${label(colOf(over.id) ?? '')}.` : 'Dropped.'),
     onDragCancel: () => 'Moving cancelled.',
   };
 
-  const move = async (item: T | undefined, status: string | null, undoing = false) => {
-    if (!item || !status || status === item.status || !onMove) return;
+  /** rank for the card at `index` of `list`: between its neighbours */
+  const rankAt = (list: number[], index: number, self: T) => {
+    const prev = list[index - 1] !== undefined ? byId.get(list[index - 1]) : undefined;
+    const next = list[index + 1] !== undefined ? byId.get(list[index + 1]) : undefined;
+    if (prev && next) return (rankFor(prev) + rankFor(next)) / 2;
+    if (prev) return rankFor(prev) + 1;
+    if (next) return rankFor(next) - 1;
+    return rankFor(self);
+  };
+
+  const move = async (item: T | undefined, status: string | null, rank?: number, undoing = false) => {
+    if (!item || !status || !onMove || (status === statusOf(item) && rank === undefined)) return;
+    const from = { status: statusOf(item), rank: rankFor(item) };
     setMoving(item.id);
-    setPlaced({ id: item.id, status, from: item.status });
+    setPlaced({ id: item.id, status, rank, from: keyOf(item) });
     setLanded(item.id);
     let ok: boolean | void = false;
     try {
-      ok = await onMove(item, status);
+      ok = await onMove(item, status, rank);
     } finally {
       setMoving(null);
     }
-    if (ok === false || undoing) return;
+    // re-ordering inside a column needs no toast; a column change can be undone
+    if (ok === false || undoing || status === from.status) return;
     const name = (item as { task_no?: string; name?: string }).task_no ?? (item as { name?: string }).name;
     toast.success(`Moved${name ? ` ${name}` : ''} to ${label(status)}`, {
       duration: 6000,
-      action: { label: 'Undo', onClick: () => void move({ ...item, status }, item.status, true) },
+      action: { label: 'Undo', onClick: () => void move({ ...item, status }, from.status, rankOf ? from.rank : undefined, true) },
     });
   };
 
-  const end = ({ active: a, over }: DragEndEvent) => {
-    setActiveId(null);
-    return move(items.find((i) => i.id === a.id), over ? String(over.id) : null);
+  /** live: carry the card into the column under the pointer, at the card it hovers */
+  const over = ({ active: a, over: o }: DragOverEvent) => {
+    enteredAt.current = null;
+    if (!o || !drag) return;
+    const id = Number(a.id);
+    const from = colOf(id, drag);
+    const to = colOf(o.id, drag);
+    if (!from || !to || from === to) return;
+    enteredAt.current = o.id;
+    setDrag((d) => {
+      if (!d) return d;
+      const dst = d[to].filter((x) => x !== id);
+      let at = dst.length;
+      if (rankOf && typeof o.id === 'number') {
+        const i = dst.indexOf(o.id);
+        const r = a.rect.current.translated;
+        at = i < 0 ? dst.length : i + (r && r.top > o.rect.top + o.rect.height / 2 ? 1 : 0);
+      }
+      dst.splice(at, 0, id);
+      return { ...d, [from]: d[from].filter((x) => x !== id), [to]: dst };
+    });
   };
 
-  /** keyboard: move to the neighbouring column */
-  const shift = async (item: T, dir: -1 | 1) => {
-    const i = columns.findIndex((c) => c.value === statusOf(item));
-    const target = columns[i + dir];
-    if (!target) return;
-    await move(item, target.value);
-    // the card re-mounts in its new column — keep keyboard focus on it
+  const end = ({ active: a, over: o }: DragEndEvent) => {
+    const ls = drag;
+    const entered = enteredAt.current;
+    enteredAt.current = null;
+    setActiveId(null);
+    setDrag(null);
+    const item = byId.get(Number(a.id));
+    if (!o || !ls || !item) return;
+    const col = colOf(item.id, ls);
+    if (!col) return;
+    let list = ls[col];
+    if (rankOf && typeof o.id === 'number' && o.id !== item.id && o.id !== entered && list.includes(o.id)) {
+      list = arrayMove(list, list.indexOf(item.id), list.indexOf(o.id));
+    }
+    const index = list.indexOf(item.id);
+    const sameSpot = col === statusOf(item) && index === lists[col].indexOf(item.id);
+    if (sameSpot) return;
+    if (!rankOf) return col === statusOf(item) ? undefined : move(item, col);
+    return move(item, col, rankAt(list, index, item));
+  };
+
+  /** keyboard: Alt + ← / → to the neighbouring column, Alt + ↑ / ↓ one place within it */
+  const shift = async (item: T, key: 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown') => {
+    const status = statusOf(item);
+    if (key === 'ArrowUp' || key === 'ArrowDown') {
+      if (!rankOf) return;
+      const list = lists[status];
+      const i = list.indexOf(item.id);
+      const j = i + (key === 'ArrowUp' ? -1 : 1);
+      if (j < 0 || j >= list.length) return;
+      const next = arrayMove(list, i, j);
+      await move(item, status, rankAt(next, j, item));
+    } else {
+      const target = columns[columns.findIndex((c) => c.value === status) + (key === 'ArrowLeft' ? -1 : 1)];
+      if (!target) return;
+      await move(item, target.value);
+    }
+    // the card may re-mount in its new column — keep keyboard focus on it
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-card-id="${item.id}"]`)?.focus());
   };
 
@@ -116,35 +213,48 @@ export default function KanbanBoard<T extends Item>({
       collisionDetection={collision}
       accessibility={{
         announcements,
-        screenReaderInstructions: { draggable: 'Press Enter to open. Alt plus left or right arrow moves the card to the previous or next column. Drag with mouse or long-press on touch.' },
+        screenReaderInstructions: { draggable: `Press Enter to open. Alt plus left or right arrow moves the card to the previous or next column${rankOf ? ', Alt plus up or down arrow moves it within the column' : ''}. Drag with mouse or long-press on touch.` },
       }}
-      onDragStart={(e) => setActiveId(Number(e.active.id))}
+      onDragStart={(e) => {
+        setActiveId(Number(e.active.id));
+        setDrag(lists);
+      }}
+      onDragOver={over}
       onDragEnd={end}
-      onDragCancel={() => setActiveId(null)}
+      onDragCancel={() => {
+        enteredAt.current = null;
+        setActiveId(null);
+        setDrag(null);
+      }}
     >
       <div className="flex gap-3 overflow-x-auto pb-3">
         {columns.map((col) => {
-          const colItems = items.filter((i) => statusOf(i) === col.value);
+          const ids = shown[col.value] ?? [];
           return (
-            <Column key={col.value} col={col} count={colItems.length} dragging={!!active}
-              isTarget={!!active && active.status !== col.value} emptyText={emptyText}>
-              {colItems.map((item) => {
-                const draggable = !!onMove && canDrag(item) && moving !== item.id;
-                return (
-                  <Card key={item.id} id={item.id} title={(item as { name?: string }).name}
-                    draggable={draggable} dimmed={activeId === item.id} landed={landed === item.id} onLanded={() => setLanded(null)}
-                    onOpen={() => onOpen?.(item)} onShift={(d) => shift(item, d)}
-                    menu={draggable && <MoveMenu columns={columns} current={statusOf(item)} onPick={(s) => move(item, s)} />}>
-                    {renderCard(item)}
-                  </Card>
-                );
-              })}
+            <Column key={col.value} col={col} count={ids.length} dragging={!!active}
+              hot={!!active && overCol === col.value && statusOf(active) !== col.value}
+              isTarget={!!active && statusOf(active) !== col.value} emptyText={emptyText}>
+              <SortableContext items={ids} strategy={rankOf ? verticalListSortingStrategy : noSorting}>
+                {ids.map((id) => {
+                  const item = byId.get(id);
+                  if (!item) return null;
+                  const draggable = !!onMove && canDrag(item) && moving !== item.id;
+                  return (
+                    <Card key={item.id} id={item.id} title={(item as { name?: string }).name}
+                      draggable={draggable} dimmed={activeId === item.id} landed={landed === item.id} onLanded={() => setLanded(null)}
+                      onOpen={() => onOpen?.(item)} onShift={(k) => shift(item, k)}
+                      menu={draggable && <MoveMenu columns={columns} current={statusOf(item)} onPick={(s) => move(item, s)} />}>
+                      {renderCard(item)}
+                    </Card>
+                  );
+                })}
+              </SortableContext>
             </Column>
           );
         })}
       </div>
 
-      {/* card following the pointer; no drop animation — the card itself lands in its new column */}
+      {/* card following the pointer; no drop animation — the card itself lands in its new spot */}
       <DragOverlay dropAnimation={null}>
         {active && (
           <div className="motion-lift w-72 scale-[1.03] rotate-[1.5deg] cursor-grabbing rounded-lg border border-primary/30 bg-white p-3 text-sm shadow-2xl">{renderCard(active)}</div>
@@ -154,11 +264,10 @@ export default function KanbanBoard<T extends Item>({
   );
 }
 
-function Column({ col, count, dragging, isTarget, emptyText, children }: {
-  col: Opt; count: number; dragging: boolean; isTarget: boolean; emptyText: string; children: React.ReactNode;
+function Column({ col, count, dragging, hot, isTarget, emptyText, children }: {
+  col: Opt; count: number; dragging: boolean; hot: boolean; isTarget: boolean; emptyText: string; children: React.ReactNode;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: col.value });
-  const hot = isTarget && isOver;
+  const { setNodeRef } = useDroppable({ id: col.value });
   return (
     <div
       ref={setNodeRef}
@@ -192,14 +301,17 @@ function Column({ col, count, dragging, isTarget, emptyText, children }: {
 }
 
 function Card({ id, title, draggable, dimmed, landed, onLanded, onOpen, onShift, menu, children }: {
-  id: number; title?: string; draggable: boolean; dimmed: boolean; landed: boolean; onLanded: () => void; onOpen: () => void; onShift: (dir: -1 | 1) => void;
+  id: number; title?: string; draggable: boolean; dimmed: boolean; landed: boolean; onLanded: () => void; onOpen: () => void;
+  onShift: (key: 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown') => void;
   menu?: React.ReactNode; children: React.ReactNode;
 }) {
-  const { setNodeRef, attributes, listeners } = useDraggable({ id, disabled: !draggable, data: { title } });
+  // locked cards still make room for the dragged one, they just cannot be picked up
+  const { setNodeRef, attributes, listeners, transform, transition } = useSortable({ id, disabled: { draggable: !draggable, droppable: false }, data: { title } });
   return (
     <div
       ref={setNodeRef}
       data-card-id={id}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
       {...attributes}
       {...listeners}
       onClick={onOpen}
@@ -207,9 +319,9 @@ function Card({ id, title, draggable, dimmed, landed, onLanded, onOpen, onShift,
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter') onOpen();
-        if (draggable && e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        if (draggable && e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
           e.preventDefault();
-          onShift(e.key === 'ArrowLeft' ? -1 : 1);
+          onShift(e.key);
         }
       }}
       className={cn(

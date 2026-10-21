@@ -14,6 +14,14 @@ import { Person } from './common';
  * Internal tasks as a board. Dropping a card changes the task status on the server, where the usual
  * rules apply (permissions, mandatory evidence before Done, progress roll-up to the activity).
  */
+/**
+ * Order inside a column: the team's arrangement (board_rank), else by due date. Both share one
+ * scale — days since epoch, ties broken by id — so a dropped card's midpoint rank lands
+ * correctly between arranged and never-arranged neighbours.
+ */
+// a date-only string parses as UTC, so every time zone computes the same default
+const rankOf = (t: InternalTask) => t.board_rank ?? Date.parse(String(t.due_date).slice(0, 10)) / 86_400_000 + t.id * 1e-6;
+
 export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle }: {
   tasks: InternalTask[];
   canEdit: (t: InternalTask) => boolean;
@@ -27,8 +35,9 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
   const columns = TASK_STATUSES.filter((c) => c.value !== 'cancelled' || tasks.some((t) => t.status === 'cancelled'));
   const subCount = (t: InternalTask) => tasks.filter((x) => x.parent_task_id === t.id).length;
 
-  const move = async (t: InternalTask, status: string) => {
-    const { data, error } = await dbClient().from('internal_tasks').update({ status }).eq('id', t.id).select('status').single();
+  const move = async (t: InternalTask, status: string, rank?: number) => {
+    const patch = { ...(status !== t.status && { status }), ...(rank !== undefined && { board_rank: rank }) };
+    const { data, error } = await dbClient().from('internal_tasks').update(patch).eq('id', t.id).select('status').single();
     if (error) {
       notify(errMsg(error), 'error');
     } else if (data.status !== status) {
@@ -43,6 +52,7 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
     <KanbanBoard
       columns={columns}
       items={tasks}
+      rankOf={rankOf}
       canDrag={canEdit}
       onOpen={onOpen}
       onMove={move}
