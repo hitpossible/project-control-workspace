@@ -1,34 +1,44 @@
 {
   "empty": "No diagrams yet — start a flowchart or an ER diagram.",
-  "newFlowchart": "Flowchart",
-  "newEr": "ER diagram",
-  "kind": { "flowchart": "Flowchart", "er": "ER diagram" },
-  "untitled": { "flowchart": "Untitled flowchart", "er": "Untitled ER diagram" },
+  "kind": {
+    "flowchart": "Flowchart",
+    "er": "ER diagram"
+  },
+  "untitled": "Untitled diagram",
   "updated": "Updated {time} · {name}",
   "titleLabel": "Diagram title",
   "save": "Save",
   "saved": "Diagram saved",
   "unsaved": "Unsaved changes",
-  "discard": { "title": "Discard unsaved changes?", "description": "Changes to “{title}” have not been saved.", "confirm": "Discard" },
-  "delete": { "button": "Delete diagram", "title": "Delete this diagram?", "description": "“{title}” will be removed for the whole team.", "done": "Diagram deleted" },
+  "discard": {
+    "title": "Discard unsaved changes?",
+    "description": "Changes to “{title}” have not been saved.",
+    "confirm": "Discard"
+  },
+  "delete": {
+    "button": "Delete diagram",
+    "title": "Delete this diagram?",
+    "description": "“{title}” will be removed for the whole team.",
+    "done": "Diagram deleted"
+  },
   "layout": "Auto layout",
   "exportPng": "Export PNG",
-  "shape": { "start": "Start", "process": "Process", "decision": "Decision", "io": "Input / Output", "end": "End" },
+  "shape": {
+    "start": "Start",
+    "process": "Process",
+    "decision": "Decision",
+    "io": "Input / Output",
+    "end": "End"
+  },
   "addTable": "Table",
   "newTable": "new_table",
   "newStep": "New step",
-  "hint": "Drag from a dot on a shape's edge to connect · select a shape or line to edit it · Delete removes it",
+  "hint": "Drag a shape from the left bar or click it to add · drag from a dot on a shape's edge to connect · select a shape, then click its text to edit (or double-click) · Delete removes · ⌘/Ctrl + C, X, V copy / cut / paste, D duplicates, A selects all, Z undoes",
   "props": {
-    "none": "Select a shape or a line to edit it.",
-    "label": "Label",
-    "shape": "Shape",
-    "tableName": "Table name",
-    "columns": "Columns",
     "colName": "name",
     "colType": "type",
     "addColumn": "Add column",
     "edgeLabel": "Line label",
-    "cardinality": "Cardinality",
     "remove": "Remove"
   },
   "ai": {
@@ -39,12 +49,66 @@
       "flowchart": "e.g. Leave request flow: the employee submits, the supervisor approves or rejects, HR records it",
       "er": "e.g. Tables for leave requests: employees, leave types, requests and approvals"
     },
-    "revise": "Revise the current diagram instead of starting over",
+    "revise": {
+      "flowchart": "Revise the flowchart already on the canvas",
+      "er": "Revise the ER tables already on the canvas"
+    },
     "run": "Draft",
     "running": "Drafting…",
     "done": "AI draft ready — review it, then save",
     "off": "AI is not set up on this server",
     "failed": "The AI could not draft the diagram",
-    "undo": "Undo AI draft"
+    "what": "What should the AI draw?",
+    "placedBeside": "Everything else on the canvas stays; a new draft is placed to the right of it."
+  },
+  "diagrams": "Diagrams",
+  "fit": "Fit to screen",
+  "maximize": "Full screen",
+  "restore": "Exit full screen (Esc)",
+  "newDiagram": "New diagram",
+  "group": {
+    "edit": "Edit",
+    "flowchart": "Flow",
+    "er": "ER",
+    "view": "View"
+  },
+  "undo": "Undo (Ctrl/⌘ + Z)",
+  "redo": "Redo (Ctrl/⌘ + Shift + Z)",
+  "format": {
+    "title": "Text",
+    "font": "Font",
+    "defaultFont": "Default",
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "vertical": "Vertical text",
+    "size": "Font size",
+    "alignLeft": "Align left",
+    "alignCenter": "Center",
+    "alignRight": "Align right",
+    "top": "Top",
+    "middle": "Middle",
+    "bottom": "Bottom"
+  },
+  "snapOn": "Snap to grid: off — click to turn on",
+  "snapOff": "Snap to grid: on — click to turn off",
+  "line": {
+    "step": "Right-angle line",
+    "straight": "Straight line",
+    "curve": "Curved line",
+    "dashed": "Dashed line"
+  },
+  "sql": {
+    "export": "Export SQL",
+    "import": "Import from SQL",
+    "exportHint": "CREATE TABLE statements for the ER tables on this diagram (MySQL). Foreign keys come from the relationship lines.",
+    "importHint": "Paste CREATE TABLE statements (MySQL). Tables, columns, primary and foreign keys become ER tables on the canvas.",
+    "copy": "Copy",
+    "copied": "SQL copied",
+    "download": "Download .sql",
+    "run": "Import",
+    "replace": "Replace the ER tables already on the canvas",
+    "noTables": "No CREATE TABLE statement found",
+    "imported": "Imported {n} tables"
   }
 }

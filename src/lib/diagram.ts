@@ -1,6 +1,9 @@
 import dagre from '@dagrejs/dagre';
 
-/** Design diagrams on the project's Design tab — stored in project_diagrams.content as React Flow nodes / edges. */
+/**
+ * Design diagrams on the project's Design tab — stored in project_diagrams.content as React Flow nodes / edges.
+ * One canvas holds flowchart shapes and ER tables side by side; a kind only says which of the two an AI draft is.
+ */
 export type DiagramKind = 'flowchart' | 'er';
 export const DIAGRAM_KINDS: DiagramKind[] = ['flowchart', 'er'];
 
@@ -9,18 +12,38 @@ export const FLOW_SHAPES: FlowShape[] = ['start', 'process', 'decision', 'io', '
 
 export interface ErColumn { name: string; type: string; pk?: boolean; fk?: boolean }
 
+/** text formatting from the format panel; unset = the shape's default */
+export interface TextStyle {
+  font?: string;
+  size?: number;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  /** text runs top to bottom */
+  vertical?: boolean;
+  align?: 'left' | 'center' | 'right';
+  /** flowchart shapes only */
+  valign?: 'top' | 'middle' | 'bottom';
+}
+
 export interface DiagramNodeData extends Record<string, unknown> {
   label: string;
+  text?: TextStyle;
   /** flowchart nodes */
   shape?: FlowShape;
   /** ER entities */
   columns?: ErColumn[];
+  /** ER entities: only the header is shown */
+  collapsed?: boolean;
 }
 
 export interface DiagramNode {
   id: string;
   type: 'flow' | 'entity';
   position: { x: number; y: number };
+  /** set once the shape has been resized by hand (ER tables: width only — their height follows the columns) */
+  width?: number;
+  height?: number;
   data: DiagramNodeData;
 }
 
@@ -31,12 +54,18 @@ export interface DiagramEdge {
   sourceHandle?: string | null;
   targetHandle?: string | null;
   label?: string;
+  /** how the line is routed; unset = step (right angles) */
+  line?: EdgeLine;
+  dashed?: boolean;
 }
+
+export type EdgeLine = 'step' | 'straight' | 'curve';
+export const EDGE_LINES: EdgeLine[] = ['step', 'straight', 'curve'];
 
 export interface DiagramContent { nodes: DiagramNode[]; edges: DiagramEdge[] }
 
 export interface ProjectDiagram {
-  id: number; project_id: number; kind: DiagramKind; title: string; content: DiagramContent;
+  id: number; project_id: number; title: string; content: DiagramContent;
   created_by: number; updated_by: number | null; created_at: string; updated_at: string;
 }
 
@@ -68,7 +97,7 @@ export function fromDraft(kind: DiagramKind, raw: unknown): { title: string; con
     if (kind === 'er') {
       const columns = (Array.isArray(o.columns) ? o.columns : []).slice(0, 40).map((c) => {
         const col = (c ?? {}) as Record<string, unknown>;
-        return { name: str(col.name, 80), type: str(col.type, 40), ...(col.pk ? { pk: true } : {}), ...(col.fk ? { fk: true } : {}) };
+        return { name: str(col.name, 80), type: str(col.type, 300), ...(col.pk ? { pk: true } : {}), ...(col.fk ? { fk: true } : {}) };
       }).filter((c) => c.name);
       nodes.push({ id, type: 'entity', position: { x: 0, y: 0 }, data: { label, columns } });
     } else {
@@ -95,15 +124,57 @@ export function toDraft(c: DiagramContent): DiagramDraft {
   };
 }
 
+const idNo = (id: string) => Number(id.replace(/^\D+/, '')) || 0;
+const nodeType = (kind: DiagramKind): DiagramNode['type'] => (kind === 'er' ? 'entity' : 'flow');
+
+/** The shapes of one kind and the lines between them — what the AI gets to revise */
+export function ofKind(c: DiagramContent, kind: DiagramKind): DiagramContent {
+  const nodes = c.nodes.filter((n) => n.type === nodeType(kind));
+  const ids = new Set(nodes.map((n) => n.id));
+  return { nodes, edges: c.edges.filter((e) => ids.has(e.source) && ids.has(e.target)) };
+}
+
+/**
+ * Put an AI draft on the canvas. `revise`: the draft replaces the shapes of its kind and leaves the rest;
+ * otherwise it is placed to the right of what is already drawn. Draft ids are renumbered after the existing ones.
+ */
+export function mergeDraft(current: DiagramContent, draft: DiagramContent, kind: DiagramKind, revise: boolean): DiagramContent {
+  const keep = revise ? current.nodes.filter((n) => n.type !== nodeType(kind)) : current.nodes;
+  const kept = new Set(keep.map((n) => n.id));
+  const keepEdges = current.edges.filter((e) => kept.has(e.source) && kept.has(e.target));
+  const right = Math.max(...keep.map((n) => n.position.x + nodeSize(n).width));
+  const top = Math.min(...keep.map((n) => n.position.y));
+  const dx = keep.length ? right + 160 : 0, dy = keep.length ? top : 0;
+  const nBase = Math.max(0, ...keep.map((n) => idNo(n.id))), eBase = Math.max(0, ...keepEdges.map((e) => idNo(e.id)));
+  const nid = (id: string) => `n${nBase + idNo(id)}`;
+  return {
+    nodes: [...keep, ...draft.nodes.map((n) => ({ ...n, id: nid(n.id), position: { x: n.position.x + dx, y: n.position.y + dy } }))],
+    edges: [...keepEdges, ...draft.edges.map((e) => ({ ...e, id: `e${eBase + idNo(e.id)}`, source: nid(e.source), target: nid(e.target) }))],
+  };
+}
+
+export const ENTITY_WIDTH = 240;
+
+/** Clipboard content pasted into a drawing: fresh ids after the existing ones, moved by `offset`, returns the new node ids */
+export function pasteContent(current: DiagramContent, clip: DiagramContent, offset: number): { content: DiagramContent; ids: Set<string> } {
+  const nBase = Math.max(0, ...current.nodes.map((n) => idNo(n.id))), eBase = Math.max(0, ...current.edges.map((e) => idNo(e.id)));
+  const map = new Map(clip.nodes.map((n, i) => [n.id, `n${nBase + i + 1}`]));
+  const nodes = clip.nodes.map((n) => ({ ...n, id: map.get(n.id)!, position: { x: n.position.x + offset, y: n.position.y + offset } }));
+  const edges = clip.edges.filter((e) => map.has(e.source) && map.has(e.target))
+    .map((e, i) => ({ ...e, id: `e${eBase + i + 1}`, source: map.get(e.source)!, target: map.get(e.target)! }));
+  return { content: { nodes: [...current.nodes, ...nodes], edges: [...current.edges, ...edges] }, ids: new Set(nodes.map((n) => n.id)) };
+}
+
 /** Size a node is drawn at — must match the node components in DesignTab */
 export function nodeSize(n: DiagramNode): { width: number; height: number } {
-  if (n.type === 'entity') return { width: 220, height: 38 + 26 * Math.max(1, n.data.columns?.length ?? 0) };
+  if (n.type === 'flow' && n.width && n.height) return { width: n.width, height: n.height };
+  if (n.type === 'entity') return { width: n.width || ENTITY_WIDTH, height: 42 + (n.data.collapsed ? 0 : 30 * Math.max(1, n.data.columns?.length ?? 0) + 2) };
   if (n.data.shape === 'decision') return { width: 150, height: 110 };
   if (n.data.shape === 'start' || n.data.shape === 'end') return { width: 150, height: 48 };
   return { width: 170, height: 60 };
 }
 
-/** Auto layout with dagre — flowcharts top to bottom, ER diagrams left to right */
+/** Auto layout with dagre — flowcharts top to bottom; left to right once there are ER tables */
 export function layout(c: DiagramContent, kind?: DiagramKind): DiagramContent {
   if (!c.nodes.length) return c;
   const er = kind ? kind === 'er' : c.nodes.some((n) => n.type === 'entity');
