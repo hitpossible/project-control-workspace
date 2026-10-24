@@ -32,6 +32,8 @@ export interface ChatMessage {
   at: string;
   /** criterion keys an assistant message asks about */
   criteria?: string[];
+  /** said out loud in a Gemini Live voice session (the text is its transcript) */
+  voice?: boolean;
 }
 
 export interface AiCoverage {
@@ -40,11 +42,11 @@ export interface AiCoverage {
 }
 
 /** AI messages per conversation before it wraps up */
-export const MAX_AI_TURNS = 10;
-/** criteria one AI message may ask about */
-export const CRITERIA_PER_TURN = 2;
-/** a criterion is not asked again after this many messages — the requestor may simply not know */
-export const MAX_ASKS_PER_CRITERION = 2;
+export const MAX_AI_TURNS = 18;
+/** criteria one AI message may ask about — one, so each answer can be followed up before moving on */
+export const CRITERIA_PER_TURN = 1;
+/** a criterion is not asked again after this many messages (the first question + follow-ups) — the requestor may simply not know */
+export const MAX_ASKS_PER_CRITERION = 3;
 export const MAX_CHAT_MESSAGE = 2000;
 
 export const DEFAULT_CRITERIA: ClarifyCriterion[] = [

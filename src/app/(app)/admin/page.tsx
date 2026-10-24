@@ -24,6 +24,7 @@ import { DEFAULT_CRITERIA, type ClarifyCriterion } from '@/lib/clarify';
 import { POSITION_LEVELS, ROUTE_STAGES, andUp, defaultRoute, formatPrefix, routeApprovers, routeProblems, type RouteStage, type RouteStep } from '@/lib/approval';
 import { cn } from '@/lib/utils';
 import { DEFAULT_WORK_WEEK, WORK_WEEKS, WORK_WEEK_KEY, makeCalendar } from '@/lib/workdays';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 const ROLE_OPTS = (Object.keys(ROLE_LABELS) as Role[]).map((r) => ({ value: r, label: ROLE_LABELS[r] }));
 // A plain mouse wheel only scrolls vertically, so turn it into horizontal scrolling of the tab strip.
@@ -735,7 +736,7 @@ function WorkingDaysAdmin() {
     load();
   };
   const removeHoliday = async (h: Holiday) => {
-    if (!confirm(`Remove ${h.name}?`)) return;
+    if (!(await confirmDialog({ title: `Remove ${h.name}?`, description: 'This holiday will be removed from the company calendar.', confirmText: 'Remove', destructive: true }))) return;
     const { error } = await db.from('company_holidays').delete().eq('id', h.id);
     if (error) return notify(errMsg(error), 'error');
     load();

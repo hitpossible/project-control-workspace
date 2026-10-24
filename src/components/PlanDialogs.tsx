@@ -18,6 +18,7 @@ import { Checkbox } from './ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Slider } from './ui/slider';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 const delayOpts = DELAY_CATEGORIES.map((c) => ({ value: c, label: c }));
 
@@ -111,7 +112,7 @@ export function ActivityDialog({ project, activity, hasTasks, canManage, canView
   };
 
   const remove = async () => {
-    if (!activity || !confirm(`Delete activity "${activity.name}" and all its internal tasks?`)) return;
+    if (!activity || !(await confirmDialog({ title: `Delete activity "${activity.name}"?`, description: 'All of its internal tasks will be deleted too.', confirmText: 'Delete', destructive: true }))) return;
     const { error } = await db.from('activities').delete().eq('id', activity.id);
     if (error) return notify(errMsg(error), 'error');
     notify('Activity deleted');
@@ -254,7 +255,7 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
   };
 
   const remove = async () => {
-    if (!task || !confirm(`Delete task ${task.task_no} "${task.name}"?`)) return;
+    if (!task || !(await confirmDialog({ title: `Delete task ${task.task_no}?`, description: `"${task.name}" will be permanently deleted.`, confirmText: 'Delete', destructive: true }))) return;
     const { error } = await db.from('internal_tasks').delete().eq('id', task.id);
     if (error) return notify(errMsg(error), 'error');
     notify('Task deleted');

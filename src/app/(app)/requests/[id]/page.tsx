@@ -1,7 +1,7 @@
 'use client';
 
 import dayjs from 'dayjs';
-import { ArrowRight, Ban, CalendarClock, CalendarDays, Check, ChevronRight, CircleHelp, Hourglass, ListChecks, Mail, MessageCircleQuestion, Phone, Rocket, Send, Sparkles, Undo2, Users, X, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Ban, CalendarClock, CalendarDays, Check, ChevronRight, CircleHelp, Hourglass, ListChecks, Mail, MessageCircleQuestion, Mic, Phone, Rocket, Send, Sparkles, Undo2, Users, X, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Fragment, useCallback, useEffect, useState } from 'react';
@@ -23,6 +23,7 @@ import { errMsg, fmtDate, fmtDateTime, fmtNum } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { ApprovalAction, ApprovalStep, ProjectRequest, ProjectTemplate, ProjectType, Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 type Act = 'approve' | 'reject' | 'send_back' | 'request_more_info';
 const ACT_META: Record<Act, { label: string; short: string; icon: LucideIcon; tone: 'success' | 'destructive' | 'warning' | 'secondary'; required: boolean }> = {
@@ -94,6 +95,7 @@ export default function RequestDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [tab, setTab] = useState('details');
+  const [convertCard, setConvertCard] = useState<HTMLDivElement | null>(null);
   const docType = useDocumentTypes().find((t) => t.id === r?.document_type_id);
 
   const load = useCallback(async () => {
@@ -160,6 +162,20 @@ export default function RequestDetailPage() {
       p_scope_assessment: review.scope_assessment || null,
     }, 'Review saved');
 
+  const go = async (a: Act) => {
+    if (a === 'approve' && isReview) {
+      const saved = await saveReview();
+      if (!saved) return;
+    }
+    setDialog(a);
+  };
+  const otherActs = (Object.keys(ACT_META) as Act[]).filter((a) => a !== 'approve');
+  const convert = async () => {
+    const p = await rpc('convert_request_to_project', { p_request_id: r.id, p_start_date: conv.start, p_target_date: conv.target, p_sponsor: conv.sponsor || null }, 'Project created');
+    if (p) router.push(`/projects/${(p as { id: number }).id}`);
+  };
+  const floating = canAct && waiting ? 'approval' : canConvert ? 'convert' : null;
+
   return (
     <>
       <PageHeader
@@ -172,11 +188,11 @@ export default function RequestDetailPage() {
         actions={<>
           {r.project_id && <Button asChild><Link href={`/projects/${r.project_id}`}>Open Project</Link></Button>}
           {mine && ['draft', 'need_more_information', 'waiting_requestor_approval'].includes(r.status) && r.request_no && (
-            <Button variant="destructive" onClick={async () => { if (confirm('Cancel this request?')) await rpc('cancel_request', { p_request_id: r.id, p_comment: null }, 'Request cancelled'); }}>Cancel Request</Button>
+            <Button variant="destructive" onClick={async () => { if (await confirmDialog({ title: 'Cancel this request?', description: 'The request will be cancelled and can no longer move through approval.', confirmText: 'Cancel Request', cancelText: 'Keep', destructive: true })) await rpc('cancel_request', { p_request_id: r.id, p_comment: null }, 'Request cancelled'); }}>Cancel Request</Button>
           )}
           {mine && r.status === 'draft' && !r.request_no && (
             <Button variant="destructive" onClick={async () => {
-              if (!confirm('Delete this draft?')) return;
+              if (!(await confirmDialog({ title: 'Delete this draft?', description: 'This cannot be undone.', confirmText: 'Delete', destructive: true }))) return;
               const { error } = await db.from('project_requests').delete().eq('id', r.id);
               if (error) return notify(errMsg(error), 'error');
               router.replace('/requests');
@@ -343,7 +359,11 @@ export default function RequestDetailPage() {
                     {r.ai_chat.map((m, i) => (
                       <div key={i} className={cn('flex', m.role === 'user' && 'justify-end')}>
                         <div className={cn('max-w-[85%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
-                          m.role === 'user' ? 'rounded-br-md bg-primary text-white' : 'rounded-bl-md bg-muted')}>{m.content}</div>
+                          m.role === 'user' ? 'rounded-br-md bg-primary text-white' : 'rounded-bl-md bg-muted')}>
+                          {m.content}
+                          {/* a speech-to-text transcript: words may be misheard */}
+                          {m.voice && <span className="mt-1 flex items-center gap-1 text-[10px] opacity-70"><Mic className="size-3" /> Spoken</span>}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -407,60 +427,17 @@ export default function RequestDetailPage() {
             </Section>
           )}
 
-          {canAct && waiting && (
-            <Section className="overflow-hidden bg-gradient-to-b from-[#eef5ff] to-card to-60% ring-2 ring-primary/70">
-              <div className="mb-4 flex items-start gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-white"><Hourglass className="size-4" /></span>
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-primary">Your action required · Step {current.indexOf(waiting) + 1} of {current.length}</div>
-                  <h3 className="text-base font-semibold">{waiting.step_name}</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Review the request, then approve it or pick another action. A comment is required unless you approve.</p>
-                </div>
-              </div>
-              {(() => {
-                const go = async (a: Act) => {
-                  if (a === 'approve' && isReview) {
-                    const saved = await saveReview();
-                    if (!saved) return;
-                  }
-                  setDialog(a);
-                };
-                const others = (Object.keys(ACT_META) as Act[]).filter((a) => a !== 'approve');
-                return (
-                  <>
-                    <ActionButton tone="success" className="h-11 w-full gap-2 text-sm shadow-sm" onClick={() => go('approve')}>
-                      <Check className="size-4" strokeWidth={3} /> Approve
-                    </ActionButton>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      {others.map((a) => {
-                        const Icon = ACT_META[a].icon;
-                        return (
-                          <ActionButton key={a} tone={ACT_META[a].tone} outline title={ACT_META[a].label} className="h-auto flex-col gap-1 px-1 py-2 text-xs whitespace-normal" onClick={() => go(a)}>
-                            <Icon className="size-4" />
-                            {ACT_META[a].short}
-                          </ActionButton>
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              })()}
-            </Section>
-          )}
-
           {canConvert && (
-            <Section title="Convert to Controlled Project" className="ring-2 ring-[#00c875]">
-              <p className="mb-3 text-sm text-muted-foreground">Creates the Project Code, project record, team and default activities from the template.</p>
-              <div className="space-y-3">
-                <DateField label="Start Date" required value={conv.start} onChange={(v) => setConv({ ...conv, start: v })} />
-                <DateField label="Target Date" required value={conv.target} onChange={(v) => setConv({ ...conv, target: v })} />
-                <TextField label="Sponsor" value={conv.sponsor} onChange={(v) => setConv({ ...conv, sponsor: v })} />
-                <ActionButton tone="success" className="h-9 w-full" disabled={!conv.start || !conv.target} onClick={async () => {
-                  const p = await rpc('convert_request_to_project', { p_request_id: r.id, p_start_date: conv.start, p_target_date: conv.target, p_sponsor: conv.sponsor || null }, 'Project created');
-                  if (p) router.push(`/projects/${(p as { id: number }).id}`);
-                }}>Convert to Project</ActionButton>
-              </div>
-            </Section>
+            <div ref={setConvertCard} className="scroll-mt-4">
+              <Section title="Convert to Controlled Project" className="ring-2 ring-[#00c875]">
+                <p className="mb-3 text-sm text-muted-foreground">Creates the Project Code, project record, team and default activities from the template.</p>
+                <div className="space-y-3">
+                  <DateField label="Start Date" required value={conv.start} onChange={(v) => setConv({ ...conv, start: v })} />
+                  <DateField label="Target Date" required value={conv.target} onChange={(v) => setConv({ ...conv, target: v })} />
+                  <TextField label="Sponsor" value={conv.sponsor} onChange={(v) => setConv({ ...conv, sponsor: v })} />
+                </div>
+              </Section>
+            </div>
           )}
 
           <Section title="Approval Route">
@@ -534,6 +511,58 @@ export default function RequestDetailPage() {
           </Section>
         </div>
       </div>
+
+      {floating && (
+        // The decision lives here rather than in a card, so it stays on screen however far the details run.
+        // It sits in the page flow, so at the very bottom it settles below the content instead of covering it.
+        <div className={cn(
+          'sticky bottom-4 z-30 mt-5 flex items-center gap-3 rounded-xl border bg-white/95 p-2.5 pl-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] ring-1 backdrop-blur animate-in fade-in slide-in-from-bottom-4',
+          floating === 'approval' ? 'ring-primary/40' : 'ring-[#00c875]/40',
+        )}>
+          {floating === 'approval' && waiting ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-white"><Hourglass className="size-3.5" /></span>
+              <span className="min-w-0">
+                <span className="block text-[11px] font-medium text-primary">Your action required · Step {current.indexOf(waiting) + 1} of {current.length}</span>
+                <span className="block truncate text-sm font-semibold">{waiting.step_name}</span>
+              </span>
+            </div>
+          ) : (
+            <button type="button" title="Edit dates" className="flex min-w-0 flex-1 items-center gap-2.5 text-left" onClick={() => convertCard?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#00c875] text-white"><Rocket className="size-3.5" /></span>
+              <span className="min-w-0">
+                <span className="block text-[11px] font-medium text-[#00854d]">Approved · ready to convert</span>
+                <span className="block truncate text-sm font-semibold">{conv.start && conv.target ? `${fmtDate(conv.start)} → ${fmtDate(conv.target)}` : 'Set start and target dates'}</span>
+              </span>
+            </button>
+          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {floating === 'approval' ? (
+              <>
+                {otherActs.map((a) => {
+                  const Icon = ACT_META[a].icon;
+                  return (
+                    <ActionButton key={a} tone={ACT_META[a].tone} outline title={ACT_META[a].label} aria-label={ACT_META[a].label} className="h-9 gap-1.5 px-2.5 text-xs" onClick={() => go(a)}>
+                      <Icon className="size-4" /><span className="hidden lg:inline">{ACT_META[a].short}</span>
+                    </ActionButton>
+                  );
+                })}
+                <ActionButton tone="success" className="h-9 gap-1.5 px-4 text-sm shadow-sm" onClick={() => go('approve')}>
+                  <Check className="size-4" strokeWidth={3} /> Approve
+                </ActionButton>
+              </>
+            ) : (
+              <ActionButton tone="success" className="h-9 gap-1.5 px-4 text-sm shadow-sm" onClick={async () => {
+                // Dates live in the card, so send the user there when they are missing; otherwise confirm what will be created.
+                if (!conv.start || !conv.target) return convertCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                if (await confirmDialog({ title: 'Convert to Controlled Project?', description: `Creates the project from ${fmtDate(conv.start)} to ${fmtDate(conv.target)}${conv.sponsor ? ` with sponsor ${conv.sponsor}` : ''}.`, confirmText: 'Convert' })) await convert();
+              }}>
+                <Rocket className="size-4" /> Convert<span className="hidden sm:inline"> to Project</span>
+              </ActionButton>
+            )}
+          </div>
+        </div>
+      )}
 
       {dialog && waiting && (
         <CommentDialog

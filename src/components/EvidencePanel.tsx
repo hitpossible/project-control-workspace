@@ -13,6 +13,7 @@ import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 function guessType(file: File): string {
   const n = file.name.toLowerCase();
@@ -112,7 +113,7 @@ export default function EvidencePanel({
   };
 
   const remove = async (ev: Evidence) => {
-    if (!confirm(`Remove evidence "${ev.file_name ?? ev.url}"?`)) return;
+    if (!(await confirmDialog({ title: 'Remove evidence?', description: `"${ev.file_name ?? ev.url}" will be removed.`, confirmText: 'Remove', destructive: true }))) return;
     const { error } = await db.from('evidence').delete().eq('id', ev.id);
     if (error) return notify(errMsg(error), 'error');
     await load();

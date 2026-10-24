@@ -11,6 +11,7 @@ import { MEMBER_ROLES, optLabel } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { TabProps } from './types';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 export default function TeamTab({ data, perm, reload }: TabProps) {
   const db = dbClient();
@@ -67,7 +68,7 @@ export default function TeamTab({ data, perm, reload }: TabProps) {
                   {perm.manage && (
                     <TableCell className="w-11 text-center">
                       <Button variant="ghost" size="icon-sm" disabled={m.member_role === 'leader' && m.user_id === data.project.leader_id} onClick={async () => {
-                        if (!confirm(`Remove ${p?.full_name} (${optLabel(MEMBER_ROLES, m.member_role)})?`)) return;
+                        if (!(await confirmDialog({ title: `Remove ${p?.full_name}?`, description: `They will be removed from the project team (${optLabel(MEMBER_ROLES, m.member_role)}).`, confirmText: 'Remove', destructive: true }))) return;
                         const { error } = await db.from('project_members').delete().eq('id', m.id);
                         if (error) return notify(errMsg(error), 'error');
                         await reload();
