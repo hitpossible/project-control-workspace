@@ -6,6 +6,7 @@
 #
 # 2) The app in Docker too (profile "app": migrations + the app):   npm run docker:up
 #      App   http://localhost:3000  (production build of the current source; APP_PORT=3010 to change)
+#      Realtime (live cursors on the Design tab)  ws://localhost:3001/realtime
 #      Logs:  npm run docker:logs      Stop:  npm run docker:down
 #    Database = MySQL on the host (MAMP), no MySQL container. 127.0.0.1 inside a container is the container itself, so
 #    set DOCKER_DATABASE_URL in .env.local = DATABASE_URL with host.docker.internal, e.g.
@@ -54,6 +55,17 @@ services:
     image: tbkk-pcw-tools
     env_file: [{ path: .env.local, required: false }]
     environment: *app-env
+
+  # live cursors on the Design tab (WebSocket :3001); with `npm run dev` run `npm run realtime` instead
+  realtime:
+    profiles: [app]
+    build: { context: ., target: realtime }
+    image: tbkk-pcw-realtime
+    container_name: tbkk-pcw-realtime
+    env_file: [{ path: .env.local, required: false }]
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
 
   app:
     profiles: [app]

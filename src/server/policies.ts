@@ -171,16 +171,14 @@ export const POLICIES: Record<string, Policy> = {
   },
   retests: { read: (ctx) => internalProject(ctx) },
 
-  // Design diagrams (flowchart / ER): the internal team draws and edits; the author or the leader deletes
+  // Design diagrams (flowchart / ER): the internal team draws them; saving and deleting go through
+  // /api/diagrams/[id], which checks the version (no silent overwrites) and tells the other open editors
   project_diagrams: {
     read: (ctx) => internalProject(ctx),
     insert: async (ctx, r) => {
       r.created_by ??= ctx.uid;
       return r.created_by === ctx.uid && canViewInternal(ctx, pid(r));
     },
-    update: (ctx, o) => canViewInternal(ctx, pid(o)),
-    check: (ctx, n) => n.updated_by === ctx.uid && canViewInternal(ctx, pid(n)),
-    delete: async (ctx, o) => o.created_by === ctx.uid || (await manage(ctx, o)),
     readonly: ['created_by', 'created_at', 'updated_at'],
   },
 

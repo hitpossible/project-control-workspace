@@ -20,6 +20,18 @@ services:
       driver: json-file
       options: { max-size: "20m", max-file: "5" }
 
+  # live cursors / dragging on the Design tab — a WebSocket relay without database access.
+  # Reverse proxy: route wss://<app host>/realtime to this port with WebSocket upgrade, and set
+  # REALTIME_PUBLIC_URL=wss://<app host>/realtime for the app.
+  realtime:
+    build: { context: ., target: realtime }
+    image: ${APP_IMAGE:-tbkk-pcw}-realtime:${APP_TAG:-latest}
+    env_file: .env.production
+    ports:
+      - "${REALTIME_PORT:-3001}:3001"
+    restart: always
+    logging: *logging
+
   migrate:
     build: { context: ., target: tools }
     image: ${APP_IMAGE:-tbkk-pcw}-tools:${APP_TAG:-latest}

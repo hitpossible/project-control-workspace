@@ -16,6 +16,7 @@ cp .env.example .env.local   # then fill in DATABASE_URL, AUTH_SECRET, MINIO_* �
 npm run services:up          # MinIO (evidence files) + Mailpit (e-mail) in Docker
 npm run db:reset             # create database, apply db/migrations, seed demo users & workflow data
 npm run dev                  # http://localhost:3000
+npm run realtime             # live cursors on the Design tab (WebSocket :3001) — optional, in a second terminal
 ```
 
 | Tool | URL |
@@ -239,4 +240,5 @@ These defaults are confirmable/configurable:
 - **AD:** confirm the response format of `AD_LOGIN_URL` (success flag and user fields such as name / e-mail / department) — the adapter is in `src/server/auth.ts` (`adLogin`).
 - **Scheduler:** runs inside the app (`node-cron`). With several app instances, keep it on one and set `DISABLE_SCHEDULER=true` on the others. External schedulers can also call `POST /api/notifications/dispatch` with header `x-cron-secret: $CRON_SECRET`.
 - **E-mail:** point `SMTP_*` to the company relay.
+- **Design tab live editing:** saves and "who has it open" use the app's SSE stream; live cursors and dragging go through the `realtime` service (`realtime/server.mjs`, WebSocket, no database — the app signs a 10-minute ticket per diagram). Route `/realtime` to it in the reverse proxy with WebSocket upgrade and set `REALTIME_PUBLIC_URL`. Both are in-process, single instance: with several app / realtime instances, move the events to Redis pub/sub. Without the service everything works except the live cursors.
 - **Evidence files:** MinIO bucket `MINIO_BUCKET` (created automatically); 50 MB per file (`EVIDENCE_MAX_MB`). Only PDF / images / text open inline; other types download.

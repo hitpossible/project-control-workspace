@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "realtime",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "realtime"],
+      "port": 3001
+    }
+  ]
+}

@@ -5,11 +5,7 @@
     "er": "ER diagram"
   },
   "untitled": "Untitled diagram",
-  "updated": "Updated {time} · {name}",
   "titleLabel": "Diagram title",
-  "save": "Save",
-  "saved": "Diagram saved",
-  "unsaved": "Unsaved changes",
   "discard": {
     "title": "Discard unsaved changes?",
     "description": "Changes to “{title}” have not been saved.",
@@ -110,5 +106,18 @@
     "replace": "Replace the ER tables already on the canvas",
     "noTables": "No CREATE TABLE statement found",
     "imported": "Imported {n} tables"
+  },
+  "live": {
+    "viewing": "Also open by: {names}",
+    "youOtherTab": "you (another tab)",
+    "deletedBy": "{name} deleted this diagram — it can no longer be saved"
+  },
+  "autosave": {
+    "saving": "Saving…",
+    "saved": "Saved {time}",
+    "failed": "Not saved",
+    "retry": "Retry",
+    "updatedBy": "updated by {name}",
+    "busy": "Several people are editing at once — try again"
   }
 }

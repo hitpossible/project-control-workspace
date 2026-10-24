@@ -4,16 +4,16 @@ import '@xyflow/react/dist/style.css';
 import {
   Background, BaseEdge, ConnectionMode, Controls, type Edge, EdgeLabelRenderer, type EdgeProps, Handle, MarkerType, MiniMap, type Node,
   type NodeProps, NodeResizeControl, NodeResizer, NodeToolbar, Position, ResizeControlVariant, ReactFlow, ReactFlowProvider, ViewportPortal, addEdge, getBezierPath, getNodesBounds, getSmoothStepPath, getStraightPath, getViewportForBounds,
-  type NodeChange, useEdgesState, useNodesState, useReactFlow,
+  type NodeChange, type NodePositionChange, useEdgesState, useViewport, useNodesState, useReactFlow,
 } from '@xyflow/react';
 import { toPng } from 'html-to-image';
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowDownToLine, ArrowUpToLine, Bold, ChevronDown, Copy, Database, FileCode, FileInput, FoldVertical,
-  Grid3x3, Italic, Type, Underline, Download, Info, LayoutGrid, Maximize2, Minimize2, PenTool, Plus, Redo2, Save, Scan, Sparkles, Trash2, Undo2, Workflow, X,
+  Check, Grid3x3, Italic, Loader2, Type, Underline, Download, Info, LayoutGrid, Maximize2, Minimize2, PenTool, Plus, Redo2, Scan, Sparkles, Trash2, Undo2, Workflow, X,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { EmptyState, Tip } from '@/components/common';
 import { confirmDialog } from '@/components/ConfirmDialog';
@@ -30,7 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { dbClient } from '@/lib/db/client';
 import {
   type DiagramContent, type DiagramEdge, type DiagramKind, type DiagramNode, type DiagramNodeData, type ErColumn, FLOW_SHAPES,
-  type DiagramDraft, type EdgeLine, EDGE_LINES, type FlowShape, type ProjectDiagram, type TextStyle, ENTITY_WIDTH, emptyContent, fromDraft, layout, mergeDraft, nodeSize, ofKind, pasteContent,
+  type DiagramDraft, type EdgeLine, EDGE_LINES, type FlowShape, type ProjectDiagram, type TextStyle, ENTITY_WIDTH, emptyContent, fromDraft, layout, merge3, mergeDraft, newId, nodeSize, ofKind, pasteContent,
 } from '@/lib/diagram';
 import { fromSql, toSql } from '@/lib/diagramSql';
 import { errMsg, fmtDateTime } from '@/lib/format';
@@ -61,10 +61,23 @@ function alignTo(id: string, pos: { x: number; y: number }, nodes: FlowNode[]) {
   return { dx: best.dx, dy: best.dy, x: best.x, y: best.y };
 }
 
-/** undo history of a drawing: earlier states, undone states, and the state now on screen (JSON of DiagramContent) */
-type History = { past: string[]; future: string[]; last: string };
+const AUTOSAVE_MS = 1000;
+
+/**
+ * Undo history of MY edits: each step is the drawing before / after it (JSON of DiagramContent); `last` is the
+ * drawing the steps were recorded up to. Undo / redo merge the step onto whatever is on screen now, so other
+ * people's edits that arrived in between stay.
+ */
+type Step = { before: string; after: string };
+type History = { past: Step[]; future: Step[]; last: string };
 const pushed = (h: History, current: string): History =>
-  (current === h.last ? h : { past: [...h.past.slice(-(MAX_HISTORY - 1)), h.last], future: [], last: current });
+  (current === h.last ? h : { past: [...h.past.slice(-(MAX_HISTORY - 1)), { before: h.last, after: current }], future: [], last: current });
+/** the drawing as the editor serialises it (same form as its `snap`) */
+const snapOf = (c: DiagramContent) => {
+  const f = toFlow(c);
+  return JSON.stringify(toContent(f.nodes, f.edges));
+};
+type Saved = { title: string; content: DiagramContent; updated_at: string };
 const DRAG_TYPE = 'application/x-pcw-shape';
 
 /**
@@ -484,15 +497,11 @@ function toContent(nodes: FlowNode[], edges: Edge[]): DiagramContent {
     })),
   };
 }
-const nextId = (prefix: string, items: { id: string }[]) => {
-  const max = Math.max(0, ...items.map((i) => Number(i.id.replace(/^\D+/, '')) || 0));
-  return `${prefix}${max + 1}`;
-};
 
 export default function DesignTab({ data, perm }: TabProps) {
   const t = useTranslations('design');
   const db = dbClient();
-  const { me, profileName, notify } = useApp();
+  const { me, notify } = useApp();
   const projectId = data.project.id;
   const [list, setList] = useState<ProjectDiagram[] | null>(null);
   const [selId, setSelId] = useState<number | null>(null);
@@ -571,32 +580,220 @@ export default function DesignTab({ data, perm }: TabProps) {
         picker={picker}
         canDelete={current.created_by === me?.id || perm.manage}
         onDirty={setDirty}
-        onSaved={async () => { setDirty(false); await load(); }}
+        // keep the list in step with what is saved, so reopening this diagram shows the latest version
+        onSaved={(sv) => setList((l) => l?.map((d) => (d.id === current.id ? { ...d, ...sv } : d)) ?? l)}
         onDeleted={async () => {
           setDirty(false);
           const all = await load();
           setSelId(all[0]?.id ?? null);
         }}
-        editorName={profileName(current.updated_by ?? current.created_by)}
       />
     </ReactFlowProvider>
   );
 }
 
-function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, editorName }: {
-  diagram: ProjectDiagram; picker: React.ReactNode; canDelete: boolean; editorName: string;
-  onDirty: (v: boolean) => void; onSaved: () => Promise<void>; onDeleted: () => Promise<void>;
+/**
+ * Live link to the other open editors of this diagram (SSE /api/diagrams/[id]/stream): who has it open, the latest
+ * save by someone else (the editor then pulls and merges it) and a delete. `tab` identifies this editor so its own
+ * saves are not reported back to it.
+ */
+function useDiagramLive(id: number) {
+  const [tab] = useState(() => crypto.randomUUID());
+  const [viewers, setViewers] = useState<{ tab: string; userId: number; name: string }[]>([]);
+  const [remote, setRemote] = useState<{ name: string; updated_at: string } | null>(null);
+  const [deleted, setDeleted] = useState<{ name: string } | null>(null);
+  useEffect(() => {
+    const es = new EventSource(`/api/diagrams/${id}/stream?tab=${tab}`);
+    es.addEventListener('presence', (e) => setViewers((JSON.parse(e.data).viewers as typeof viewers).filter((v) => v.tab !== tab)));
+    es.addEventListener('saved', (e) => {
+      const d = JSON.parse(e.data);
+      if (d.tab !== tab) setRemote({ name: d.name, updated_at: d.updated_at });
+    });
+    es.addEventListener('deleted', (e) => setDeleted({ name: JSON.parse(e.data).name }));
+    return () => es.close();
+  }, [id, tab]);
+  return { tab, viewers, remote, deleted };
+}
+
+/** colour of a person in the live view — the same palette as realtime/server.mjs */
+const PEER_COLORS = ['#e2445c', '#0073ea', '#00a862', '#a25ddc', '#ff642e', '#037f4c', '#bb3354', '#579bfc', '#9d50dd', '#d9822b'];
+const peerColor = (userId: number) => PEER_COLORS[userId % PEER_COLORS.length];
+
+type DragNode = { id: string; x: number; y: number; w: number | null; h: number | null };
+type Peer = { name: string; color: string; cursor?: { x: number; y: number }; seen: number; drag?: { nodes: DragNode[]; ended?: number } };
+type LiveMessage = { t: 'cursor'; x: number | null; y: number | null } | { t: 'drag'; nodes: DragNode[] } | { t: 'drag-end' };
+
+const CURSOR_IDLE_MS = 15000;
+const GHOST_AFTER_DROP_MS = 3000;
+const SEND_EVERY_MS = 40;
+
+/**
+ * Cursors and shapes being dragged, live, over the realtime service (realtime/server.mjs, WebSocket). The app hands
+ * out a ticket for the room (/api/diagrams/[id]/live); the socket reconnects with a fresh one when it drops. Without
+ * the service everything else keeps working — only the live cursors are missing.
+ */
+function useLivePointers(id: number, tab: string) {
+  const ws = useRef<WebSocket | null>(null);
+  const [peers, setPeers] = useState<Record<string, Peer>>({});
+  useEffect(() => {
+    let stopped = false, retry = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const again = () => { if (!stopped) timer = setTimeout(connect, Math.min(30000, 1000 * 2 ** retry++)); };
+    async function connect() {
+      try {
+        const j = await fetch(`/api/diagrams/${id}/live?tab=${tab}`).then((r) => r.json());
+        if (j.error || stopped) return again();
+        const sock = new WebSocket(`${j.data.url}?token=${encodeURIComponent(j.data.token)}`);
+        ws.current = sock;
+        sock.onopen = () => { retry = 0; };
+        sock.onmessage = (e) => {
+          const m = JSON.parse(e.data);
+          setPeers((p) => {
+            if (m.t === 'gone') {
+              const rest = { ...p };
+              delete rest[m.tab];
+              return rest;
+            }
+            const prev: Peer = p[m.tab] ?? { name: m.name, color: m.color, seen: 0 };
+            const next: Peer = { ...prev, name: m.name, color: m.color, seen: Date.now() };
+            if (m.t === 'cursor') next.cursor = m.x === null || m.y === null ? undefined : { x: m.x, y: m.y };
+            if (m.t === 'drag') next.drag = { nodes: m.nodes };
+            if (m.t === 'drag-end' && prev.drag) next.drag = { ...prev.drag, ended: Date.now() };
+            return { ...p, [m.tab]: next };
+          });
+        };
+        sock.onclose = () => {
+          if (ws.current === sock) ws.current = null;
+          setPeers({});
+          again();
+        };
+      } catch {
+        again();
+      }
+    }
+    void connect();
+    // forget idle cursors and the outlines of finished drags (the saved position has arrived by then)
+    const sweep = setInterval(() => {
+      const now = Date.now();
+      setPeers((p) => {
+        let changed = false;
+        const out: Record<string, Peer> = {};
+        for (const [k, v] of Object.entries(p)) {
+          const n = { ...v };
+          if (n.cursor && now - n.seen > CURSOR_IDLE_MS) { n.cursor = undefined; changed = true; }
+          if (n.drag?.ended && now - n.drag.ended > GHOST_AFTER_DROP_MS) { n.drag = undefined; changed = true; }
+          out[k] = n;
+        }
+        return changed ? out : p;
+      });
+    }, 1000);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      clearInterval(sweep);
+      ws.current?.close();
+      ws.current = null;
+    };
+  }, [id, tab]);
+
+  // at most one message per kind every SEND_EVERY_MS; the latest one always goes out
+  const pending = useRef<Record<string, LiveMessage>>({});
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout> | undefined>>({});
+  const send = useCallback((m: LiveMessage, now = false) => {
+    const raw = (x: LiveMessage) => { if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(x)); };
+    const kind = m.t === 'drag-end' ? 'drag' : m.t;
+    if (now) {
+      clearTimeout(timers.current[kind]);
+      timers.current[kind] = undefined;
+      delete pending.current[kind];
+      return raw(m);
+    }
+    pending.current[kind] = m;
+    if (timers.current[kind]) return;
+    raw(m);
+    delete pending.current[kind];
+    timers.current[kind] = setTimeout(function flush() {
+      const next = pending.current[kind];
+      delete pending.current[kind];
+      if (next) {
+        raw(next);
+        timers.current[kind] = setTimeout(flush, SEND_EVERY_MS);
+      } else {
+        timers.current[kind] = undefined;
+      }
+    }, SEND_EVERY_MS);
+  }, []);
+  return { peers, send };
+}
+
+/** other people's cursors and the outlines of what they are dragging, drawn in diagram coordinates */
+function RemoteLayer({ peers, nodes }: { peers: Record<string, Peer>; nodes: FlowNode[] }) {
+  const { zoom } = useViewport();
+  const label = (id: string) => nodes.find((n) => n.id === id)?.data.label ?? '';
+  return (
+    <ViewportPortal>
+      {Object.entries(peers).map(([tab, p]) => (
+        <Fragment key={tab}>
+          {p.drag?.nodes.map((n) => (
+            <div
+              key={n.id}
+              className="pointer-events-none absolute grid place-items-center rounded-md border-2 border-dashed px-2 text-center text-xs font-medium transition-[left,top] duration-75"
+              style={{ left: n.x, top: n.y, width: n.w ?? 160, height: n.h ?? 60, borderColor: p.color, background: `${p.color}14`, color: p.color, zIndex: 1000 }}
+            >
+              <span className="line-clamp-2">{label(n.id)}</span>
+            </div>
+          ))}
+          {p.cursor && (
+            <div
+              className="pointer-events-none absolute transition-[left,top] duration-75 ease-linear"
+              style={{ left: p.cursor.x, top: p.cursor.y, transform: `scale(${1 / zoom})`, transformOrigin: '0 0', zIndex: 1001 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" className="drop-shadow-sm"><path d="M2 1.5L15.5 9 9.2 10.3 6.3 16.2Z" fill={p.color} stroke="white" strokeWidth="1.2" strokeLinejoin="round" /></svg>
+              <span className="absolute top-4 left-3 rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-white shadow-sm" style={{ background: p.color }}>{p.name}</span>
+            </div>
+          )}
+        </Fragment>
+      ))}
+    </ViewportPortal>
+  );
+}
+
+/** avatars of the other people who have this diagram open (one per person, however many tabs) */
+function Viewers({ viewers }: { viewers: { userId: number; name: string }[] }) {
+  const t = useTranslations('design.live');
+  const { me } = useApp();
+  const people = [...new Map(viewers.map((v) => [v.userId, v])).values()];
+  if (!people.length) return null;
+  const label = people.map((p) => (p.userId === me?.id ? t('youOtherTab') : p.name)).join(', ');
+  return (
+    <Tip title={t('viewing', { names: label })}>
+      <span className="flex shrink-0 items-center -space-x-1.5" aria-label={t('viewing', { names: label })}>
+        <span className="relative mr-2.5 flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-[#00c875] opacity-60" /><span className="relative inline-flex size-2 rounded-full bg-[#00c875]" /></span>
+        {people.slice(0, 4).map((p) => (
+          <span key={p.userId} className="grid size-6 place-items-center rounded-full border-2 border-background text-[10px] font-semibold text-white" style={{ background: peerColor(p.userId) }}>
+            {p.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+          </span>
+        ))}
+        {people.length > 4 && <span className="grid size-6 place-items-center rounded-full border-2 border-background bg-muted text-[10px] font-semibold">+{people.length - 4}</span>}
+      </span>
+    </Tip>
+  );
+}
+
+function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted }: {
+  diagram: ProjectDiagram; picker: React.ReactNode; canDelete: boolean;
+  onDirty: (v: boolean) => void; onSaved: (s: Saved) => void; onDeleted: () => Promise<void>;
 }) {
   const t = useTranslations('design');
-  const db = dbClient();
-  const { me, notify } = useApp();
+  const { notify } = useApp();
   const { resolvedTheme } = useTheme();
   const rf = useReactFlow<FlowNode, Edge>();
   const initial = useMemo(() => toFlow(diagram.content ?? emptyContent()), [diagram.content]);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges);
   const [title, setTitle] = useState(diagram.title);
-  const [saving, setSaving] = useState(false);
+  const live = useDiagramLive(diagram.id);
+  const pointers = useLivePointers(diagram.id, live.tab);
   const [aiOpen, setAiOpen] = useState(false);
   const [fitPending, setFitPending] = useState(false);
   const [maximized, setMaximized] = useState(false);
@@ -612,15 +809,11 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
   };
 
   /*
-   * Undo / redo: every settled change of the drawing (not selection or zoom) becomes a step. Changes are recorded
-   * once they pause, so a drag or a resize is one step; the title is not part of the history.
+   * Undo / redo: every settled change of the drawing by me (not selection or zoom, not other people's edits) becomes
+   * a step. Changes are recorded once they pause, so a drag or a resize is one step; the title is not part of it.
    */
   const snap = useMemo(() => JSON.stringify(toContent(nodes, edges)), [nodes, edges]);
   const [hist, setHist] = useState<History>({ past: [], future: [], last: snap });
-  // unsaved = differs from what was last loaded or saved (so undoing back to it clears the flag)
-  const [saved, setSaved] = useState({ snap, title: diagram.title });
-  const dirty = snap !== saved.snap || title !== saved.title;
-  useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
   const busy = nodes.some((n) => n.dragging || n.resizing);
   useEffect(() => {
     if (busy || snap === hist.last) return;
@@ -630,17 +823,132 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
   const step = (dir: 'undo' | 'redo') => {
     // a change still waiting to be recorded becomes a step first
     const h = busy ? hist : pushed(hist, snap);
-    const target = (dir === 'undo' ? h.past : h.future).at(-1);
-    if (target === undefined) return setHist(h);
+    const st = (dir === 'undo' ? h.past : h.future).at(-1);
+    if (!st) return setHist(h);
+    const [from, to] = dir === 'undo' ? [st.after, st.before] : [st.before, st.after];
+    const f = toFlow(merge3(JSON.parse(from), JSON.parse(to), JSON.parse(snap)));
     setHist(dir === 'undo'
-      ? { past: h.past.slice(0, -1), future: [...h.future, h.last], last: target }
-      : { past: [...h.past, h.last], future: h.future.slice(0, -1), last: target });
-    const f = toFlow(JSON.parse(target) as DiagramContent);
+      ? { past: h.past.slice(0, -1), future: [...h.future, st], last: JSON.stringify(toContent(f.nodes, f.edges)) }
+      : { past: [...h.past, st], future: h.future.slice(0, -1), last: JSON.stringify(toContent(f.nodes, f.edges)) });
     setNodes(f.nodes);
     setEdges(f.edges);
   };
   const canUndo = hist.past.length > 0 || (!busy && snap !== hist.last);
   const canRedo = hist.future.length > 0;
+
+  /*
+   * Autosave + live sync. `synced` is the version last known to be on the server. A second after the drawing (or
+   * title) settles, it is saved against that version; when someone saved in between (409) the editor pulls theirs,
+   * merges my edits on top shape by shape and tries again. When someone else saves, the editor pulls and merges the
+   * same way, so their changes appear on my canvas without a reload.
+   */
+  const [synced, setSynced] = useState(() => ({ snap, title: diagram.title, updated_at: diagram.updated_at }));
+  const dirty = snap !== synced.snap || title !== synced.title;
+  useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [updatedBy, setUpdatedBy] = useState<string | null>(null);
+  const latest = useRef({ snap, title, synced, remote: live.remote });
+  useEffect(() => { latest.current = { snap, title, synced, remote: live.remote }; });
+  const saving = useRef(false);
+
+  /** put a drawing that came from the server (or a merge with it) on screen — not an undo step of mine */
+  const applyExternal = (c: DiagramContent) => {
+    const f = toFlow(c);
+    setNodes((ns) => {
+      const sel = new Set(ns.filter((n) => n.selected).map((n) => n.id));
+      return f.nodes.map((n) => (sel.has(n.id) ? { ...n, selected: true } : n));
+    });
+    setEdges((es) => {
+      const sel = new Set(es.filter((e) => e.selected).map((e) => e.id));
+      return f.edges.map((e) => (sel.has(e.id) ? { ...e, selected: true } : e));
+    });
+    setHist((h) => ({ ...h, last: JSON.stringify(toContent(f.nodes, f.edges)) }));
+    latest.current.snap = JSON.stringify(toContent(f.nodes, f.edges));
+  };
+  const fetchLatest = async (): Promise<Saved> => {
+    const j = await fetch(`/api/diagrams/${diagram.id}`).then((r) => r.json());
+    if (j.error) throw new Error(j.error.message);
+    return j.data;
+  };
+  /** take the server's version: merged with my unsaved edits, if any */
+  const adopt = (server: Saved) => {
+    const { snap: mine, title: myTitle, synced: base } = latest.current;
+    applyExternal(mine === base.snap ? server.content : merge3(JSON.parse(base.snap), JSON.parse(mine), server.content));
+    if (myTitle === base.title) setTitle(server.title);
+    const s = { snap: snapOf(server.content), title: server.title, updated_at: server.updated_at };
+    setSynced(s);
+    latest.current.synced = s;
+    if (myTitle === base.title) latest.current.title = server.title;
+    onSaved(server);
+  };
+
+  const pull = async () => {
+    if (saving.current) return; // the save in progress merges on its own when it meets the newer version
+    try {
+      const server = await fetchLatest();
+      if (server.updated_at === latest.current.synced.updated_at) return;
+      adopt(server);
+      setUpdatedBy(latest.current.remote?.name ?? null);
+    } catch (e) {
+      console.warn('[design] could not load the latest version', e);
+    }
+  };
+
+  const save = async () => {
+    if (saving.current || live.deleted) return;
+    saving.current = true;
+    setStatus('saving');
+    try {
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const { snap: mine, title: myTitle, synced: base } = latest.current;
+        const body = { title: myTitle.trim() || t('untitled'), content: JSON.parse(mine) as DiagramContent, base: base.updated_at, tab: live.tab };
+        const res = await fetch(`/api/diagrams/${diagram.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const j = await res.json();
+        if (res.status === 409) {
+          // someone saved in between: take theirs, put my edits on top, save again
+          adopt(await fetchLatest());
+          continue;
+        }
+        if (j.error) throw new Error(j.error.message);
+        const s = { snap: mine, title: myTitle, updated_at: j.data.updated_at as string };
+        setSynced(s);
+        latest.current.synced = s;
+        onSaved({ title: body.title, content: body.content, updated_at: s.updated_at });
+        setStatus('idle');
+        return;
+      }
+      throw new Error(t('autosave.busy'));
+    } catch (e) {
+      setStatus('error');
+      notify(errMsg(e), 'error');
+    } finally {
+      saving.current = false;
+      // a save by someone else may have come in while mine was on its way
+      const r = latest.current.remote;
+      if (r && r.updated_at > latest.current.synced.updated_at) void pull();
+    }
+  };
+  const saveRef = useRef(save);
+  const pullRef = useRef(pull);
+  useEffect(() => { saveRef.current = save; pullRef.current = pull; });
+
+  // autosave once the drawing / title has been still for a moment (not mid-drag)
+  useEffect(() => {
+    if (!dirty || busy || live.deleted || status === 'error') return;
+    const id = setTimeout(() => void saveRef.current(), AUTOSAVE_MS);
+    return () => clearTimeout(id);
+  }, [snap, title, dirty, busy, live.deleted, status]);
+  // someone else saved: pull it in (after my drag ends)
+  useEffect(() => {
+    if (live.remote && !busy) void pullRef.current();
+  }, [live.remote, busy]);
+  // "updated by …" fades after a few seconds
+  useEffect(() => {
+    if (!updatedBy) return;
+    const id = setTimeout(() => setUpdatedBy(null), 5000);
+    return () => clearTimeout(id);
+  }, [updatedBy]);
+
   const selectedNodes = nodes.filter((n) => n.selected);
 
   /*
@@ -688,8 +996,9 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
   const clipRef = useRef(clip);
   useEffect(() => { clipRef.current = clip; });
 
-  // Ctrl / ⌘ + Z undoes, + Shift + Z or + Y redoes — except while typing, where the field keeps its own undo
+  // Ctrl / ⌘ + Z undoes, + Shift + Z or + Y redoes — except while typing, where the field keeps its own undo; ⌘S saves now
   const stepRef = useRef(step);
+  const saveNowRef = useRef(() => saveRef.current());
   useEffect(() => { stepRef.current = step; });
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -701,6 +1010,9 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
       if (k === 'z' || k === 'y') {
         e.preventDefault();
         stepRef.current(k === 'y' || e.shiftKey ? 'redo' : 'undo');
+      } else if (k === 's') {
+        e.preventDefault();
+        void saveNowRef.current();
       } else if (['c', 'x', 'v', 'd', 'a'].includes(k) && clipRef.current(k)) {
         e.preventDefault();
       }
@@ -729,6 +1041,17 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
     } else if (guides.x !== undefined || guides.y !== undefined) {
       setGuides({});
     }
+    // let the others see the shapes move while I drag them
+    const moving = changes.filter((x): x is NodePositionChange => x.type === 'position' && !!x.dragging && !!x.position);
+    if (moving.length) {
+      pointers.send({
+        t: 'drag',
+        nodes: moving.map((x) => {
+          const n = nodes.find((y) => y.id === x.id);
+          return { id: x.id, x: x.position!.x, y: x.position!.y, w: n?.measured?.width ?? null, h: n?.measured?.height ?? null };
+        }),
+      });
+    }
     onNodesChange(changes);
   };
 
@@ -746,7 +1069,7 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
   const addNode = (tool: Tool, at?: { x: number; y: number }) => {
     const box = document.querySelector(`[data-diagram="${diagram.id}"]`)?.getBoundingClientRect();
     const position = at ?? rf.screenToFlowPosition(box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : { x: 0, y: 0 });
-    const id = nextId('n', nodes);
+    const id = newId('n');
     const node: FlowNode = tool === 'entity'
       ? { id, type: 'entity', position, data: { label: t('newTable'), columns: [{ name: 'id', type: 'INT', pk: true }] }, selected: true }
       : { id, type: 'flow', position, data: { label: tool === 'decision' ? '?' : t(tool === 'process' ? 'newStep' : `shape.${tool}`), shape: tool }, selected: true };
@@ -754,26 +1077,13 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
     setEdges((es) => es.map((e) => ({ ...e, selected: false })));
   };
 
-  const save = async () => {
-    setSaving(true);
-    const { error } = await db.from('project_diagrams')
-      .update({ title: title.trim() || t('untitled'), content: toContent(nodes, edges), updated_by: me?.id })
-      .eq('id', diagram.id);
-    setSaving(false);
-    if (error) return notify(error.message, 'error');
-    setSaved({ snap, title });
-    notify(t('saved'));
-    await onSaved();
-  };
-
   const remove = async () => {
     const ok = await confirmDialog({ title: t('delete.title'), description: t('delete.description', { title: diagram.title }), confirmText: t('delete.button'), destructive: true });
     if (!ok) return;
-    const { error } = await db.from('project_diagrams').delete().eq('id', diagram.id);
-    if (error) return notify(error.message, 'error');
+    const j = await fetch(`/api/diagrams/${diagram.id}`, { method: 'DELETE' }).then((r) => r.json()).catch((e) => ({ error: { message: errMsg(e) } }));
+    if (j.error) return notify(j.error.message, 'error');
     notify(t('delete.done'));
-    await onDeleted();
-  };
+    await onDeleted();  };
 
   const exportPng = async () => {
     const el = document.querySelector<HTMLElement>(`[data-diagram="${diagram.id}"] .react-flow__viewport`);
@@ -795,13 +1105,13 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
     }
   };
 
-  // warn before closing the page with unsaved work
+  // warn before closing the page while edits are not on the server yet
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && status !== 'saving') return;
     const h = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
-  }, [dirty]);
+  }, [dirty, status]);
 
   // Esc leaves the maximized view (unless it is closing an inline edit)
   useEffect(() => {
@@ -834,8 +1144,21 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
         <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
           {picker}
           <Input aria-label={t('titleLabel')} value={title} onChange={(e) => setTitle(e.target.value)} className="h-8 w-72 min-w-32 shrink font-semibold" maxLength={200} />
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-            {dirty ? <span className="font-medium text-[#d9822b]">{t('unsaved')}</span> : t('updated', { time: fmtDateTime(diagram.updated_at), name: editorName })}
+          <Viewers viewers={live.viewers} />
+          <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-xs text-muted-foreground" aria-live="polite">
+            {status === 'error' ? (
+              <>
+                <span className="font-medium text-destructive">{t('autosave.failed')}</span>
+                <Button size="xs" variant="outline" onClick={() => { setStatus('idle'); void saveRef.current(); }}>{t('autosave.retry')}</Button>
+              </>
+            ) : dirty || status === 'saving' ? (
+              <><Loader2 className="size-3 animate-spin" /> {t('autosave.saving')}</>
+            ) : (
+              <>
+                <Check className="size-3 text-[#00a862]" /> {t('autosave.saved', { time: fmtDateTime(synced.updated_at) })}
+                {updatedBy && <span className="font-medium text-[#0073ea]">· {t('autosave.updatedBy', { name: updatedBy })}</span>}
+              </>
+            )}
           </span>
           <div className="ml-auto flex shrink-0 flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}><Sparkles className="text-[#a25ddc]" /> {t('ai.button')}</Button>
@@ -850,7 +1173,6 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
               </DropdownMenuContent>
             </DropdownMenu>
             {canDelete && <Button size="sm" variant="ghost" className="text-destructive" onClick={remove}><Trash2 /> {t('delete.button')}</Button>}
-            <Button size="sm" disabled={!dirty || saving} onClick={save}><Save /> {t('save')}</Button>
           </div>
         </div>
 
@@ -858,6 +1180,8 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
           data-diagram={diagram.id}
           className={cn('relative overflow-hidden rounded-lg border border-grid bg-background', maximized ? 'min-h-0 flex-1' : 'h-[max(600px,calc(100vh-290px))]')}
           onDragOver={(e) => { if (e.dataTransfer.types.includes(DRAG_TYPE)) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
+          onMouseMove={(e) => pointers.send({ t: 'cursor', ...rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }) })}
+          onMouseLeave={() => pointers.send({ t: 'cursor', x: null, y: null }, true)}
           onDrop={(e) => {
             const shape = e.dataTransfer.getData(DRAG_TYPE);
             if (!shape) return;
@@ -890,6 +1214,12 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
               <span className="grid size-10 place-items-center text-muted-foreground"><Info className="size-4" /></span>
             </Tip>
           </div>
+          {live.deleted && (
+            <div className="absolute top-2 left-1/2 z-20 flex max-w-[calc(100%-22rem)] -translate-x-1/2 items-center gap-2 rounded-lg border border-destructive/40 bg-background px-3 py-1.5 text-xs text-destructive shadow-md">
+              <Trash2 className="size-3.5 shrink-0" />
+              <span>{t('live.deletedBy', { name: live.deleted.name })}</span>
+            </div>
+          )}
           {selectedNodes.length > 0 && <FormatPanel key={selectedNodes.map((n) => n.id).join()} selected={selectedNodes} />}
           <ReactFlow<FlowNode, Edge>
             nodes={nodes}
@@ -900,10 +1230,10 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
             colorMode={resolvedTheme === 'dark' ? 'dark' : 'light'}
             onNodesChange={handleNodesChange}
             onEdgesChange={onEdgesChange}
-            onNodeDragStop={() => setGuides({})}
+            onNodeDragStop={() => { setGuides({}); pointers.send({ t: 'drag-end' }, true); }}
             onConnect={(c) => {
               setEdges((es) => {
-                const edge = edgeStyle({ ...c, id: nextId('e', es) }, nodes);
+                const edge = edgeStyle({ ...c, id: newId('e') }, nodes);
                 // a new relationship: the table the line is dragged from is the "one" side, the other the "many"
                 return addEdge(edge.data?.er ? { ...edge, label: '1:N' } : edge, es);
               });
@@ -918,6 +1248,7 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
           >
             <Background gap={GRID} />
             <ErMarkers />
+            <RemoteLayer peers={pointers.peers} nodes={nodes} />
             <ViewportPortal>
               {guides.x !== undefined && <div className="pointer-events-none absolute border-l border-dashed border-[#0073ea]" style={{ left: guides.x, top: -100000, height: 200000 }} />}
               {guides.y !== undefined && <div className="pointer-events-none absolute border-t border-dashed border-[#0073ea]" style={{ top: guides.y, left: -100000, width: 200000 }} />}
@@ -938,7 +1269,7 @@ function Editor({ diagram, picker, canDelete, onDirty, onSaved, onDeleted, edito
           const fresh = merged.nodes.slice(-added.nodes.length), old = merged.nodes.slice(0, -added.nodes.length);
           for (const e of draft.edges.filter((x) => !names.has(x.to))) {
             const from = fresh.find((n) => n.data.label === e.from), to = old.find((n) => n.type === 'entity' && n.data.label === e.to);
-            if (from && to) merged.edges.push({ id: nextId('e', merged.edges), source: from.id, target: to.id, label: 'N:1' });
+            if (from && to) merged.edges.push({ id: newId('e'), source: from.id, target: to.id, label: 'N:1' });
           }
           replace(merged);
         }}

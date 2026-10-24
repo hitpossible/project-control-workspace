@@ -124,7 +124,11 @@ export function toDraft(c: DiagramContent): DiagramDraft {
   };
 }
 
-const idNo = (id: string) => Number(id.replace(/^\D+/, '')) || 0;
+/**
+ * Id of a new shape / line. Random rather than "next number": two people adding a shape at the same moment must
+ * not get the same id, or the merge would keep only one of them.
+ */
+export const newId = (prefix: 'n' | 'e') => `${prefix}${Math.random().toString(36).slice(2, 10)}`;
 const nodeType = (kind: DiagramKind): DiagramNode['type'] => (kind === 'er' ? 'entity' : 'flow');
 
 /** The shapes of one kind and the lines between them — what the AI gets to revise */
@@ -136,7 +140,7 @@ export function ofKind(c: DiagramContent, kind: DiagramKind): DiagramContent {
 
 /**
  * Put an AI draft on the canvas. `revise`: the draft replaces the shapes of its kind and leaves the rest;
- * otherwise it is placed to the right of what is already drawn. Draft ids are renumbered after the existing ones.
+ * otherwise it is placed to the right of what is already drawn. Draft shapes and lines get new ids.
  */
 export function mergeDraft(current: DiagramContent, draft: DiagramContent, kind: DiagramKind, revise: boolean): DiagramContent {
   const keep = revise ? current.nodes.filter((n) => n.type !== nodeType(kind)) : current.nodes;
@@ -145,23 +149,22 @@ export function mergeDraft(current: DiagramContent, draft: DiagramContent, kind:
   const right = Math.max(...keep.map((n) => n.position.x + nodeSize(n).width));
   const top = Math.min(...keep.map((n) => n.position.y));
   const dx = keep.length ? right + 160 : 0, dy = keep.length ? top : 0;
-  const nBase = Math.max(0, ...keep.map((n) => idNo(n.id))), eBase = Math.max(0, ...keepEdges.map((e) => idNo(e.id)));
-  const nid = (id: string) => `n${nBase + idNo(id)}`;
+  const ids = new Map(draft.nodes.map((n) => [n.id, newId('n')]));
+  const nid = (id: string) => ids.get(id)!;
   return {
     nodes: [...keep, ...draft.nodes.map((n) => ({ ...n, id: nid(n.id), position: { x: n.position.x + dx, y: n.position.y + dy } }))],
-    edges: [...keepEdges, ...draft.edges.map((e) => ({ ...e, id: `e${eBase + idNo(e.id)}`, source: nid(e.source), target: nid(e.target) }))],
+    edges: [...keepEdges, ...draft.edges.map((e) => ({ ...e, id: newId('e'), source: nid(e.source), target: nid(e.target) }))],
   };
 }
 
 export const ENTITY_WIDTH = 240;
 
-/** Clipboard content pasted into a drawing: fresh ids after the existing ones, moved by `offset`, returns the new node ids */
+/** Clipboard content pasted into a drawing: new ids, moved by `offset`, returns the new node ids */
 export function pasteContent(current: DiagramContent, clip: DiagramContent, offset: number): { content: DiagramContent; ids: Set<string> } {
-  const nBase = Math.max(0, ...current.nodes.map((n) => idNo(n.id))), eBase = Math.max(0, ...current.edges.map((e) => idNo(e.id)));
-  const map = new Map(clip.nodes.map((n, i) => [n.id, `n${nBase + i + 1}`]));
+  const map = new Map(clip.nodes.map((n) => [n.id, newId('n')]));
   const nodes = clip.nodes.map((n) => ({ ...n, id: map.get(n.id)!, position: { x: n.position.x + offset, y: n.position.y + offset } }));
   const edges = clip.edges.filter((e) => map.has(e.source) && map.has(e.target))
-    .map((e, i) => ({ ...e, id: `e${eBase + i + 1}`, source: map.get(e.source)!, target: map.get(e.target)! }));
+    .map((e) => ({ ...e, id: newId('e'), source: map.get(e.source)!, target: map.get(e.target)! }));
   return { content: { nodes: [...current.nodes, ...nodes], edges: [...current.edges, ...edges] }, ids: new Set(nodes.map((n) => n.id)) };
 }
 
@@ -192,4 +195,29 @@ export function layout(c: DiagramContent, kind?: DiagramKind): DiagramContent {
       return { ...n, position: { x: Math.round(p.x - s.width / 2), y: Math.round(p.y - s.height / 2) } };
     }),
   };
+}
+
+/**
+ * Three-way merge of drawings, shape by shape and line by line (by id): whatever `ours` changed since `base` wins,
+ * everything else comes from `theirs`. Used when two people edit at once (ours = my edits, theirs = the saved
+ * version) and for undo / redo of my own steps on top of other people's edits. Lines left without both ends go.
+ */
+export function merge3(base: DiagramContent, ours: DiagramContent, theirs: DiagramContent): DiagramContent {
+  const pick = <T extends { id: string }>(b: T[], o: T[], t: T[]): T[] => {
+    const bm = new Map(b.map((x) => [x.id, JSON.stringify(x)]));
+    const om = new Map(o.map((x) => [x.id, x]));
+    const tm = new Map(t.map((x) => [x.id, x]));
+    const out: T[] = [];
+    // theirs' order first, then what only we have
+    for (const id of [...tm.keys(), ...[...om.keys()].filter((k) => !tm.has(k))]) {
+      const mine = om.get(id);
+      const changedByUs = (mine ? JSON.stringify(mine) : undefined) !== bm.get(id);
+      const v = changedByUs ? mine : tm.get(id);
+      if (v) out.push(v);
+    }
+    return out;
+  };
+  const nodes = pick(base.nodes, ours.nodes, theirs.nodes);
+  const ids = new Set(nodes.map((n) => n.id));
+  return { nodes, edges: pick(base.edges, ours.edges, theirs.edges).filter((e) => ids.has(e.source) && ids.has(e.target)) };
 }

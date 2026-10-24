@@ -2,6 +2,7 @@
 # Targets:
 #   runner (default) — the app: Next.js standalone server, port 3000
 #   tools            — full source + dev deps, for `npm run db:migrate` / `npm run seed`
+#   realtime         — live cursors / dragging on the Design tab (realtime/server.mjs, WebSocket), port 3001
 ARG NODE_VERSION=22-alpine
 
 FROM node:${NODE_VERSION} AS base
@@ -27,6 +28,16 @@ COPY db ./db
 COPY scripts ./scripts
 COPY src ./src
 CMD ["npm", "run", "db:migrate"]
+
+# live cursors for the Design tab: a small WebSocket relay, no database
+FROM base AS realtime
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY realtime ./realtime
+USER node
+EXPOSE 3001
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -q --spider http://127.0.0.1:3001/health || exit 1
+CMD ["node", "realtime/server.mjs"]
 
 FROM base AS runner
 # TZ: node-cron schedules (CRON_*) run in this zone; the DB session itself stays UTC
