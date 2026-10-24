@@ -134,16 +134,24 @@ export async function submitRequest(ctx: Ctx, a: { p_request_id: number }) {
 export async function saveReview(ctx: Ctx, a: {
   p_request_id: number; p_project_type_id: number | null; p_template_id: number | null;
   p_proposed_leader_id: number | null; p_authority_approver_id?: number | null; p_scope_assessment: string | null;
+  /** reviewer's effort estimate in man-days; omitted = unchanged */
+  p_estimated_md?: number | string | null;
 }) {
   const r = await lockRequest(ctx, a.p_request_id);
   const w = await ctx.one<ApprovalStep>(`SELECT * FROM approval_steps WHERE request_id = ? AND status = 'waiting' LIMIT 1`, [r.id]);
   const s = w && stepStage(w) === 'receive' ? w : null;
   if (!s) throw new AppError('Request is not waiting to be received by System Service');
   if (!canActOnStep(s, ctx.me, r.requestor_id)) throw new AppError(`You cannot act on ${s.step_name}`, 403);
+  let md: number | null | undefined;
+  if (a.p_estimated_md !== undefined) {
+    md = a.p_estimated_md === null || a.p_estimated_md === '' ? null : Number(a.p_estimated_md);
+    if (md !== null && !(Number.isFinite(md) && md > 0 && md < 10000)) throw new AppError('Estimated MD must be a number of man-days greater than 0');
+    if (md !== null) md = Math.round(md * 2) / 2;
+  }
   return ctx.asWorkflow(async () => {
     const patch: Row = {
       project_type_id: a.p_project_type_id, template_id: a.p_template_id, proposed_leader_id: a.p_proposed_leader_id,
-      scope_assessment: a.p_scope_assessment, reviewed_by: ctx.uid,
+      scope_assessment: a.p_scope_assessment, estimated_md: md, reviewed_by: ctx.uid,
     };
     // legacy route: the reviewer still picks the Authority Approver
     if (s.step_code === 'system_review') {

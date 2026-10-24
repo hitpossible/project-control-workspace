@@ -16,6 +16,12 @@ const COMPLEXITY: Record<NonNullable<AiAnalysis['complexity']>, { label: string;
   high: { label: 'High', fg: '#d83a52', bg: '#fdebee' },
 };
 const readinessColor = (n: number) => (n >= 80 ? '#00c875' : n >= 50 ? '#fdab3d' : '#e2445c');
+/** where the reviewer's estimate falls against the AI's range */
+function mdVerdict(md: number, lo: number, hi: number) {
+  if (md < lo) return { label: `${Math.round(((lo - md) / lo) * 100)}% below AI`, color: '#0073ea' };
+  if (md > hi) return { label: `${Math.round(((md - hi) / hi) * 100)}% above AI`, color: '#d83a52' };
+  return { label: 'within AI range', color: '#00854d' };
+}
 const PHASE_COLORS = ['#579bfc', '#a25ddc', '#fdab3d', '#00c875'];
 /** a pending analysis older than this is treated as lost (server restarted mid-way) */
 const STALE_MS = 3 * 60_000;
@@ -30,9 +36,11 @@ function Label({ children }: { children: React.ReactNode }) {
  * `reviewer` shows the System Service parts (suggested type / template, similar projects); `onApply` puts the
  * suggested type / template into the review form.
  */
-export default function AiAnalysisCard({ requestId, initial, canRun, reviewer, onApply, onError }: {
+export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun, reviewer, onApply, onError }: {
   requestId: number;
   initial: AiAnalysis | null;
+  /** System Service's own estimate, shown next to the AI's for comparison */
+  reviewerMd: number | null;
   canRun: boolean;
   reviewer: boolean;
   onApply?: (projectTypeId: number | null, templateId: number | null) => void;
@@ -109,6 +117,15 @@ export default function AiAnalysisCard({ requestId, initial, canRun, reviewer, o
             <div className="bg-card px-2.5 py-2">
               <div className="text-[11px] text-muted-foreground">Est. Effort</div>
               <div className="text-sm font-semibold tabular-nums">{done.effort_min === done.effort_max ? done.effort_min : `${done.effort_min}–${done.effort_max}`} MD</div>
+              {reviewerMd != null && (() => {
+                const v = mdVerdict(reviewerMd, done.effort_min ?? 0, done.effort_max ?? 0);
+                return (
+                  <div className="mt-0.5 text-[11px] tabular-nums" title="System Service's estimate at review">
+                    <span className="text-muted-foreground">Reviewer</span> <span className="font-semibold">{reviewerMd} MD</span>{' '}
+                    <span className="font-medium" style={{ color: v.color }}>{v.label}</span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

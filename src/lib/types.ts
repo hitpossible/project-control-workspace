@@ -149,6 +149,8 @@ export interface ProjectRequest {
   template_id: number | null;
   proposed_leader_id: number | null;
   scope_assessment: string | null;
+  /** System Service's effort estimate in man-days, entered at review */
+  estimated_md: number | null;
   reviewed_by: number | null;
   project_id: number | null;
   submitted_at: string | null;

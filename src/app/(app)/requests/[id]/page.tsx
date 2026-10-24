@@ -91,7 +91,7 @@ export default function RequestDetailPage() {
   const [types, setTypes] = useState<ProjectType[]>([]);
   const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
   const [dialog, setDialog] = useState<Act | null>(null);
-  const [review, setReview] = useState({ project_type_id: '', template_id: '', proposed_leader_id: null as number | null, authority_approver_id: null as number | null, scope_assessment: '' });
+  const [review, setReview] = useState({ project_type_id: '', template_id: '', proposed_leader_id: null as number | null, authority_approver_id: null as number | null, scope_assessment: '', estimated_md: '' });
   const [conv, setConv] = useState({ start: dayjs().format('YYYY-MM-DD'), target: '', sponsor: '' });
   const [notFound, setNotFound] = useState(false);
   const [formKey, setFormKey] = useState(0);
@@ -106,6 +106,7 @@ export default function RequestDetailPage() {
     setReview({
       project_type_id: data.project_type_id?.toString() ?? '', template_id: data.template_id?.toString() ?? '',
       proposed_leader_id: data.proposed_leader_id, authority_approver_id: data.authority_approver_id, scope_assessment: data.scope_assessment ?? '',
+      estimated_md: data.estimated_md?.toString() ?? '',
     });
     setConv((c) => ({ ...c, target: c.target || data.date_required || '' }));
     const [s, a] = await Promise.all([
@@ -161,6 +162,7 @@ export default function RequestDetailPage() {
       p_proposed_leader_id: review.proposed_leader_id,
       p_authority_approver_id: review.authority_approver_id,
       p_scope_assessment: review.scope_assessment || null,
+      p_estimated_md: review.estimated_md.trim() || null,
     }, 'Review saved');
 
   const go = async (a: Act) => {
@@ -288,13 +290,14 @@ export default function RequestDetailPage() {
                   </div>
                 </Section>
               )}
-              {(r.project_type_id || r.scope_assessment) && (
+              {(r.project_type_id || r.scope_assessment || r.estimated_md != null) && (
                 <Section title="System Service — Received Request">
                   <div className="grid grid-cols-2 gap-x-4 md:grid-cols-4">
                     <Field label="Project Type">{types.find((t) => t.id === r.project_type_id)?.name}</Field>
                     <Field label="Template">{templates.find((t) => t.id === r.template_id)?.name}</Field>
                     <Field label="Project Leader">{profileName(r.proposed_leader_id)}</Field>
                     {r.authority_approver_id && <Field label="Authority Approver">{profileName(r.authority_approver_id)}</Field>}
+                    {r.estimated_md != null && <Field label="Estimated Effort">{fmtNum(r.estimated_md)} MD</Field>}
                   </div>
                   {r.scope_assessment && <InfoBlock label="Scope Assessment">{r.scope_assessment}</InfoBlock>}
                 </Section>
@@ -414,7 +417,7 @@ export default function RequestDetailPage() {
         <div className="col-span-12 xl:col-span-4">
           {r.submitted_at && (r.ai_analysis || hasRole('system_reviewer')) && (
             <AiAnalysisCard
-              requestId={r.id} initial={r.ai_analysis} canRun={mine || hasRole('system_reviewer')} reviewer={hasRole('system_reviewer')}
+              requestId={r.id} initial={r.ai_analysis} reviewerMd={r.estimated_md} canRun={mine || hasRole('system_reviewer')} reviewer={hasRole('system_reviewer')}
               onApply={isReview ? (typeId, tplId) => setReview((v) => ({ ...v, project_type_id: typeId?.toString() ?? v.project_type_id, template_id: tplId?.toString() ?? v.template_id })) : undefined}
               onError={(m) => notify(m, 'error')}
             />
@@ -429,6 +432,9 @@ export default function RequestDetailPage() {
                 <SelectField label="Project Template" allowEmpty value={review.template_id} onChange={(v) => setReview({ ...review, template_id: v })} options={templates.map((t) => ({ value: t.id.toString(), label: t.name }))} />
                 <UserSelect label="Project Leader" required roles={['project_leader']} value={review.proposed_leader_id} onChange={(v) => setReview({ ...review, proposed_leader_id: v })} />
                 {legacyReview && <UserSelect label="Authority Approver" required roles={['authority_approver']} value={review.authority_approver_id} onChange={(v) => setReview({ ...review, authority_approver_id: v })} />}
+                <TextField label="Estimated Effort (MD)" type="number" value={review.estimated_md} onChange={(v) => setReview({ ...review, estimated_md: v })}
+                  placeholder={r.ai_analysis?.status === 'done' ? `AI: ${r.ai_analysis.effort_min}–${r.ai_analysis.effort_max}` : 'Man-days'}
+                  helperText="Your own estimate for the whole project — kept next to the AI's to compare later" />
                 <TextField label="Scope Assessment" multiline value={review.scope_assessment} onChange={(v) => setReview({ ...review, scope_assessment: v })} />
                 <Button variant="outline" className="w-full" onClick={saveReview}>Save Review</Button>
               </div>

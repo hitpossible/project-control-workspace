@@ -39,7 +39,7 @@ const LAYOUT_ONLY = new Set(['board_rank']);
 
 /** Audit trail: tracked fields per table and which operations are logged (was audit_changes) */
 const AUDIT: Record<string, { ops: ('insert' | 'update' | 'delete')[]; fields: string[] }> = {
-  project_requests: { ops: ['insert', 'update'], fields: ['status', 'project_name', 'date_required', 'priority', 'requestor_approver_id', 'authority_approver_id', 'proposed_leader_id'] },
+  project_requests: { ops: ['insert', 'update'], fields: ['status', 'project_name', 'date_required', 'priority', 'requestor_approver_id', 'authority_approver_id', 'proposed_leader_id', 'estimated_md'] },
   projects: { ops: ['insert', 'update'], fields: ['status', 'leader_id', 'start_date', 'target_date', 'forecast_date', 'progress', 'health', 'next_action', 'priority', 'baseline_version', 'remark'] },
   activities: { ops: ['insert', 'update', 'delete'], fields: ['name', 'status', 'pic_user_id', 'pic_label', 'plan_start', 'plan_finish', 'actual_start', 'actual_finish', 'forecast_finish', 'progress', 'delay_category', 'delay_reason', 'delay_impact', 'recovery_plan', 'recovery_owner_id', 'recovery_due_date', 'recovery_reviewed_by', 'next_action'] },
   internal_tasks: { ops: ['insert', 'update', 'delete'], fields: ['name', 'status', 'owner_id', 'reviewer_id', 'planned_start', 'due_date', 'actual_start', 'actual_finish', 'progress', 'delay_category', 'delay_reason', 'recovery_action'] },

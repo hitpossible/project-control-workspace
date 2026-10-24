@@ -65,7 +65,7 @@ export const HOOKS: Record<string, Hooks> = {
     beforeUpdate(ctx, n, o) {
       if (ctx.bypass) return;
       Object.assign(n, requestorInfo(ctx));
-      if (changed(n, o, 'status', 'request_no', 'date_submitted', 'submitted_at', 'project_id', 'requestor_id', 'reviewed_by')) {
+      if (changed(n, o, 'status', 'request_no', 'date_submitted', 'submitted_at', 'project_id', 'requestor_id', 'reviewed_by', 'estimated_md')) {
         throw new AppError('Protected request fields can only be changed through the approval workflow', 403);
       }
       // The request number belongs to the document type's running number
