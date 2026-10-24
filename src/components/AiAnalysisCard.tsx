@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowRight, Loader2, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowRight, FolderKanban, Loader2, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import type { AiAnalysis } from '@/lib/clarify';
 import { dbClient } from '@/lib/db/client';
@@ -15,6 +16,7 @@ const COMPLEXITY: Record<NonNullable<AiAnalysis['complexity']>, { label: string;
   high: { label: 'High', fg: '#d83a52', bg: '#fdebee' },
 };
 const readinessColor = (n: number) => (n >= 80 ? '#00c875' : n >= 50 ? '#fdab3d' : '#e2445c');
+const PHASE_COLORS = ['#579bfc', '#a25ddc', '#fdab3d', '#00c875'];
 /** a pending analysis older than this is treated as lost (server restarted mid-way) */
 const STALE_MS = 3 * 60_000;
 
@@ -25,11 +27,15 @@ function Label({ children }: { children: React.ReactNode }) {
 /**
  * The AI's initial analysis of a submitted request (written in the background after submit). Polls only this column
  * while it is being written, so the rest of the page (e.g. an unsaved review) is left alone.
+ * `reviewer` shows the System Service parts (suggested type / template, similar projects); `onApply` puts the
+ * suggested type / template into the review form.
  */
-export default function AiAnalysisCard({ requestId, initial, canRun, onError }: {
+export default function AiAnalysisCard({ requestId, initial, canRun, reviewer, onApply, onError }: {
   requestId: number;
   initial: AiAnalysis | null;
   canRun: boolean;
+  reviewer: boolean;
+  onApply?: (projectTypeId: number | null, templateId: number | null) => void;
   onError: (msg: string) => void;
 }) {
   const db = dbClient();
@@ -105,6 +111,66 @@ export default function AiAnalysisCard({ requestId, initial, canRun, onError }: 
               <div className="text-sm font-semibold tabular-nums">{done.effort_min === done.effort_max ? done.effort_min : `${done.effort_min}–${done.effort_max}`} MD</div>
             </div>
           </div>
+
+          {!!done.phases?.length && (() => {
+            const total = done.phases.reduce((t, x) => t + x.md, 0);
+            return (
+              <div>
+                <Label>Effort by Phase <span className="font-normal tracking-normal normal-case">· most likely {total} MD</span></Label>
+                <div className="mb-1.5 flex h-1.5 overflow-hidden rounded-full bg-muted">
+                  {done.phases.map((x, i) => <span key={x.phase} style={{ width: `${(x.md / total) * 100}%`, background: PHASE_COLORS[i % PHASE_COLORS.length] }} />)}
+                </div>
+                <ul className="space-y-0.5 text-sm">
+                  {done.phases.map((x, i) => (
+                    <li key={x.phase} className="flex items-center gap-2">
+                      <span className="size-2 shrink-0 rounded-full" style={{ background: PHASE_COLORS[i % PHASE_COLORS.length] }} />
+                      <span className="flex-1">{x.phase}</span>
+                      <span className="font-medium tabular-nums">{x.md} MD</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
+
+          {done.rationale && (
+            <div>
+              <Label>Why</Label>
+              <p className="text-sm text-muted-foreground">{done.rationale}</p>
+            </div>
+          )}
+
+          {reviewer && (done.project_type || done.template) && (
+            <div className="rounded-lg border px-3 py-2">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <Label>Suggested for Review</Label>
+                  <div className="text-sm"><span className="text-muted-foreground">Type</span> <span className="font-medium">{done.project_type?.name ?? '-'}</span></div>
+                  <div className="text-sm"><span className="text-muted-foreground">Template</span> <span className="font-medium">{done.template?.name ?? '-'}</span></div>
+                </div>
+                {onApply && (
+                  <Button variant="outline" size="sm" className="h-7 shrink-0 px-2 text-xs" onClick={() => onApply(done.project_type?.id ?? null, done.template?.id ?? null)}>Use</Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {reviewer && !!done.similar?.length && (
+            <div>
+              <Label>Similar Past Projects</Label>
+              <ul className="space-y-1.5">
+                {done.similar.map((p) => (
+                  <li key={p.id} className="flex gap-1.5 text-sm">
+                    <FolderKanban className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0">
+                      <Link href={`/projects/${p.id}`} className="font-medium text-primary hover:underline">{p.code}</Link> {p.name}
+                      {p.reason && <span className="block text-xs text-muted-foreground">{p.reason}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {!!done.modules?.length && (
             <div>

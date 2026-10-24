@@ -83,9 +83,18 @@ export interface AiAnalysis {
   /** estimated effort in man-days */
   effort_min?: number;
   effort_max?: number;
+  /** the effort split by phase — adds up to the most likely figure within effort_min–effort_max */
+  phases?: { phase: string; md: number }[];
+  /** why this complexity and effort, 1–2 sentences */
+  rationale?: string;
   modules?: string[];
   risks?: string[];
   next_step?: string;
+  /** from the active project types / templates, for the System Service review */
+  project_type?: { id: number; name: string } | null;
+  template?: { id: number; name: string } | null;
+  /** earlier projects that look alike — for scope and effort comparison */
+  similar?: { id: number; code: string; name: string; reason: string }[];
 }
 
 /** Readiness from the criteria check: required criteria count double, not-applicable ones not at all */

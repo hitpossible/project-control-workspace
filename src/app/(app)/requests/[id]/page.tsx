@@ -413,7 +413,11 @@ export default function RequestDetailPage() {
 
         <div className="col-span-12 xl:col-span-4">
           {r.submitted_at && (r.ai_analysis || hasRole('system_reviewer')) && (
-            <AiAnalysisCard requestId={r.id} initial={r.ai_analysis} canRun={mine || hasRole('system_reviewer')} onError={(m) => notify(m, 'error')} />
+            <AiAnalysisCard
+              requestId={r.id} initial={r.ai_analysis} canRun={mine || hasRole('system_reviewer')} reviewer={hasRole('system_reviewer')}
+              onApply={isReview ? (typeId, tplId) => setReview((v) => ({ ...v, project_type_id: typeId?.toString() ?? v.project_type_id, template_id: tplId?.toString() ?? v.template_id })) : undefined}
+              onError={(m) => notify(m, 'error')}
+            />
           )}
           {isReview && (
             <Section title={`System Service — ${waiting?.step_name}`} className="ring-2 ring-[#fdab3d]">

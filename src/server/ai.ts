@@ -172,24 +172,40 @@ export async function chatTurn(r: ProjectRequest, criteria: ClarifyCriterion[], 
 
 const ANALYSIS = `You are a senior business analyst and project estimator in the IT System Service team.
 A staff member has just submitted a project request. You get the request form, the summary per criterion that the requestor
-confirmed after an interview with the AI, and the interview itself. Write a short initial analysis to help System Service
-review and plan the request:
+confirmed after an interview with the AI, the interview itself, the team's project types and templates, and earlier projects.
+Write a short initial analysis to help System Service review and plan the request:
 - "complexity": "low" | "medium" | "high" — size and technical difficulty (number of users and roles, screens, integrations, approval flows, data migration).
 - "readiness": 0–100 — how complete and concrete the requirements are for planning (100 = a developer could estimate without asking anything).
-- "effort_min", "effort_max": estimated development effort in man-days (MD) for the whole project — analysis, development, testing, deployment — as a realistic range.
+- "effort_min", "effort_max": estimated effort in man-days (MD) for the whole project — analysis, development, testing, deployment — as a realistic range.
+  Use the template activity durations and comparable earlier projects as reference points where they fit.
+- "phases": the most likely effort split into exactly these phases, in MD: "Analysis & Design", "Development", "Testing (SIT/UAT)", "Deployment & Training".
+  Their sum must lie within effort_min–effort_max.
+- "rationale": 1–2 short sentences — the main drivers behind the complexity and effort (e.g. "3 roles, 2-step approval and an ERP interface; similar to PRJ-2026-003").
 - "modules": 2–6 suggested system modules, each a short name (e.g. "Request Management", "Approval Workflow", "Dashboard", "Notification").
 - "risks": 1–4 short concrete risks or open points that could change scope or effort (e.g. "Approval matrix not finalized"). Base them on what is missing, vague or undecided.
 - "next_step": one short sentence — the most useful next action before planning.
-Each item at most about 8 words. Write modules in English; write risks and next_step in the same language as the request (Thai request → Thai).
+- "project_type_id": the id of the best fitting PROJECT TYPE, or null when none fits.
+- "template_id": the id of the best fitting PROJECT TEMPLATE (prefer one of the chosen type), or null when none fits.
+- "similar": up to 3 EARLIER PROJECTS that are genuinely similar in purpose or features (not just the same department), each {"code": "<project code>", "reason": "<what is alike, at most 10 words>"}; [] when none is.
+Each item at most about 8 words unless stated otherwise. Write modules and phases in English; write rationale, risks, next_step and reasons in the same language as the request (Thai request → Thai).
 Reply with JSON only, exactly in this shape:
-{"complexity": "medium", "readiness": 80, "effort_min": 10, "effort_max": 15, "modules": ["..."], "risks": ["..."], "next_step": "..."}`;
+{"complexity": "medium", "readiness": 80, "effort_min": 10, "effort_max": 15, "phases": [{"phase": "Analysis & Design", "md": 2}], "rationale": "...", "modules": ["..."], "risks": ["..."], "next_step": "...", "project_type_id": 1, "template_id": 1, "similar": [{"code": "...", "reason": "..."}]}`;
+
+/** What the analysis may pick from or compare with — active project types / templates and earlier projects */
+export interface AnalysisCatalog {
+  types: { id: number; name: string }[];
+  templates: { id: number; name: string; project_type_id: number | null; description: string | null; activities: { name: string; duration_days?: number }[] }[];
+  projects: { id: number; code: string; name: string; type: string | null; status: string; start: string | null; target: string | null; finished: string | null; description: string | null }[];
+}
 
 const COMPLEXITY = ['low', 'medium', 'high'] as const;
-const num = (v: unknown) => (typeof v === 'number' || typeof v === 'string') && Number.isFinite(Number(v)) ? Number(v) : null;
-const strs = (v: unknown, max: number) => (Array.isArray(v) ? v.map(str).filter((x): x is string => !!x).map((x) => x.slice(0, 120)).slice(0, max) : []);
+const PHASES = ['Analysis & Design', 'Development', 'Testing (SIT/UAT)', 'Deployment & Training'];
+const num = (v: unknown) => (typeof v === 'number' || typeof v === 'string') && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null;
+const strs = (v: unknown, max: number, len = 120) => (Array.isArray(v) ? v.map(str).filter((x): x is string => !!x).map((x) => x.slice(0, len)).slice(0, max) : []);
+const halfDays = (n: number) => Math.round(n * 2) / 2;
 
 /** Initial analysis of a submitted request; null when the AI failed */
-export async function analyzeRequest(r: ProjectRequest, coverage: AiCoverage | null, messages: ChatMessage[]): Promise<AiAnalysis | null> {
+export async function analyzeRequest(r: ProjectRequest, coverage: AiCoverage | null, messages: ChatMessage[], catalog: AnalysisCatalog): Promise<AiAnalysis | null> {
   const lines = formLines(r, null);
   const known = (coverage?.criteria ?? []).filter((c) => c.status !== 'not_applicable');
   if (known.length) {
@@ -200,6 +216,21 @@ export async function analyzeRequest(r: ProjectRequest, coverage: AiCoverage | n
     lines.push('', 'INTERVIEW');
     for (const m of messages) lines.push(`${m.role === 'assistant' ? 'AI' : 'Requestor'}: ${m.content}`);
   }
+  // the catalog below is mostly English, which pulls the model away from the request's own language — so name it
+  const thai = /[\u0E00-\u0E7F]/.test([r.project_name, r.description, r.reason, r.expectation, ...messages.filter((m) => m.role === 'user').map((m) => m.content)].join(' '));
+  lines.push('', `OUTPUT LANGUAGE: write rationale, risks, next_step and similar reasons in ${thai ? 'Thai' : 'English'}.`);
+  lines.push('', 'PROJECT TYPES');
+  for (const t of catalog.types) lines.push(`- id ${t.id}: ${t.name}`);
+  lines.push('', 'PROJECT TEMPLATES (default activities with working days)');
+  for (const t of catalog.templates) {
+    const acts = t.activities.map((a) => `${a.name}${a.duration_days ? ` ${a.duration_days}d` : ''}`).join(', ');
+    lines.push(`- id ${t.id}: ${t.name} (type id ${t.project_type_id ?? '-'})${t.description ? ` — ${t.description.slice(0, 150)}` : ''}${acts ? ` | ${acts}` : ''}`);
+  }
+  lines.push('', 'EARLIER PROJECTS');
+  if (!catalog.projects.length) lines.push('(none yet)');
+  for (const p of catalog.projects) {
+    lines.push(`- ${p.code}: ${p.name} | ${p.type ?? '-'} | ${p.status} | ${p.start ?? '?'} → ${p.finished ? `finished ${p.finished}` : `target ${p.target ?? '?'}`}${p.description ? ` | ${p.description.replace(/\s+/g, ' ').slice(0, 200)}` : ''}`);
+  }
   try {
     const text = await chat(ANALYSIS, lines.join('\n'));
     const out = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1) || '{}') as Record<string, unknown>;
@@ -207,11 +238,33 @@ export async function analyzeRequest(r: ProjectRequest, coverage: AiCoverage | n
     let lo = num(out.effort_min), hi = num(out.effort_max);
     if (!complexity || lo == null || hi == null) throw new Error('incomplete analysis in the reply');
     lo = Math.max(1, Math.round(lo)); hi = Math.max(lo, Math.round(hi));
+
+    const phaseRows = Array.isArray(out.phases) ? (out.phases as { phase?: unknown; md?: unknown }[]) : [];
+    const phases = PHASES.flatMap((phase) => {
+      const md = num(phaseRows.find((x) => String(x?.phase).toLowerCase() === phase.toLowerCase())?.md);
+      return md != null && md > 0 ? [{ phase, md: halfDays(md) }] : [];
+    });
+    // keep the range honest: the most likely figure always lies inside it
+    const likely = phases.reduce((t, x) => t + x.md, 0);
+    if (likely) { lo = Math.min(lo, Math.floor(likely)); hi = Math.max(hi, Math.ceil(likely)); }
+
+    const type = catalog.types.find((t) => t.id === num(out.project_type_id)) ?? null;
+    const tpl = catalog.templates.find((t) => t.id === num(out.template_id)) ?? null;
+    const similarRows = Array.isArray(out.similar) ? (out.similar as { code?: unknown; reason?: unknown }[]) : [];
+    const similar = similarRows.flatMap((x) => {
+      const p = catalog.projects.find((q) => q.code === str(x?.code));
+      return p ? [{ id: p.id, code: p.code, name: p.name, reason: str(x.reason)?.slice(0, 160) ?? '' }] : [];
+    }).filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i).slice(0, 3);
+
     // the criteria check is the measured readiness; the AI's own guess only when there was no check
     const readiness = coverageReadiness(coverage) ?? Math.min(100, Math.max(0, Math.round(num(out.readiness) ?? 0)));
     return {
       status: 'done', analyzed_at: new Date().toISOString(), complexity, readiness, effort_min: lo, effort_max: hi,
+      phases, rationale: str(out.rationale)?.slice(0, 400),
       modules: strs(out.modules, 6), risks: strs(out.risks, 4), next_step: str(out.next_step)?.slice(0, 300),
+      project_type: type && { id: type.id, name: type.name },
+      template: tpl && { id: tpl.id, name: tpl.name },
+      similar,
     };
   } catch (e) {
     console.warn('[ai] request analysis failed:', e instanceof Error ? e.message : e);
