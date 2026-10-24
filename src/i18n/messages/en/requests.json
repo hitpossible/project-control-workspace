@@ -25,6 +25,25 @@
     "subtitle": "Choose the kind of document to create",
     "noTypes": "No document types are open for requests — ask an administrator (Admin → Document Types)",
     "titleFor": "New {name}",
-    "changeType": "Change type"
+    "changeType": "Change type",
+    "changeMode": "Change how to fill in",
+    "aiOff": "The AI assistant isn't available right now — please fill in the form.",
+    "mode": {
+      "recommended": "Recommended",
+      "ai": {
+        "title": "Tell the AI about it",
+        "desc": "Describe what you need by chat or voice. The AI asks a few questions and fills in the request form for you to check."
+      },
+      "form": {
+        "title": "Fill in the form myself",
+        "desc": "Fill in the request form directly. The AI asks about anything still missing when you submit."
+      }
+    }
+  },
+  "intake": {
+    "title": "Project Assistant",
+    "subtitle": "Tell me what you need — I'll fill in the form on the right",
+    "useForm": "Fill in myself",
+    "done": "The form is ready — check it, pick the priority and required date, then submit."
   }
 }

@@ -36,6 +36,17 @@ export interface ChatMessage {
   voice?: boolean;
 }
 
+/** Form fields the AI filled in from an intake conversation (a new request written by talking to the AI) */
+export interface IntakeForm {
+  project_name?: string;
+  description?: string;
+  reason?: string;
+  expectation?: string;
+  reduction_time_from?: number; reduction_time_to?: number;
+  reduction_man_from?: number; reduction_man_to?: number;
+  reduction_cost_from?: number; reduction_cost_to?: number;
+}
+
 export interface AiCoverage {
   checked_at: string;
   criteria: CriterionCoverage[];

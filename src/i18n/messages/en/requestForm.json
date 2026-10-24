@@ -20,5 +20,6 @@
   "saveFirst": "Save the draft first to attach documents (PDF, Excel, Word, screenshot, e-mail, links…).",
   "draftSaved": "Draft saved",
   "saveDraft": "Save Draft",
-  "submit": "Submit for Approval"
+  "submit": "Submit for Approval",
+  "aiFilled": "Filled in by the AI — please check"
 }
