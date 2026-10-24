@@ -1,5 +1,5 @@
 import 'server-only';
-import { CRITERIA_PER_TURN, MAX_AI_TURNS, MAX_ASKS_PER_CRITERION, MAX_CHAT_MESSAGE, type ChatMessage, type ClarifyCriterion, type CoverageStatus, type CriterionCoverage } from '@/lib/clarify';
+import { CRITERIA_PER_TURN, MAX_AI_TURNS, MAX_ASKS_PER_CRITERION, MAX_CHAT_MESSAGE, coverageReadiness, type AiAnalysis, type ChatMessage, type AiCoverage, type ClarifyCriterion, type CoverageStatus, type CriterionCoverage } from '@/lib/clarify';
 import { REDUCTION_ROWS } from '@/lib/constants';
 import type { ProjectRequest } from '@/lib/types';
 
@@ -41,7 +41,7 @@ Write the note, summary and message in the same language as the request (Thai re
 Reply with JSON only, exactly in this shape:
 {"assessment": [{"key": "<criterion key>", "status": "covered|missing|not_applicable", "note": "...", "summary": "..." }], "asking": ["<criterion key>"], "message": "...", "done": false}`;
 
-function describe(r: ProjectRequest, criteria: ClarifyCriterion[], extra: string | null, messages: ChatMessage[], usedUp: string[]) {
+function formLines(r: ProjectRequest, extra: string | null) {
   const lines = [
     'REQUEST FORM',
     `Project name: ${r.project_name}`,
@@ -57,6 +57,11 @@ function describe(r: ProjectRequest, criteria: ClarifyCriterion[], extra: string
     if (from != null || to != null) lines.push(`Reduction ${row.label}: ${from ?? '-'} → ${to ?? '-'}`);
   }
   if (extra) lines.push(`The approver asked the requestor for more information: ${extra}`);
+  return lines;
+}
+
+function describe(r: ProjectRequest, criteria: ClarifyCriterion[], extra: string | null, messages: ChatMessage[], usedUp: string[]) {
+  const lines = formLines(r, extra);
   const legacy = r.ai_clarifications ?? [];
   if (legacy.length) {
     lines.push('', 'EARLIER QUESTIONS AND ANSWERS');
@@ -161,6 +166,55 @@ export async function chatTurn(r: ProjectRequest, criteria: ClarifyCriterion[], 
     };
   } catch (e) {
     console.warn('[ai] clarification chat turn failed:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+const ANALYSIS = `You are a senior business analyst and project estimator in the IT System Service team.
+A staff member has just submitted a project request. You get the request form, the summary per criterion that the requestor
+confirmed after an interview with the AI, and the interview itself. Write a short initial analysis to help System Service
+review and plan the request:
+- "complexity": "low" | "medium" | "high" — size and technical difficulty (number of users and roles, screens, integrations, approval flows, data migration).
+- "readiness": 0–100 — how complete and concrete the requirements are for planning (100 = a developer could estimate without asking anything).
+- "effort_min", "effort_max": estimated development effort in man-days (MD) for the whole project — analysis, development, testing, deployment — as a realistic range.
+- "modules": 2–6 suggested system modules, each a short name (e.g. "Request Management", "Approval Workflow", "Dashboard", "Notification").
+- "risks": 1–4 short concrete risks or open points that could change scope or effort (e.g. "Approval matrix not finalized"). Base them on what is missing, vague or undecided.
+- "next_step": one short sentence — the most useful next action before planning.
+Each item at most about 8 words. Write modules in English; write risks and next_step in the same language as the request (Thai request → Thai).
+Reply with JSON only, exactly in this shape:
+{"complexity": "medium", "readiness": 80, "effort_min": 10, "effort_max": 15, "modules": ["..."], "risks": ["..."], "next_step": "..."}`;
+
+const COMPLEXITY = ['low', 'medium', 'high'] as const;
+const num = (v: unknown) => (typeof v === 'number' || typeof v === 'string') && Number.isFinite(Number(v)) ? Number(v) : null;
+const strs = (v: unknown, max: number) => (Array.isArray(v) ? v.map(str).filter((x): x is string => !!x).map((x) => x.slice(0, 120)).slice(0, max) : []);
+
+/** Initial analysis of a submitted request; null when the AI failed */
+export async function analyzeRequest(r: ProjectRequest, coverage: AiCoverage | null, messages: ChatMessage[]): Promise<AiAnalysis | null> {
+  const lines = formLines(r, null);
+  const known = (coverage?.criteria ?? []).filter((c) => c.status !== 'not_applicable');
+  if (known.length) {
+    lines.push('', 'CLARIFICATION SUMMARY (confirmed by the requestor)');
+    for (const c of known) lines.push(`- ${c.label}${c.required ? ' (required)' : ''}: ${c.status === 'covered' ? c.summary || c.note || 'covered' : `MISSING${c.note ? ` — ${c.note}` : ''}`}`);
+  }
+  if (messages.length) {
+    lines.push('', 'INTERVIEW');
+    for (const m of messages) lines.push(`${m.role === 'assistant' ? 'AI' : 'Requestor'}: ${m.content}`);
+  }
+  try {
+    const text = await chat(ANALYSIS, lines.join('\n'));
+    const out = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1) || '{}') as Record<string, unknown>;
+    const complexity = COMPLEXITY.find((c) => c === String(out.complexity).toLowerCase());
+    let lo = num(out.effort_min), hi = num(out.effort_max);
+    if (!complexity || lo == null || hi == null) throw new Error('incomplete analysis in the reply');
+    lo = Math.max(1, Math.round(lo)); hi = Math.max(lo, Math.round(hi));
+    // the criteria check is the measured readiness; the AI's own guess only when there was no check
+    const readiness = coverageReadiness(coverage) ?? Math.min(100, Math.max(0, Math.round(num(out.readiness) ?? 0)));
+    return {
+      status: 'done', analyzed_at: new Date().toISOString(), complexity, readiness, effort_min: lo, effort_max: hi,
+      modules: strs(out.modules, 6), risks: strs(out.risks, 4), next_step: str(out.next_step)?.slice(0, 300),
+    };
+  } catch (e) {
+    console.warn('[ai] request analysis failed:', e instanceof Error ? e.message : e);
     return null;
   }
 }

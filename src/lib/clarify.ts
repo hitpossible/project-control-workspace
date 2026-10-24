@@ -69,3 +69,29 @@ export function coverageCount(c: AiCoverage | null | undefined) {
   const req = (c?.criteria ?? []).filter((x) => x.required);
   return { covered: req.filter((x) => x.status === 'covered').length, total: req.length, missing: req.filter((x) => x.status === 'missing') };
 }
+
+/**
+ * AI initial analysis, written after submit for System Service: a first look at the project from the form, the
+ * clarification summary and the conversation. pending = being written; failed = the AI could not do it this time.
+ */
+export interface AiAnalysis {
+  status: 'pending' | 'done' | 'failed';
+  analyzed_at: string;
+  complexity?: 'low' | 'medium' | 'high';
+  /** 0–100: how complete the requirements are for planning */
+  readiness?: number;
+  /** estimated effort in man-days */
+  effort_min?: number;
+  effort_max?: number;
+  modules?: string[];
+  risks?: string[];
+  next_step?: string;
+}
+
+/** Readiness from the criteria check: required criteria count double, not-applicable ones not at all */
+export function coverageReadiness(c: AiCoverage | null | undefined) {
+  const rows = (c?.criteria ?? []).filter((x) => x.status !== 'not_applicable');
+  const weight = (x: CriterionCoverage) => (x.required ? 2 : 1);
+  const total = rows.reduce((s, x) => s + weight(x), 0);
+  return total ? Math.round((rows.filter((x) => x.status === 'covered').reduce((s, x) => s + weight(x), 0) / total) * 100) : null;
+}

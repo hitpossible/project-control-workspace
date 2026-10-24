@@ -5,6 +5,7 @@ import { ArrowRight, Ban, CalendarClock, CalendarDays, Check, ChevronRight, Circ
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import AiAnalysisCard from '@/components/AiAnalysisCard';
 import { CoverageIcon } from '@/components/AiClarifyDialog';
 import AuditHistory from '@/components/AuditHistory';
 import { dispatchEmails, useApp } from '@/components/AppProvider';
@@ -411,6 +412,9 @@ export default function RequestDetailPage() {
         </div>
 
         <div className="col-span-12 xl:col-span-4">
+          {r.submitted_at && (r.ai_analysis || hasRole('system_reviewer')) && (
+            <AiAnalysisCard requestId={r.id} initial={r.ai_analysis} canRun={mine || hasRole('system_reviewer')} onError={(m) => notify(m, 'error')} />
+          )}
           {isReview && (
             <Section title={`System Service — ${waiting?.step_name}`} className="ring-2 ring-[#fdab3d]">
               <div className="space-y-3">

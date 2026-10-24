@@ -1,5 +1,5 @@
 import type { RouteStep } from './approval';
-import type { AiCoverage, ChatMessage, ClarifyCriterion } from './clarify';
+import type { AiAnalysis, AiCoverage, ChatMessage, ClarifyCriterion } from './clarify';
 
 export type Role =
   | 'requestor'
@@ -140,6 +140,8 @@ export interface ProjectRequest {
   ai_coverage: AiCoverage | null;
   /** the requestor's conversation with the AI before submit */
   ai_chat: ChatMessage[] | null;
+  /** the AI's initial analysis for System Service, written after submit */
+  ai_analysis: AiAnalysis | null;
   /** legacy: approvers were picked per request before the fixed approval route */
   requestor_approver_id: number | null;
   authority_approver_id: number | null;
