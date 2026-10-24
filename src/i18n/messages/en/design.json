@@ -1,0 +1,50 @@
+{
+  "empty": "No diagrams yet — start a flowchart or an ER diagram.",
+  "newFlowchart": "Flowchart",
+  "newEr": "ER diagram",
+  "kind": { "flowchart": "Flowchart", "er": "ER diagram" },
+  "untitled": { "flowchart": "Untitled flowchart", "er": "Untitled ER diagram" },
+  "updated": "Updated {time} · {name}",
+  "titleLabel": "Diagram title",
+  "save": "Save",
+  "saved": "Diagram saved",
+  "unsaved": "Unsaved changes",
+  "discard": { "title": "Discard unsaved changes?", "description": "Changes to “{title}” have not been saved.", "confirm": "Discard" },
+  "delete": { "button": "Delete diagram", "title": "Delete this diagram?", "description": "“{title}” will be removed for the whole team.", "done": "Diagram deleted" },
+  "layout": "Auto layout",
+  "exportPng": "Export PNG",
+  "shape": { "start": "Start", "process": "Process", "decision": "Decision", "io": "Input / Output", "end": "End" },
+  "addTable": "Table",
+  "newTable": "new_table",
+  "newStep": "New step",
+  "hint": "Drag from a dot on a shape's edge to connect · select a shape or line to edit it · Delete removes it",
+  "props": {
+    "none": "Select a shape or a line to edit it.",
+    "label": "Label",
+    "shape": "Shape",
+    "tableName": "Table name",
+    "columns": "Columns",
+    "colName": "name",
+    "colType": "type",
+    "addColumn": "Add column",
+    "edgeLabel": "Line label",
+    "cardinality": "Cardinality",
+    "remove": "Remove"
+  },
+  "ai": {
+    "button": "Draft with AI",
+    "description": "The company AI drafts the diagram from your instruction and what the request says about this project. Nothing is saved until you press Save.",
+    "prompt": "What should it draw?",
+    "placeholder": {
+      "flowchart": "e.g. Leave request flow: the employee submits, the supervisor approves or rejects, HR records it",
+      "er": "e.g. Tables for leave requests: employees, leave types, requests and approvals"
+    },
+    "revise": "Revise the current diagram instead of starting over",
+    "run": "Draft",
+    "running": "Drafting…",
+    "done": "AI draft ready — review it, then save",
+    "off": "AI is not set up on this server",
+    "failed": "The AI could not draft the diagram",
+    "undo": "Undo AI draft"
+  }
+}

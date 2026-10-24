@@ -171,6 +171,19 @@ export const POLICIES: Record<string, Policy> = {
   },
   retests: { read: (ctx) => internalProject(ctx) },
 
+  // Design diagrams (flowchart / ER): the internal team draws and edits; the author or the leader deletes
+  project_diagrams: {
+    read: (ctx) => internalProject(ctx),
+    insert: async (ctx, r) => {
+      r.created_by ??= ctx.uid;
+      return r.created_by === ctx.uid && canViewInternal(ctx, pid(r));
+    },
+    update: (ctx, o) => canViewInternal(ctx, pid(o)),
+    check: (ctx, n) => n.updated_by === ctx.uid && canViewInternal(ctx, pid(n)),
+    delete: async (ctx, o) => o.created_by === ctx.uid || (await manage(ctx, o)),
+    readonly: ['created_by', 'created_at', 'updated_at'],
+  },
+
   // Checklist names are visible with the project; managed by the leader
   evidence_requirements: { read: (ctx) => visibleProject(ctx), insert: manage, update: manage, check: manage, delete: manage },
   baseline_revisions: { read: (ctx) => visibleProject(ctx) },

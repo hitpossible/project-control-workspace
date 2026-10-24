@@ -4,6 +4,7 @@ import audit from './audit.json';
 import chart from './chart.json';
 import comments from './comments.json';
 import common from './common.json';
+import design from './design.json';
 import enums from './enums.json';
 import evidence from './evidence.json';
 import fields from './fields.json';
@@ -31,6 +32,6 @@ import template from './template.json';
 import workforce from './workforce.json';
 
 /** One file per feature (namespace); en is the reference every other language must match */
-const messages = { admin, ai, audit, chart, comments, common, enums, evidence, fields, gantt, home, insights, kanban, kpi, login, management, meta, myWork, nav, notifications, plan, project, projects, qa, reports, requestDetail, requestForm, requests, search, template, workforce };
+const messages = { admin, ai, audit, chart, comments, common, design, enums, evidence, fields, gantt, home, insights, kanban, kpi, login, management, meta, myWork, nav, notifications, plan, project, projects, qa, reports, requestDetail, requestForm, requests, search, template, workforce };
 
 export default messages;

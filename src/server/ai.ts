@@ -2,6 +2,7 @@ import 'server-only';
 import { CRITERIA_PER_TURN, MAX_AI_TURNS, type IntakeForm, MAX_ASKS_PER_CRITERION, MAX_CHAT_MESSAGE, coverageReadiness, type AiAnalysis, type ChatMessage, type AiCoverage, type ClarifyCriterion, type CoverageStatus, type CriterionCoverage } from '@/lib/clarify';
 import enEnums from '@/i18n/messages/en/enums.json';
 import { REDUCTION_ROWS } from '@/lib/constants';
+import type { DiagramDraft, DiagramKind } from '@/lib/diagram';
 import type { ProjectRequest } from '@/lib/types';
 
 /**
@@ -327,6 +328,61 @@ export async function analyzeRequest(r: ProjectRequest, coverage: AiCoverage | n
     };
   } catch (e) {
     console.warn('[ai] request analysis failed:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+const DIAGRAM = {
+  flowchart: `You are a business analyst drawing a FLOWCHART of a business process or system flow for a development team.
+Use the shapes: "start" (first step), "end" (each finishing point), "process" (an action or screen), "decision" (a yes/no or multi-way question — its outgoing edges carry the answer as the label, e.g. "Yes" / "No"), "io" (data or a document going in or out, e.g. "Print report", "Import Excel").
+Keep labels short (at most about 8 words). Prefer 6–25 nodes; one start, at least one end, every node reachable from the start.
+Reply with JSON only:
+{"title": "...", "nodes": [{"id": "n1", "shape": "start|process|decision|io|end", "label": "..."}], "edges": [{"from": "n1", "to": "n2", "label": "optional"}]}`,
+  er: `You are a database designer drawing an ER DIAGRAM for a development team (MySQL).
+Each node is a table: "label" is the table name and "columns" its columns. Table and column names in English snake_case, plural table names.
+Column types in MySQL (INT, VARCHAR(100), TEXT, DECIMAL(10,2), DATE, DATETIME, TINYINT(1), JSON, ENUM(...)). Mark the primary key with "pk": true and foreign keys with "fk": true (named <table>_id).
+Include the usual audit columns only where they matter (created_at, created_by). Prefer 3–15 tables, only what the described system needs.
+Edges are relationships, from the table holding the foreign key to the table it references, labelled with the cardinality as seen from "from" to "to": "N:1", "1:1" or "N:N" (use a junction table instead of N:N where it carries data).
+Reply with JSON only:
+{"title": "...", "nodes": [{"id": "orders", "label": "orders", "columns": [{"name": "id", "type": "INT", "pk": true}, {"name": "customer_id", "type": "INT", "fk": true}]}], "edges": [{"from": "orders", "to": "customers", "label": "N:1"}]}`,
+} satisfies Record<DiagramKind, string>;
+
+export interface DiagramContext {
+  project: { code: string; name: string };
+  request: Pick<ProjectRequest, 'project_name' | 'description' | 'reason' | 'expectation'> | null;
+  coverage: AiCoverage | null;
+  activities: string[];
+}
+
+/**
+ * Draft a flowchart / ER diagram from the team's prompt and what is known about the project; with `current` the AI
+ * revises that diagram instead. Returns the untrusted draft (see fromDraft) or null when the AI failed.
+ */
+export async function draftDiagram(kind: DiagramKind, prompt: string, ctx: DiagramContext, current: DiagramDraft | null): Promise<unknown | null> {
+  const lines = [`PROJECT ${ctx.project.code}: ${ctx.project.name}`];
+  const r = ctx.request;
+  if (r) {
+    lines.push('', 'REQUEST', `Name: ${r.project_name}`, `Description: ${r.description || '-'}`, `Reason: ${r.reason || '-'}`, `Expected result: ${r.expectation || '-'}`);
+  }
+  const known = (ctx.coverage?.criteria ?? []).filter((c) => c.status === 'covered' && (c.summary || c.note));
+  if (known.length) {
+    lines.push('', 'WHAT THE REQUESTOR CONFIRMED');
+    for (const c of known) lines.push(`- ${c.label}: ${c.summary || c.note}`);
+  }
+  if (ctx.activities.length) lines.push('', `PLANNED ACTIVITIES: ${ctx.activities.join(', ')}`);
+  if (current?.nodes.length) {
+    lines.push('', 'CURRENT DIAGRAM — revise it as the instruction asks, keep what it does not mention, and reply with the whole diagram:', JSON.stringify(current));
+  }
+  lines.push('', `INSTRUCTION FROM THE TEAM: ${prompt || (current?.nodes.length ? 'Tidy up and complete this diagram.' : 'Draw the diagram for this project.')}`);
+  const thai = /[\u0E00-\u0E7F]/.test([prompt, r?.project_name, r?.description].join(' '));
+  lines.push('', `OUTPUT LANGUAGE: ${kind === 'er' ? 'table and column names in English; the title' : 'the title and node / edge labels'} in ${thai ? 'Thai' : 'English'}.`);
+  try {
+    const text = await chat(DIAGRAM[kind], lines.join('\n'));
+    const out = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1) || '{}') as Record<string, unknown>;
+    if (!Array.isArray(out.nodes) || !out.nodes.length) throw new Error('no nodes in the reply');
+    return out;
+  } catch (e) {
+    console.warn('[ai] diagram draft failed:', e instanceof Error ? e.message : e);
     return null;
   }
 }

@@ -10,6 +10,7 @@ import { useApp } from '@/components/AppProvider';
 import { HealthDot, PageHeader, PriorityChip, entityKey, toId } from '@/components/common';
 import ReportButton from '@/components/ReportButton';
 import BaselineTab from '@/components/project/BaselineTab';
+import DesignTab from '@/components/project/DesignTab';
 import EvidenceTab from '@/components/project/EvidenceTab';
 import InternalTab from '@/components/project/InternalTab';
 import OverviewTab from '@/components/project/OverviewTab';
@@ -108,6 +109,7 @@ function Workspace() {
     { v: 'plan', l: tp('tab.plan') },
     ...(perm.internal ? [{ v: 'internal', l: tp('tab.internal') }] : []),
     ...(perm.internal ? [{ v: 'qa', l: `${tp('tab.qa')}${p.open_bugs ? ` (${p.open_bugs})` : ''}` }] : []),
+    ...(perm.internal ? [{ v: 'design', l: tp('tab.design') }] : []),
     { v: 'team', l: tp('tab.team') },
     { v: 'baseline', l: `${tp('tab.baseline')}${p.baseline_version ? ` (V${p.baseline_version})` : ''}` },
     { v: 'evidence', l: tp('tab.evidence') },
@@ -163,6 +165,7 @@ function Workspace() {
       {tab === 'plan' && <PlanTab {...ctx} />}
       {tab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={toId(params.get('task'))} focusPanel={params.get('panel')} />}
       {tab === 'qa' && perm.internal && <QaTab {...ctx} focusBug={toId(params.get('bug'))} focusPanel={params.get('panel')} />}
+      {tab === 'design' && perm.internal && <DesignTab {...ctx} />}
       {tab === 'team' && <TeamTab {...ctx} />}
       {tab === 'baseline' && <BaselineTab {...ctx} />}
       {tab === 'evidence' && <EvidenceTab {...ctx} names={names} />}
