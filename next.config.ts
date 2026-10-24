@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
 
 // Authenticated, data-driven app: every page renders per user (server-side access policies), so no static prerendering / cacheComponents.
 const nextConfig: NextConfig = {
@@ -8,4 +9,5 @@ const nextConfig: NextConfig = {
   devIndicators: { position: 'bottom-right' },
 };
 
-export default nextConfig;
+// locale + messages per request: src/i18n/request.ts
+export default createNextIntlPlugin('./src/i18n/request.ts')(nextConfig);

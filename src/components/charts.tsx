@@ -1,15 +1,17 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Tip } from './common';
 
 /** Horizontal bar list (single axis, direct labels) */
-export function HBarChart({ rows, max, suffix = '', emptyText = 'No data' }: {
+export function HBarChart({ rows, max, suffix = '', emptyText }: {
   rows: { label: React.ReactNode; value: number | null; color?: string; hint?: string; key: string | number }[];
   max?: number; suffix?: string; emptyText?: string;
 }) {
+  const t = useTranslations('chart');
   const m = max ?? Math.max(1, ...rows.map((r) => r.value ?? 0));
-  if (!rows.length) return <div className="py-6 text-center text-sm text-muted-foreground">{emptyText}</div>;
+  if (!rows.length) return <div className="py-6 text-center text-sm text-muted-foreground">{emptyText ?? t('noData')}</div>;
   return (
     <div className="space-y-1.5">
       {rows.map((r, i) => (
@@ -31,20 +33,22 @@ export function HBarChart({ rows, max, suffix = '', emptyText = 'No data' }: {
 }
 
 /** Diverging bars around zero (e.g. schedule variance: late → right/red, early → left/green) */
-export function DivergingBarChart({ rows, suffix = 'd' }: { rows: { key: string | number; label: React.ReactNode; value: number | null }[]; suffix?: string }) {
+export function DivergingBarChart({ rows, suffix: suffixProp }: { rows: { key: string | number; label: React.ReactNode; value: number | null }[]; suffix?: string }) {
+  const t = useTranslations('chart');
+  const suffix = suffixProp ?? t('daySuffix');
   const m = Math.max(1, ...rows.map((r) => Math.abs(r.value ?? 0)));
   return (
     <div className="space-y-1.5">
       <div className="grid grid-cols-[minmax(110px,180px)_1fr_56px] gap-2 text-[11px] text-muted-foreground">
         <span />
-        <div className="flex justify-between"><span>← ahead</span><span>0</span><span>late →</span></div>
+        <div className="flex justify-between"><span>← {t('ahead')}</span><span>0</span><span>{t('late')} →</span></div>
         <span />
       </div>
       {rows.map((r, i) => {
         const v = r.value ?? 0;
         const w = (Math.abs(v) / m) * 50;
         return (
-          <Tip key={r.key} title={r.value == null ? 'No baseline' : `${v > 0 ? '+' : ''}${v}${suffix}`}>
+          <Tip key={r.key} title={r.value == null ? t('noBaseline') : `${v > 0 ? '+' : ''}${v}${suffix}`}>
             <div className="group/bar -mx-1 grid grid-cols-[minmax(110px,180px)_1fr_56px] items-center gap-2 rounded px-1 transition-colors hover:bg-muted/70">
               <div className="truncate text-sm">{r.label}</div>
               <div className="relative h-4 rounded-sm bg-[#f0f2f6]">

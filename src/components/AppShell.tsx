@@ -1,13 +1,16 @@
 'use client';
 
 import { Bell, CalendarDays, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ROLE_LABELS } from '@/lib/constants';
+import { useOptions } from '@/i18n/useOptions';
+import { ROLES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
 import GlobalSearch from './GlobalSearch';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { SuccessBurst } from './motion';
 import { Person, Tip } from './common';
 import { Button } from './ui/button';
@@ -21,8 +24,9 @@ export function BrandMark({ size = 26 }: { size?: number }) {
 }
 
 export function Brand() {
+  const t = useTranslations('nav');
   return (
-    <Link href="/" className="flex items-center gap-2" aria-label="Project Control — home">
+    <Link href="/" className="flex items-center gap-2" aria-label={t('homeAria')}>
       <BrandMark />
       <span className="font-heading text-lg tracking-tight text-foreground">project control</span>
     </Link>
@@ -32,6 +36,8 @@ export function Brand() {
 type NavItem = { href: string; label: string; icon: React.ReactNode; show: boolean; count?: number };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  const t = useTranslations('nav');
+  const { label } = useOptions();
   const { me, hasRole, isStaff, unread, pendingApprovals, signOut } = useApp();
   const pathname = usePathname();
   const router = useRouter();
@@ -52,21 +58,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const main: NavItem[] = [
-    { href: '/', label: 'Home', icon: <Home />, show: true },
-    { href: '/my-tasks', label: 'My work', icon: <ListChecks />, show: isStaff },
-    { href: '/notifications', label: 'Notifications', icon: <Bell />, show: true, count: unread },
+    { href: '/', label: t('home'), icon: <Home />, show: true },
+    { href: '/my-tasks', label: t('myWork'), icon: <ListChecks />, show: isStaff },
+    { href: '/notifications', label: t('notifications'), icon: <Bell />, show: true, count: unread },
   ];
   const workspace: NavItem[] = [
-    { href: '/requests', label: 'Project Requests', icon: <ClipboardList />, show: true, count: pendingApprovals },
-    { href: '/projects', label: 'Projects', icon: <LayoutDashboard />, show: true },
-    { href: '/management', label: 'Management View', icon: <LineChart />, show: isStaff || hasRole('management_view') },
-    { href: '/workforce', label: 'Workforce Plan', icon: <CalendarDays />, show: isStaff },
+    { href: '/requests', label: t('requests'), icon: <ClipboardList />, show: true, count: pendingApprovals },
+    { href: '/projects', label: t('projects'), icon: <LayoutDashboard />, show: true },
+    { href: '/management', label: t('management'), icon: <LineChart />, show: isStaff || hasRole('management_view') },
+    { href: '/workforce', label: t('workforce'), icon: <CalendarDays />, show: isStaff },
   ];
   const intelligence: NavItem[] = [
-    { href: '/kpi', label: 'KPI', icon: <Gauge />, show: isStaff || hasRole('management_view') },
-    { href: '/insights', label: 'Smart Insights', icon: <Lightbulb />, show: true },
-    { href: '/reports', label: 'Reports', icon: <FileBarChart />, show: true },
-    { href: '/admin', label: 'Administration', icon: <ShieldCheck />, show: hasRole('admin') },
+    { href: '/kpi', label: t('kpi'), icon: <Gauge />, show: isStaff || hasRole('management_view') },
+    { href: '/insights', label: t('insights'), icon: <Lightbulb />, show: true },
+    { href: '/reports', label: t('reports'), icon: <FileBarChart />, show: true },
+    { href: '/admin', label: t('admin'), icon: <ShieldCheck />, show: hasRole('admin') },
   ];
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
@@ -122,8 +128,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <nav className="relative flex h-full flex-col overflow-x-hidden overflow-y-auto">
         <NavIndicator active={pathname} mini={mini} />
         <div className={cn('space-y-0.5', mini ? 'px-2' : 'px-3')}>{main.filter((n) => n.show).map((n) => item(n, mini))}</div>
-        {group('System Service workspace', workspace)}
-        {group('Management intelligence', intelligence)}
+        {group(t('groupWorkspace'), workspace)}
+        {group(t('groupIntelligence'), intelligence)}
       </nav>
     );
   };
@@ -134,8 +140,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)}><Menu /></Button>
         <div className="lg:hidden"><Brand /></div>
         {collapsed ? (
-          <Tip side="right" title="Expand sidebar">
-            <button type="button" onClick={toggle} aria-label="Expand sidebar"
+          <Tip side="right" title={t('expandSidebar')}>
+            <button type="button" onClick={toggle} aria-label={t('expandSidebar')}
               className="group relative hidden h-9 w-10 shrink-0 items-center justify-center rounded-md hover:bg-sidebar-accent lg:flex">
               <span className="transition-opacity group-hover:opacity-0"><BrandMark size={22} /></span>
               <PanelLeftOpen className="absolute size-5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
@@ -144,8 +150,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         ) : (
           <div className="hidden w-[14.5rem] shrink-0 items-center justify-between gap-2 lg:flex">
             <Brand />
-            <Tip side="bottom" title="Collapse sidebar">
-              <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" onClick={toggle} aria-label="Collapse sidebar">
+            <Tip side="bottom" title={t('collapseSidebar')}>
+              <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" onClick={toggle} aria-label={t('collapseSidebar')}>
                 <PanelLeftClose className="size-4.5" />
               </Button>
             </Tip>
@@ -154,7 +160,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1 justify-center px-2 md:px-6">
           <GlobalSearch pages={[...main, ...workspace, ...intelligence].filter((n) => n.show).map(({ href, label, icon }) => ({ href, label, icon }))} />
         </div>
-        <Button variant="ghost" size="icon" className="relative rounded-full" onClick={() => router.push('/notifications')}>
+        <LanguageSwitcher className="hidden sm:flex" />
+        <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={t('notifications')} onClick={() => router.push('/notifications')}>
           <Bell className="size-5" />
           {unread > 0 && <span className="absolute -top-0.5 -right-0.5 rounded-full bg-[#e2445c] px-1 text-[10px] leading-4 font-semibold text-white">{unread > 99 ? '99+' : unread}</span>}
         </Button>
@@ -167,18 +174,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div className="font-semibold">{me?.full_name}</div>
               <div className="text-xs text-muted-foreground">{me?.email} · {me?.department}</div>
               <div className="mt-2 flex flex-wrap gap-1">
-                {me?.roles.map((r) => <span key={r} className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{ROLE_LABELS[r]}</span>)}
+                {me?.roles.map((r) => <span key={r} className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{label(ROLES, r)}</span>)}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOut}><LogOut /> Log out</DropdownMenuItem>
+            <LanguageSwitcher className="mx-2 my-1 w-fit sm:hidden" />
+            <DropdownMenuItem onClick={signOut}><LogOut /> {t('logout')}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-64 bg-white pt-12">
-          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SheetTitle className="sr-only">{t('navigation')}</SheetTitle>
           {nav(false)}
         </SheetContent>
       </Sheet>

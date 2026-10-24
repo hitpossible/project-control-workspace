@@ -1,0 +1,143 @@
+{
+  "notFound": "ไม่พบคำขอ หรือคุณไม่มีสิทธิ์เข้าถึง",
+  "audience": {
+    "levelUp": "{level} ขึ้นไป",
+    "anyRole": "{role} คนใดก็ได้"
+  },
+  "toast": {
+    "reviewSaved": "บันทึกการตรวจสอบแล้ว",
+    "projectCreated": "สร้างโปรเจกต์แล้ว",
+    "cancelled": "ยกเลิกคำขอแล้ว",
+    "submitted": "ส่งคำขออนุมัติแล้ว",
+    "actDone": "{action}: เรียบร้อย"
+  },
+  "celebrate": {
+    "submitted": "ส่งคำขอแล้ว",
+    "submittedHint": "ขณะนี้รอการอนุมัติ",
+    "approved": "อนุมัติแล้ว"
+  },
+  "draftRequest": "คำขอฉบับร่าง",
+  "requestedBy": "ขอโดย {name} · {department}",
+  "openProject": "เปิดโปรเจกต์",
+  "cancel": {
+    "title": "ยกเลิกคำขอนี้?",
+    "description": "คำขอจะถูกยกเลิกและไม่สามารถดำเนินการอนุมัติต่อได้",
+    "confirm": "ยกเลิกคำขอ",
+    "keep": "เก็บไว้"
+  },
+  "deleteDraft": {
+    "title": "ลบฉบับร่างนี้?",
+    "description": "ไม่สามารถย้อนกลับได้",
+    "confirm": "ลบ",
+    "button": "ลบฉบับร่าง"
+  },
+  "moreInfoAlert": "มีการขอข้อมูลเพิ่มเติม: <b>{comment}</b> แก้ไขคำขอแล้วส่งอีกครั้ง — จะกลับไปที่ขั้นตอนอนุมัติเดิม",
+  "sentBackAlert": "ถูกส่งกลับ: <b>{comment}</b> แก้ไขแล้วส่งอีกครั้ง — การอนุมัติจะเริ่มใหม่ตั้งแต่ขั้นตอนที่ 1",
+  "daysOverdue": "เลยกำหนด {count} วัน",
+  "dueToday": "ครบกำหนดวันนี้",
+  "daysLeft": "เหลือ {count} วัน",
+  "currentStep": "ขั้นตอนปัจจุบัน",
+  "yourTurn": "ถึงคิวคุณ",
+  "approvalProgress": "ความคืบหน้าการอนุมัติ",
+  "stepsProgress": "{done} / {total} ขั้นตอน",
+  "notSubmitted": "ยังไม่ส่ง",
+  "tab": {
+    "details": "รายละเอียด",
+    "clarify": "ข้อมูลเพิ่มเติม",
+    "attachments": "ไฟล์แนบ",
+    "history": "ประวัติ"
+  },
+  "section": {
+    "info": "ข้อมูลโปรเจกต์",
+    "reduction": "ผลการลดที่คาดหวัง",
+    "received": "System Service — รับคำขอ",
+    "approvalHistory": "ประวัติการอนุมัติ",
+    "changeHistory": "ประวัติการแก้ไข",
+    "route": "เส้นทางการอนุมัติ",
+    "requestor": "ผู้ขอ"
+  },
+  "noDescription": "ไม่มีรายละเอียด",
+  "requestorApprover": "ผู้อนุมัติฝั่งผู้ขอ",
+  "reduction": {
+    "item": "รายการ",
+    "current": "ปัจจุบัน",
+    "target": "เป้าหมาย"
+  },
+  "review": {
+    "title": "System Service — {step}",
+    "projectType": "ประเภทโปรเจกต์",
+    "template": "เทมเพลต",
+    "projectTemplate": "เทมเพลตโปรเจกต์",
+    "projectLeader": "หัวหน้าโปรเจกต์",
+    "authorityApprover": "ผู้มีอำนาจอนุมัติ",
+    "estimatedEffort": "ประมาณการแรงงาน",
+    "md": "{md} MD",
+    "estimatedEffortMd": "ประมาณการแรงงาน (MD)",
+    "aiRange": "AI: {min}–{max}",
+    "manDays": "Man-day",
+    "estimateHelp": "ประมาณการของคุณเองสำหรับทั้งโปรเจกต์ — เก็บคู่กับของ AI เพื่อเทียบภายหลัง",
+    "scope": "การประเมินขอบเขตงาน",
+    "save": "บันทึกการตรวจสอบ"
+  },
+  "clarify": {
+    "title": "ข้อมูลเพิ่มเติมของโปรเจกต์",
+    "checked": "ตรวจเมื่อ {at}",
+    "note": "AI รวบรวมก่อนส่งคำขอและผู้ขอยืนยันแล้ว — กรุณาตรวจสอบอีกครั้ง",
+    "missing": "ยังขาด: <b>{items}</b>",
+    "required": "จำเป็น",
+    "notCovered": "ยังไม่มีข้อมูล",
+    "notApplicable": "ไม่เกี่ยวข้อง: {items}",
+    "skipped": "ผู้ขอข้ามคำถามนี้",
+    "conversation": "บทสนทนากับ AI",
+    "messages": "{count} ข้อความ",
+    "spoken": "พูด"
+  },
+  "noActions": "ยังไม่มีการดำเนินการ",
+  "convert": {
+    "title": "แปลงเป็นโปรเจกต์ที่ควบคุม",
+    "note": "สร้างรหัสโปรเจกต์ ข้อมูลโปรเจกต์ ทีม และกิจกรรมเริ่มต้นจากเทมเพลต",
+    "startDate": "วันเริ่ม",
+    "targetDate": "วันเป้าหมาย",
+    "sponsor": "ผู้สนับสนุน",
+    "confirmTitle": "แปลงเป็นโปรเจกต์ที่ควบคุม?",
+    "confirmText": "จะสร้างโปรเจกต์ตั้งแต่ {from} ถึง {to}",
+    "confirmWithSponsor": "จะสร้างโปรเจกต์ตั้งแต่ {from} ถึง {to} โดยมี {sponsor} เป็นผู้สนับสนุน",
+    "confirm": "แปลง",
+    "button": "แปลง",
+    "buttonSuffix": "เป็นโปรเจกต์"
+  },
+  "notSubmittedYet": "ยังไม่ได้ส่ง",
+  "stepStatus": {
+    "approved": "อนุมัติแล้ว",
+    "waiting": "รอดำเนินการ",
+    "rejected": "ปฏิเสธ",
+    "sent_back": "ส่งกลับ",
+    "more_info": "ขอข้อมูลเพิ่ม"
+  },
+  "actedBy": "โดย <b>{name}</b> · {at}",
+  "ext": "ต่อ {ext}",
+  "bar": {
+    "actionRequired": "รอคุณดำเนินการ · ขั้นตอนที่ {step} จาก {total}",
+    "editDates": "แก้ไขวันที่",
+    "readyToConvert": "อนุมัติแล้ว · พร้อมแปลงเป็นโปรเจกต์",
+    "setDates": "กำหนดวันเริ่มและวันเป้าหมาย"
+  },
+  "act": {
+    "approve": {
+      "label": "อนุมัติ",
+      "short": "อนุมัติ"
+    },
+    "reject": {
+      "label": "ปฏิเสธ",
+      "short": "ปฏิเสธ"
+    },
+    "send_back": {
+      "label": "ส่งกลับ",
+      "short": "ส่งกลับ"
+    },
+    "request_more_info": {
+      "label": "ขอข้อมูลเพิ่มเติม",
+      "short": "ขอข้อมูล"
+    }
+  }
+}

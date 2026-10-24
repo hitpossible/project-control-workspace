@@ -1,0 +1,20 @@
+{
+  "homeAria": "Project Control — home",
+  "home": "Home",
+  "myWork": "My work",
+  "notifications": "Notifications",
+  "requests": "Project Requests",
+  "projects": "Projects",
+  "management": "Management View",
+  "workforce": "Workforce Plan",
+  "kpi": "KPI",
+  "insights": "Smart Insights",
+  "reports": "Reports",
+  "admin": "Administration",
+  "groupWorkspace": "System Service workspace",
+  "groupIntelligence": "Management intelligence",
+  "expandSidebar": "Expand sidebar",
+  "collapseSidebar": "Collapse sidebar",
+  "navigation": "Navigation",
+  "logout": "Log out"
+}

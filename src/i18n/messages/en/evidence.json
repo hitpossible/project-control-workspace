@@ -1,0 +1,48 @@
+{
+  "uploaded": "Evidence uploaded",
+  "linkAdded": "Link added",
+  "remove": {
+    "title": "Remove evidence?",
+    "text": "\"{name}\" will be removed.",
+    "confirm": "Remove"
+  },
+  "satisfies": "Satisfies checklist item…",
+  "uploading": "Uploading…",
+  "upload": "Upload file",
+  "addLink": "Add link",
+  "visible": "Visible to User / Management",
+  "empty": "No evidence attached",
+  "col": {
+    "file": "File / Link",
+    "type": "Type",
+    "uploaded": "Uploaded",
+    "verification": "Verification"
+  },
+  "checklist": "Checklist",
+  "shared": "Shared",
+  "markVerified": "Mark verified",
+  "reject": "Reject",
+  "link": {
+    "title": "Add evidence link",
+    "url": "URL",
+    "name": "Title",
+    "description": "Description"
+  },
+  "checklistPanel": {
+    "removed": "Removed \"{name}\"",
+    "provided": "{done}/{total} provided",
+    "mandatoryMissing": "{count} mandatory missing",
+    "addItem": "Add item",
+    "empty": "No checklist items",
+    "mandatory": "Mandatory",
+    "optional": "Optional",
+    "files": "{count} file(s)",
+    "missing": "missing",
+    "removeItem": "Remove item",
+    "item": "Checklist item",
+    "itemPlaceholder": "e.g. UAT Sign-off",
+    "requiredFor": "Required for",
+    "title": "Evidence Checklist",
+    "files_links": "Files & Links"
+  }
+}

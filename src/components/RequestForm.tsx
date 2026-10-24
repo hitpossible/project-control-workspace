@@ -1,7 +1,9 @@
 'use client';
 
 import { Info } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Fragment, useState } from 'react';
+import { useOptions } from '@/i18n/useOptions';
 import { PRIORITIES, REDUCTION_ROWS } from '@/lib/constants';
 import { errMsg, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -40,6 +42,9 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
   onSaved: (r: ProjectRequest) => void;
   onSubmit?: (r: ProjectRequest) => Promise<void>;
 }) {
+  const t = useTranslations('requestForm');
+  const te = useTranslations('enums');
+  const { options } = useOptions();
   const db = dbClient();
   const { me, notify } = useApp();
   const [f, setF] = useState<RequestDraft>(initial);
@@ -58,7 +63,7 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
 
   const save = async (): Promise<ProjectRequest | null> => {
     if (!f.project_name?.trim()) {
-      notify('Project Name is required to save a draft', 'warning');
+      notify(t('nameRequired'), 'warning');
       return null;
     }
     const payload = nullify(Object.fromEntries(EDITABLE.map((k) => [k, f[k] ?? null])));
@@ -76,38 +81,38 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
   return (
     <div>
       {!me?.department && (
-        <Alert className="mb-4"><Info /><AlertDescription>Your user profile has no department — ask an administrator to update it before submitting.</AlertDescription></Alert>
+        <Alert className="mb-4"><Info /><AlertDescription>{t('noDepartment')}</AlertDescription></Alert>
       )}
 
-      <Section title="Project Information">
+      <Section title={t('section.info')}>
         <div className="grid grid-cols-12 gap-3">
-          <TextField className="col-span-12" label="Project Name" required {...txt('project_name')} />
-          <TextField className="col-span-12" label="Brief Description of Request" required multiline {...txt('description')} />
-          <TextField className="col-span-12 md:col-span-6" label="Reason for Request" required multiline {...txt('reason')} />
-          <TextField className="col-span-12 md:col-span-6" label="Expectation for Project Result" multiline {...txt('expectation')} />
-          <SelectField className="col-span-12 sm:col-span-4" label="Priority" value={f.priority} onChange={set('priority')} options={PRIORITIES} required />
-          <TextField className="col-span-12 sm:col-span-4" label="Date Submitted" value={f.date_submitted ?? 'Set on submit'} disabled />
-          <DateField className="col-span-12 sm:col-span-4" label="Date Required" value={f.date_required} onChange={set('date_required')} required />
+          <TextField className="col-span-12" label={t('field.projectName')} required {...txt('project_name')} />
+          <TextField className="col-span-12" label={t('field.description')} required multiline {...txt('description')} />
+          <TextField className="col-span-12 md:col-span-6" label={t('field.reason')} required multiline {...txt('reason')} />
+          <TextField className="col-span-12 md:col-span-6" label={t('field.expectation')} multiline {...txt('expectation')} />
+          <SelectField className="col-span-12 sm:col-span-4" label={t('field.priority')} value={f.priority} onChange={set('priority')} options={options(PRIORITIES)} required />
+          <TextField className="col-span-12 sm:col-span-4" label={t('field.dateSubmitted')} value={f.date_submitted ?? t('setOnSubmit')} disabled />
+          <DateField className="col-span-12 sm:col-span-4" label={t('field.dateRequired')} value={f.date_required} onChange={set('date_required')} required />
         </div>
       </Section>
 
-      <Section title="Reduction">
+      <Section title={t('section.reduction')}>
         <div className="grid grid-cols-12 items-center gap-x-3 gap-y-2">
           <div className="col-span-4 hidden sm:block" />
-          <div className="col-span-4 hidden text-xs font-medium text-muted-foreground sm:block">From</div>
-          <div className="col-span-4 hidden text-xs font-medium text-muted-foreground sm:block">To</div>
+          <div className="col-span-4 hidden text-xs font-medium text-muted-foreground sm:block">{t('from')}</div>
+          <div className="col-span-4 hidden text-xs font-medium text-muted-foreground sm:block">{t('to')}</div>
           {REDUCTION_ROWS.map((row) => (
-            <Fragment key={row.label}>
-              <div className="col-span-12 text-sm font-medium sm:col-span-4">{row.label}</div>
-              <TextField className="col-span-6 sm:col-span-4" type="number" placeholder="From" {...num(row.from)} />
-              <TextField className="col-span-6 sm:col-span-4" type="number" placeholder="To" {...num(row.to)} />
+            <Fragment key={row.key}>
+              <div className="col-span-12 text-sm font-medium sm:col-span-4">{te(`reduction.${row.key}`)}</div>
+              <TextField className="col-span-6 sm:col-span-4" type="number" placeholder={t('from')} {...num(row.from)} />
+              <TextField className="col-span-6 sm:col-span-4" type="number" placeholder={t('to')} {...num(row.to)} />
             </Fragment>
           ))}
         </div>
       </Section>
 
       {!f.id && (
-        <Alert className="mb-4"><Info /><AlertDescription>Save the draft first to attach documents (PDF, Excel, Word, screenshot, e-mail, links…).</AlertDescription></Alert>
+        <Alert className="mb-4"><Info /><AlertDescription>{t('saveFirst')}</AlertDescription></Alert>
       )}
 
       <div className="mb-4 flex justify-end gap-2">
@@ -115,8 +120,8 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
           setBusy(true);
           const r = await save();
           setBusy(false);
-          if (r) { notify('Draft saved'); onSaved(r); }
-        }}>Save Draft</Button>
+          if (r) { notify(t('draftSaved')); onSaved(r); }
+        }}>{t('saveDraft')}</Button>
         {onSubmit && (
           <Button disabled={busy} onClick={async () => {
             setBusy(true);
@@ -124,7 +129,7 @@ export default function RequestForm({ initial, onSaved, onSubmit }: {
             setBusy(false);
             // the AI asks what is still missing about the project, then the dialog submits
             if (r) setClarify(r);
-          }}>Submit for Approval</Button>
+          }}>{t('submit')}</Button>
         )}
       </div>
       {clarify && onSubmit && <AiClarifyDialog request={clarify} onSubmit={onSubmit} onClose={() => setClarify(null)} />}

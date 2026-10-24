@@ -1,0 +1,30 @@
+{
+  "title": "Project Requests",
+  "subtitle": "Request → Requestor Approval → System Service Review → Authority Approval → Controlled Project",
+  "new": "New Request",
+  "tab": {
+    "action": "Waiting My Action",
+    "mine": "My Requests",
+    "all": "All Visible"
+  },
+  "allDocTypes": "All document types",
+  "allStatuses": "All statuses",
+  "empty": "No requests",
+  "group": {
+    "inApproval": "In approval",
+    "approved": "Approved — ready to convert",
+    "drafts": "Drafts",
+    "converted": "Converted to project",
+    "closed": "Closed"
+  },
+  "draft": "Draft",
+  "readyToConvert": "ready for you to convert",
+  "waitingForYou": "waiting for you",
+  "newPage": {
+    "title": "New Request",
+    "subtitle": "Choose the kind of document to create",
+    "noTypes": "No document types are open for requests — ask an administrator (Admin → Document Types)",
+    "titleFor": "New {name}",
+    "changeType": "Change type"
+  }
+}

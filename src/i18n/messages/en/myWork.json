@@ -1,0 +1,33 @@
+{
+  "title": "My work",
+  "subtitle": "Tasks, bugs to fix and retests across all projects",
+  "tab": {
+    "tasks": "Tasks",
+    "bugs": "Bugs to fix",
+    "retests": "Retest queue"
+  },
+  "scope": {
+    "assigned": "Assigned to me",
+    "review": "I review",
+    "all": "All visible",
+    "mine": "Mine"
+  },
+  "view": {
+    "list": "List",
+    "kanban": "Kanban"
+  },
+  "filter": {
+    "open": "Open",
+    "overdue": "Overdue",
+    "all": "All"
+  },
+  "empty": {
+    "tasks": "No tasks",
+    "overdue": "Nothing overdue — nice work",
+    "open": "All caught up — no open tasks",
+    "bugs": "No bugs to fix",
+    "retests": "Nothing to retest"
+  },
+  "reopened": "reopened ×{count}",
+  "retestTitle": "Waiting for retest"
+}

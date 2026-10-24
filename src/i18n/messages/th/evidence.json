@@ -1,0 +1,48 @@
+{
+  "uploaded": "อัปโหลดหลักฐานแล้ว",
+  "linkAdded": "เพิ่มลิงก์แล้ว",
+  "remove": {
+    "title": "ลบหลักฐานนี้?",
+    "text": "\"{name}\" จะถูกลบออก",
+    "confirm": "ลบ"
+  },
+  "satisfies": "ใช้เป็นหลักฐานของรายการตรวจสอบ…",
+  "uploading": "กำลังอัปโหลด…",
+  "upload": "อัปโหลดไฟล์",
+  "addLink": "เพิ่มลิงก์",
+  "visible": "ผู้ใช้ / ผู้บริหารมองเห็นได้",
+  "empty": "ยังไม่มีหลักฐาน",
+  "col": {
+    "file": "ไฟล์ / ลิงก์",
+    "type": "ประเภท",
+    "uploaded": "อัปโหลดโดย",
+    "verification": "การตรวจสอบ"
+  },
+  "checklist": "รายการตรวจสอบ",
+  "shared": "แชร์",
+  "markVerified": "ทำเครื่องหมายว่าตรวจสอบแล้ว",
+  "reject": "ไม่ผ่าน",
+  "link": {
+    "title": "เพิ่มลิงก์หลักฐาน",
+    "url": "URL",
+    "name": "ชื่อ",
+    "description": "คำอธิบาย"
+  },
+  "checklistPanel": {
+    "removed": "ลบ \"{name}\" แล้ว",
+    "provided": "มีแล้ว {done}/{total}",
+    "mandatoryMissing": "ขาดรายการบังคับ {count} รายการ",
+    "addItem": "เพิ่มรายการ",
+    "empty": "ไม่มีรายการตรวจสอบ",
+    "mandatory": "บังคับ",
+    "optional": "ไม่บังคับ",
+    "files": "{count} ไฟล์",
+    "missing": "ยังไม่มี",
+    "removeItem": "ลบรายการ",
+    "item": "รายการตรวจสอบ",
+    "itemPlaceholder": "เช่น เอกสารรับรอง UAT",
+    "requiredFor": "ใช้สำหรับ",
+    "title": "รายการหลักฐานที่ต้องมี",
+    "files_links": "ไฟล์และลิงก์"
+  }
+}

@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-poppins);
-    --font-sans: var(--font-figtree);
+    --font-heading: var(--font-poppins), var(--font-sarabun);
+    --font-sans: var(--font-figtree), var(--font-sarabun);
     --color-app: var(--app-bg);
     --color-selected: var(--selected);
     --color-grid: var(--grid);

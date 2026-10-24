@@ -2,8 +2,9 @@
 
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Crosshair, TriangleAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { fmtDate } from '@/lib/format';
+import { day, fmtDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Tip } from './common';
 import { Button } from './ui/button';
@@ -51,6 +52,7 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
   onToggle?: (row: GanttRow) => void;
   height?: number;
 }) {
+  const t = useTranslations('gantt');
   const [scale, setScale] = useState<'day' | 'week'>('day');
   const dayW = scale === 'day' ? 26 : 9;
   const today = dayjs().startOf('day');
@@ -73,7 +75,7 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
       const end = cur.endOf('month');
       const from = cur.diff(start, 'day');
       const to = Math.min(end.diff(start, 'day') + 1, days);
-      out.push({ label: cur.format(to - from < 10 && scale === 'week' ? 'MMM' : 'MMMM YYYY'), left: from * dayW, width: (to - from) * dayW });
+      out.push({ label: day(cur).format(to - from < 10 && scale === 'week' ? 'MMM' : 'MMMM YYYY'), left: from * dayW, width: (to - from) * dayW });
       cur = end.add(1, 'day').startOf('day');
     }
     return out;
@@ -83,7 +85,7 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
     const out: { label: string; left: number; weekend: boolean; isWeekStart: boolean }[] = [];
     for (let i = 0; i < days; i++) {
       const d = start.add(i, 'day');
-      out.push({ label: scale === 'day' ? d.format('D') : d.format('D MMM'), left: i * dayW, weekend: d.day() === 0 || d.day() === 6, isWeekStart: d.day() === 1 });
+      out.push({ label: scale === 'day' ? d.format('D') : day(d).format('D MMM'), left: i * dayW, weekend: d.day() === 0 || d.day() === 6, isWeekStart: d.day() === 1 });
     }
     return out;
   }, [start, days, dayW, scale]);
@@ -107,10 +109,10 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
     <div>
       <div className="no-print mb-2 flex flex-wrap items-center gap-4">
         <ToggleGroup type="single" variant="outline" size="sm" value={scale} onValueChange={(v) => v && setScale(v as 'day' | 'week')}>
-          <ToggleGroupItem value="day" className="data-[state=on]:bg-selected data-[state=on]:text-primary">Day</ToggleGroupItem>
-          <ToggleGroupItem value="week" className="data-[state=on]:bg-selected data-[state=on]:text-primary">Week</ToggleGroupItem>
+          <ToggleGroupItem value="day" className="data-[state=on]:bg-selected data-[state=on]:text-primary">{t('day')}</ToggleGroupItem>
+          <ToggleGroupItem value="week" className="data-[state=on]:bg-selected data-[state=on]:text-primary">{t('week')}</ToggleGroupItem>
         </ToggleGroup>
-        <Button variant="outline" size="sm" onClick={() => scrollToToday()}><Crosshair /> Today</Button>
+        <Button variant="outline" size="sm" onClick={() => scrollToToday()}><Crosshair /> {t('today')}</Button>
         <Legend />
       </div>
       <div ref={scroller} className="relative overflow-auto rounded-md border border-grid bg-white" style={{ maxHeight: height ?? 640 }}>
@@ -118,32 +120,32 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
           {/* Header */}
           <div className="sticky top-0 z-[4] flex border-b border-grid bg-white">
             <div className="sticky left-0 z-[5] grid shrink-0 grid-cols-[1fr_92px_64px] items-end border-r border-grid bg-white px-2 pb-1 text-xs text-muted-foreground" style={{ width: LEFT_W }}>
-              <span>Activity / Task</span><span>PIC</span><span className="text-right">Progress</span>
+              <span>{t('col.item')}</span><span>{t('col.pic')}</span><span className="text-right">{t('col.progress')}</span>
             </div>
             <div className="relative h-11" style={{ width }}>
               {months.map((m) => (
                 <div key={m.left} className="absolute top-0 h-[22px] overflow-hidden border-l border-grid px-1.5 text-[11px] leading-[22px] font-semibold whitespace-nowrap" style={{ left: m.left, width: m.width }}>{m.label}</div>
               ))}
-              {ticks.map((t) => (scale === 'day' || t.isWeekStart) && (
-                <div key={t.left}
-                  className={cn('absolute top-[22px] h-[22px] text-[10px] leading-[22px]', scale === 'day' ? 'text-center' : 'border-l border-grid pl-1', t.weekend ? 'text-[#b0b8c8]' : 'text-muted-foreground')}
-                  style={{ left: t.left, width: scale === 'day' ? dayW : dayW * 7 }}>{t.label}</div>
+              {ticks.map((tk) => (scale === 'day' || tk.isWeekStart) && (
+                <div key={tk.left}
+                  className={cn('absolute top-[22px] h-[22px] text-[10px] leading-[22px]', scale === 'day' ? 'text-center' : 'border-l border-grid pl-1', tk.weekend ? 'text-[#b0b8c8]' : 'text-muted-foreground')}
+                  style={{ left: tk.left, width: scale === 'day' ? dayW : dayW * 7 }}>{tk.label}</div>
               ))}
               <span className="motion-rise absolute bottom-0 z-[1] -translate-x-1/2 rounded-t px-1.5 text-[10px] leading-4 font-semibold text-white"
-                style={{ left: todayLeft, background: TODAY_COLOR }}>Today</span>
+                style={{ left: todayLeft, background: TODAY_COLOR }}>{t('today')}</span>
             </div>
           </div>
 
           {/* Body */}
           <div className="relative">
             <div className="pointer-events-none absolute top-0" style={{ left: LEFT_W, width, height: rows.length * ROW_H }}>
-              {scale === 'day' && ticks.filter((t) => t.weekend).map((t) => (
-                <div key={t.left} className="absolute inset-y-0 bg-[#f6f7fa]" style={{ left: t.left, width: dayW }} />
+              {scale === 'day' && ticks.filter((tk) => tk.weekend).map((tk) => (
+                <div key={tk.left} className="absolute inset-y-0 bg-[#f6f7fa]" style={{ left: tk.left, width: dayW }} />
               ))}
-              {scale === 'week' && ticks.filter((t) => t.isWeekStart).map((t) => (
-                <div key={t.left} className="absolute inset-y-0 border-l border-[#f0f2f6]" style={{ left: t.left }} />
+              {scale === 'week' && ticks.filter((tk) => tk.isWeekStart).map((tk) => (
+                <div key={tk.left} className="absolute inset-y-0 border-l border-[#f0f2f6]" style={{ left: tk.left }} />
               ))}
-              <div className="motion-grow-y absolute inset-y-0 z-[2] w-0.5 origin-top opacity-90" style={{ left: todayLeft, background: TODAY_COLOR }} title={`Today ${today.format('DD MMM YYYY')}`} />
+              <div className="motion-grow-y absolute inset-y-0 z-[2] w-0.5 origin-top opacity-90" style={{ left: todayLeft, background: TODAY_COLOR }} title={t('todayTip', { date: fmtDate(today.format('YYYY-MM-DD')) })} />
             </div>
 
             {rows.map((r, i) => {
@@ -186,17 +188,17 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
                   </div>
                   <div className="relative shrink-0" style={{ width }} onClick={() => onRowClick?.(r)}>
                     {hasPlan && !r.milestone && (
-                      <Tip title={`Plan: ${fmtDate(r.planStart)} → ${fmtDate(r.planFinish)}`}>
+                      <Tip title={t('tip.plan', { from: fmtDate(r.planStart), to: fmtDate(r.planFinish) })}>
                         <div className="motion-grow-x absolute z-[1] origin-left rounded-full border border-[#cdd1dc] bg-[#e9ebf1] transition-colors group-hover:border-[#b3b8c6] group-hover:bg-[#dfe2ea]" style={{ ...grow, top: PLAN_Y, height: PLAN_H, left: x(r.planStart!) + 1, width: x(r.planFinish!) - x(r.planStart!) + dayW - 2 }} />
                       </Tip>
                     )}
                     {r.milestone && r.planFinish && (
-                      <Tip title={`Milestone: ${fmtDate(r.planFinish)}`}>
+                      <Tip title={t('tip.milestone', { date: fmtDate(r.planFinish) })}>
                         <div className="motion-rise absolute z-[1] size-4 rotate-45 rounded-[3px] transition-transform group-hover:scale-125" style={{ top: (ROW_H - 16) / 2, left: x(r.planFinish) + dayW / 2 - 8, background: r.status === 'completed' ? '#00c875' : '#784bd1' }} />
                       </Tip>
                     )}
                     {r.actualStart && actualEnd && !r.milestone && (
-                      <Tip title={`Actual: ${fmtDate(r.actualStart)} → ${r.actualFinish ? fmtDate(r.actualFinish) : 'today'} · ${Math.round(r.progress)}%`}>
+                      <Tip title={t('tip.actual', { from: fmtDate(r.actualStart), to: r.actualFinish ? fmtDate(r.actualFinish) : t('tip.todayLower'), progress: Math.round(r.progress) })}>
                         <div className="motion-grow-x absolute z-[1] origin-left overflow-hidden rounded-full transition-shadow group-hover:shadow-[0_2px_6px_rgba(16,24,40,.18)]"
                           style={{ ...grow, top: ACT_Y, height: ACT_H, left: x(r.actualStart) + 1, width: Math.max(x(actualEnd) - x(r.actualStart) + dayW - 2, dayW - 2), background: `${r.statusColor}40` }}>
                           <div className="h-full transition-[width] duration-500" style={{ width: `${r.progress}%`, background: r.statusColor }} />
@@ -204,7 +206,7 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
                       </Tip>
                     )}
                     {forecastBeyond && (
-                      <Tip title={`Forecast / Recovery: ${fmtDate(r.forecastFinish)}${r.recovery ? ` — ${r.recovery}` : ''}`}>
+                      <Tip title={t('tip.forecast', { date: fmtDate(r.forecastFinish) }) + (r.recovery ? ` — ${r.recovery}` : '')}>
                         <div className="motion-grow-x absolute z-[1] origin-left rounded-r-full border-[1.5px] border-l-0 border-dashed border-[#e2445c] bg-[#e2445c12]"
                           style={{ animationDelay: `${Math.min(i, 20) * 25 + 300}ms`, top: PLAN_Y, height: PLAN_H, left: x(r.planFinish!) + dayW - 1, width: x(r.forecastFinish!) - x(r.planFinish!) }} />
                       </Tip>
@@ -243,17 +245,18 @@ export default function GanttChart({ rows, deps = [], onRowClick, onToggle, heig
 }
 
 function Legend() {
+  const t = useTranslations('gantt.legend');
   const item = (el: React.ReactNode, label: string) => (
     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">{el}{label}</span>
   );
   return (
     <div className="flex flex-wrap gap-4">
-      {item(<span className="h-2 w-5 rounded border border-[#c3c6d4] bg-grid" />, 'Plan')}
-      {item(<span className="h-2 w-5 rounded bg-[#fdab3d]" />, 'Actual (status color, progress)')}
-      {item(<span className="h-2 w-5 border-[1.5px] border-dashed border-[#e2445c]" />, 'Forecast / Recovery')}
-      {item(<span className="size-2.5 rotate-45 bg-[#784bd1]" />, 'Milestone')}
-      {item(<span className="h-3 w-0.5" style={{ background: TODAY_COLOR }} />, 'Today')}
-      {item(<span className="h-2.5 w-3 border-l-[3px] border-[#e2445c] bg-[#fff1f0]" />, 'Overdue / Risk')}
+      {item(<span className="h-2 w-5 rounded border border-[#c3c6d4] bg-grid" />, t('plan'))}
+      {item(<span className="h-2 w-5 rounded bg-[#fdab3d]" />, t('actual'))}
+      {item(<span className="h-2 w-5 border-[1.5px] border-dashed border-[#e2445c]" />, t('forecast'))}
+      {item(<span className="size-2.5 rotate-45 bg-[#784bd1]" />, t('milestone'))}
+      {item(<span className="h-3 w-0.5" style={{ background: TODAY_COLOR }} />, t('today'))}
+      {item(<span className="h-2.5 w-3 border-l-[3px] border-[#e2445c] bg-[#fff1f0]" />, t('overdue'))}
     </div>
   );
 }

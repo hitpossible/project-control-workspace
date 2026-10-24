@@ -1,5 +1,6 @@
 import 'server-only';
 import { CRITERIA_PER_TURN, MAX_AI_TURNS, MAX_ASKS_PER_CRITERION, MAX_CHAT_MESSAGE, coverageReadiness, type AiAnalysis, type ChatMessage, type AiCoverage, type ClarifyCriterion, type CoverageStatus, type CriterionCoverage } from '@/lib/clarify';
+import enEnums from '@/i18n/messages/en/enums.json';
 import { REDUCTION_ROWS } from '@/lib/constants';
 import type { ProjectRequest } from '@/lib/types';
 
@@ -54,7 +55,7 @@ function formLines(r: ProjectRequest, extra: string | null) {
   ];
   for (const row of REDUCTION_ROWS) {
     const from = r[row.from], to = r[row.to];
-    if (from != null || to != null) lines.push(`Reduction ${row.label}: ${from ?? '-'} → ${to ?? '-'}`);
+    if (from != null || to != null) lines.push(`Reduction ${enEnums.reduction[row.key]}: ${from ?? '-'} → ${to ?? '-'}`);
   }
   if (extra) lines.push(`The approver asked the requestor for more information: ${extra}`);
   return lines;

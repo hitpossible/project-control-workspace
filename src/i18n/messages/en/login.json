@@ -1,0 +1,22 @@
+{
+  "title": "Log in to your account",
+  "subtitle": "Sign in with your company (AD) account",
+  "username": "Username",
+  "password": "Password",
+  "submit": "Log in",
+  "submitting": "Logging in…",
+  "unreachable": "Cannot reach the server",
+  "demoHint": "Demo accounts (local login, password in scripts/seed.ts):",
+  "demo": {
+    "requestor": "Requestor",
+    "req_manager": "Requestor Approver",
+    "ss_manager": "System Manager",
+    "reviewer": "System Reviewer / Supervisor",
+    "authority": "Authority / Manager",
+    "leader": "Project Leader",
+    "dev1": "Developer",
+    "qa": "QA",
+    "mgmt": "Management View",
+    "admin": "Admin"
+  }
+}

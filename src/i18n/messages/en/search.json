@@ -1,0 +1,14 @@
+{
+  "button": "Search projects, requests, tasks, bugs…",
+  "title": "Search",
+  "description": "Search projects, requests, tasks and bugs",
+  "placeholder": "Type a code (SYS-WEB, REQ-, T-0012, BUG-) or a name…",
+  "noResults": "No results for “{text}”.",
+  "searching": "Searching…",
+  "group": { "project": "Projects", "request": "Project Requests", "task": "Tasks", "bug": "Bugs" },
+  "goToPage": "Go to page",
+  "keyMove": "move",
+  "keyOpen": "open",
+  "keyClose": "close",
+  "permissionNote": "Only items you are allowed to see are shown"
+}

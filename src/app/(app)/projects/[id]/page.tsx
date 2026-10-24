@@ -1,6 +1,7 @@
 'use client';
 
 import { Download } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
@@ -26,6 +27,7 @@ import { dbClient } from '@/lib/db/client';
 import type { Activity, Baseline, BaselineItem, BaselineRevision, Bug, BugFix, Evidence, EvidenceRequirement, InternalTask, ProjectMember, ProjectView, Retest, TaskDependency, TestRound } from '@/lib/types';
 
 function Workspace() {
+  const tp = useTranslations('project');
   const { id } = useParams<{ id: string }>();
   const params = useSearchParams();
   const router = useRouter();
@@ -95,21 +97,21 @@ function Workspace() {
     return list.length ? [...list, ...profiles.filter((p) => !ids.has(p.id) && p.roles.some((r) => ['developer', 'qa', 'project_leader', 'supervisor'].includes(r)))] : profiles;
   }, [data, profiles]);
 
-  if (missing) return <Alert><AlertDescription>Project not found or you do not have access.</AlertDescription></Alert>;
+  if (missing) return <Alert><AlertDescription>{tp('notFound')}</AlertDescription></Alert>;
   if (!data || !me) return null;
   const p = data.project;
 
   const setTab = (t: string) => router.replace(`/projects/${id}?tab=${t}`, { scroll: false });
 
   const tabs = [
-    { v: 'overview', l: 'Overview' },
-    { v: 'plan', l: 'User Control Plan' },
-    ...(perm.internal ? [{ v: 'internal', l: 'Internal Execution Plan' }] : []),
-    ...(perm.internal ? [{ v: 'qa', l: `QA & Bugs${p.open_bugs ? ` (${p.open_bugs})` : ''}` }] : []),
-    { v: 'team', l: 'Team' },
-    { v: 'baseline', l: `Baseline${p.baseline_version ? ` (V${p.baseline_version})` : ''}` },
-    { v: 'evidence', l: 'Evidence' },
-    ...(perm.internal ? [{ v: 'history', l: 'History' }] : []),
+    { v: 'overview', l: tp('tab.overview') },
+    { v: 'plan', l: tp('tab.plan') },
+    ...(perm.internal ? [{ v: 'internal', l: tp('tab.internal') }] : []),
+    ...(perm.internal ? [{ v: 'qa', l: `${tp('tab.qa')}${p.open_bugs ? ` (${p.open_bugs})` : ''}` }] : []),
+    { v: 'team', l: tp('tab.team') },
+    { v: 'baseline', l: `${tp('tab.baseline')}${p.baseline_version ? ` (V${p.baseline_version})` : ''}` },
+    { v: 'evidence', l: tp('tab.evidence') },
+    ...(perm.internal ? [{ v: 'history', l: tp('tab.history') }] : []),
   ];
 
   // keyed by entityKey(): ids are per table, so activity 5 and task 5 are different things
@@ -117,7 +119,7 @@ function Workspace() {
     ...data.activities.map((a) => [entityKey('activity', a.id), a.name]),
     ...data.tasks.map((t) => [entityKey('task', t.id), `${t.task_no} ${t.name}`]),
     ...data.bugs.map((b) => [entityKey('bug', b.id), `${b.bug_no} ${b.title}`]),
-    ...data.rounds.map((r) => [entityKey('test_round', r.id), `Round ${r.round_no} ${r.title}`]),
+    ...data.rounds.map((r) => [entityKey('test_round', r.id), `${tp('round', { no: r.round_no })} ${r.title}`]),
     [entityKey('project', p.id), p.project_code],
   ]);
 
@@ -136,15 +138,15 @@ function Workspace() {
           <div className="flex flex-wrap items-center gap-2">
             <ProjectStatusMenu data={data} perm={perm} reload={load} />
             <PriorityChip value={p.priority} />
-            <span className="text-xs">{p.project_type_name} · Leader {p.leader_name ?? '-'}</span>
-            {p.request_id && p.request_no && <span className="text-xs">· Request <Link href={`/requests/${p.request_id}`} className="font-semibold text-primary">{p.request_no}</Link></span>}
+            <span className="text-xs">{p.project_type_name} · {tp('leader', { name: p.leader_name ?? '-' })}</span>
+            {p.request_id && p.request_no && <span className="text-xs">· {tp('request')} <Link href={`/requests/${p.request_id}`} className="font-semibold text-primary">{p.request_no}</Link></span>}
           </div>
         }
         actions={<>
           <ReportButton projectId={p.id} code={p.project_code} />
-          <Button variant="outline" onClick={() => exportXlsx(false)}><Download /> User Plan (Excel)</Button>
+          <Button variant="outline" onClick={() => exportXlsx(false)}><Download /> {tp('exportUserPlan')}</Button>
           {perm.internal && (hasRole('project_leader', 'supervisor', 'manager') || perm.manage) && (
-            <Button onClick={() => exportXlsx(true)}><Download /> Full Export (Excel)</Button>
+            <Button onClick={() => exportXlsx(true)}><Download /> {tp('exportFull')}</Button>
           )}
           <CloseProjectButton data={data} perm={perm} reload={load} />
         </>}

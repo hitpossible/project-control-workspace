@@ -1,6 +1,7 @@
 'use client';
 
 import { Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -11,21 +12,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentTypes } from '@/components/useDocumentTypes';
 import { canActOnStep, canConvertRequest } from '@/lib/approval';
+import { useOptions } from '@/i18n/useOptions';
 import { REQUEST_STATUSES } from '@/lib/constants';
 import { fmtDate } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { ApprovalStep, ProjectRequest } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
+/** titles: requests.group.<key> */
 const GROUPS = [
-  { title: 'In approval', color: '#fdab3d', statuses: ['submitted', 'waiting_requestor_approval', 'waiting_system_review', 'need_more_information', 'waiting_authority_approval'] },
-  { title: 'Approved — ready to convert', color: '#00c875', statuses: ['approved'] },
-  { title: 'Drafts', color: '#579bfc', statuses: ['draft'] },
-  { title: 'Converted to project', color: '#037f4c', statuses: ['converted'] },
-  { title: 'Closed', color: '#757575', statuses: ['rejected', 'cancelled'] },
-];
+  { key: 'inApproval', color: '#fdab3d', statuses: ['submitted', 'waiting_requestor_approval', 'waiting_system_review', 'need_more_information', 'waiting_authority_approval'] },
+  { key: 'approved', color: '#00c875', statuses: ['approved'] },
+  { key: 'drafts', color: '#579bfc', statuses: ['draft'] },
+  { key: 'converted', color: '#037f4c', statuses: ['converted'] },
+  { key: 'closed', color: '#757575', statuses: ['rejected', 'cancelled'] },
+] as const;
 
 export default function RequestsPage() {
+  const t = useTranslations('requests');
+  const tf = useTranslations('fields');
+  const { options } = useOptions();
   const db = dbClient();
   const router = useRouter();
   const { me, isStaff } = useApp();
@@ -36,7 +42,7 @@ export default function RequestsPage() {
   const [status, setStatus] = useState('');
   const [docType, setDocType] = useState('');
   const docTypes = useDocumentTypes();
-  const docName = (id: number) => docTypes.find((t) => t.id === id)?.name ?? '';
+  const docName = (id: number) => docTypes.find((d) => d.id === id)?.name ?? '';
 
   useEffect(() => {
     db.from('project_requests').select('*').order('created_at', { ascending: false }).then(({ data }) => setRows(data ?? []));
@@ -69,45 +75,45 @@ export default function RequestsPage() {
   return (
     <>
       <PageHeader
-        title="Project Requests"
-        subtitle="Request → Requestor Approval → System Service Review → Authority Approval → Controlled Project"
-        actions={<Button asChild><Link href="/requests/new"><Plus /> New Request</Link></Button>}
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={<Button asChild><Link href="/requests/new"><Plus /> {t('new')}</Link></Button>}
       />
       <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-grid">
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1">
           <TabsList variant="line">
             <TabsTrigger value="action" className="px-3">
-              Waiting My Action
+              {t('tab.action')}
               {myActionIds.size > 0 && <span className="ml-1 rounded-full bg-[#e2445c] px-1.5 text-[11px] font-semibold text-white">{myActionIds.size}</span>}
             </TabsTrigger>
-            <TabsTrigger value="mine" className="px-3">My Requests</TabsTrigger>
-            {(isStaff || rows.some((r) => r.requestor_id !== me?.id)) && <TabsTrigger value="all" className="px-3">All Visible</TabsTrigger>}
+            <TabsTrigger value="mine" className="px-3">{t('tab.mine')}</TabsTrigger>
+            {(isStaff || rows.some((r) => r.requestor_id !== me?.id)) && <TabsTrigger value="all" className="px-3">{t('tab.all')}</TabsTrigger>}
           </TabsList>
         </Tabs>
         <SearchBox value={q} onChange={setQ} className="mb-2 w-56" />
         {docTypes.length > 1 && (
-          <SelectField className="mb-2 w-48" value={docType} allowEmpty placeholder="All document types" onChange={setDocType}
-            options={docTypes.map((t) => ({ value: String(t.id), label: t.name }))} />
+          <SelectField className="mb-2 w-48" value={docType} allowEmpty placeholder={t('allDocTypes')} onChange={setDocType}
+            options={docTypes.map((d) => ({ value: String(d.id), label: d.name }))} />
         )}
-        <SelectField className="mb-2 w-56" value={status} allowEmpty placeholder="All statuses" onChange={setStatus} options={REQUEST_STATUSES} />
+        <SelectField className="mb-2 w-56" value={status} allowEmpty placeholder={t('allStatuses')} onChange={setStatus} options={options(REQUEST_STATUSES)} />
       </div>
-      {list.length === 0 && <EmptyState text="No requests" />}
+      {list.length === 0 && <EmptyState text={t('empty')} />}
       {GROUPS.map((g) => {
-        const items = list.filter((r) => g.statuses.includes(r.status));
+        const items = list.filter((r) => (g.statuses as readonly string[]).includes(r.status));
         if (!items.length) return null;
         return (
-          <BoardGroup key={g.title} title={g.title} color={g.color} count={items.length} defaultOpen={g.title !== 'Closed'}>
+          <BoardGroup key={g.key} title={t(`group.${g.key}`)} color={g.color} count={items.length} defaultOpen={g.key !== 'closed'}>
             <Table className="board-table">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-72 text-left">Request</TableHead>
-                  <TableHead>Document</TableHead>
-                  <TableHead>Requestor</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Required</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="min-w-72 text-left">{tf('request')}</TableHead>
+                  <TableHead>{tf('document')}</TableHead>
+                  <TableHead>{tf('requestor')}</TableHead>
+                  <TableHead>{tf('department')}</TableHead>
+                  <TableHead>{tf('priority')}</TableHead>
+                  <TableHead>{tf('submitted')}</TableHead>
+                  <TableHead>{tf('required')}</TableHead>
+                  <TableHead>{tf('status')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -116,8 +122,8 @@ export default function RequestsPage() {
                     <TableCell>
                       <div>{r.project_name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {r.request_no ?? 'Draft'}
-                        {myActionIds.has(r.id) && <span className="font-semibold text-[#d97706]"> · {r.status === 'approved' ? 'ready for you to convert' : 'waiting for you'}</span>}
+                        {r.request_no ?? t('draft')}
+                        {myActionIds.has(r.id) && <span className="font-semibold text-[#d97706]"> · {r.status === 'approved' ? t('readyToConvert') : t('waitingForYou')}</span>}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">{docName(r.document_type_id)}</TableCell>

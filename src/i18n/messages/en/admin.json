@@ -1,0 +1,220 @@
+{
+  "adminOnly": "Administrator only.",
+  "title": "Administration",
+  "subtitle": "Master data, roles, workflow configuration",
+  "tab": {
+    "users": "Users & Roles",
+    "departments": "Departments",
+    "documentTypes": "Document Types",
+    "projectTypes": "Project Types",
+    "templates": "Project Templates",
+    "projectCode": "Project Code",
+    "workingDays": "Working Days",
+    "notificationRules": "Notification Rules",
+    "insightRules": "Insight Rules",
+    "kpi": "KPI Settings"
+  },
+  "users": {
+    "failed": "Failed",
+    "saved": "User saved",
+    "title": "Users",
+    "add": "Add User",
+    "edit": "Edit User",
+    "yes": "Yes",
+    "no": "No",
+    "col": {
+      "name": "Name",
+      "empId": "Emp. ID",
+      "username": "Username",
+      "email": "Email",
+      "department": "Department",
+      "position": "Position",
+      "roles": "Roles",
+      "active": "Active"
+    },
+    "field": {
+      "fullName": "Full Name",
+      "employeeId": "Employee ID",
+      "username": "Username (AD)",
+      "usernameHelp": "Company login name",
+      "email": "Email",
+      "setPassword": "Set local password",
+      "password": "Local password (optional)",
+      "passwordHelp": "Leave empty for AD login. Min 8 characters — only for accounts without AD (e.g. break-glass admin).",
+      "department": "Department",
+      "section": "Section",
+      "position": "Position",
+      "positionHelp": "Synced from AD at each login. Approval: {positions}",
+      "telephone": "Telephone",
+      "ext": "Ext."
+    }
+  },
+  "departments": {
+    "intro": "Code is a short unique key (e.g. SYS, PRD), saved in upper case. Used for each user's Department / Section in Users & Roles. Renaming updates the users that have it; inactive entries are hidden from the list.",
+    "title": "Departments",
+    "col": {
+      "code": "Code",
+      "name": "Name",
+      "sections": "Sections",
+      "active": "Active"
+    },
+    "newDepartment": "New department",
+    "sectionsOf": "Sections — {name}",
+    "newSection": "New section"
+  },
+  "types": {
+    "intro": "The code is used in the Project Code ({token} token), e.g. SYS-WEB-2026-001.",
+    "title": "Project Types",
+    "col": {
+      "code": "Code",
+      "name": "Name",
+      "active": "Active"
+    },
+    "codePlaceholder": "CODE"
+  },
+  "templates": {
+    "saved": "Template saved",
+    "intro": "Templates define the default activities (User Control Plan), default internal tasks and milestones created when a request is converted.",
+    "title": "Project Templates",
+    "add": "Add Template",
+    "edit": "Edit Template — {code}",
+    "duplicate": "Duplicate as new",
+    "days": "{count} days",
+    "yes": "Yes",
+    "no": "No",
+    "col": {
+      "code": "Code",
+      "name": "Name",
+      "type": "Type",
+      "activities": "Activities",
+      "duration": "Duration",
+      "active": "Active"
+    }
+  },
+  "tokens": {
+    "type": "Project type code",
+    "yyyy": "Year, 4 digits",
+    "yy": "Year, 2 digits",
+    "seq": "Running number, n digits — restarts for each new prefix",
+    "doc": "Document type code",
+    "hover": "Hover a token to see what it does"
+  },
+  "projectCode": {
+    "saved": "Saved",
+    "title": "Project Code",
+    "description": "How new project codes are generated. Request numbers are set per document type in Admin → Document Types.",
+    "preview": "Next looks like"
+  },
+  "docTypes": {
+    "problem": {
+      "code": "code is required",
+      "name": "name is required",
+      "seq": "the request number format needs a {token} running number",
+      "clash": "the request number format gives the same numbers as {name} — use {token} or another prefix",
+      "criterion": "every AI criterion needs a name"
+    },
+    "cannotSave": "Cannot save: {problems}",
+    "saved": "{name} saved",
+    "preview": "Next looks like",
+    "addStep": "Add step",
+    "noSteps": "No steps",
+    "levelUp": "{level} up",
+    "selectPeople": "Select people…",
+    "title": "Document Types",
+    "inactive": "Inactive",
+    "documentType": "Document type",
+    "new": "New document type",
+    "description": "Each document type has its own request number (running number) and approval route",
+    "field": {
+      "code": "Code",
+      "codeFixed": "Fixed once created",
+      "codeHelp": "{token} in the number",
+      "name": "Name",
+      "formNo": "Form No.",
+      "requestNo": "Request Number",
+      "continues": "numbering continues where it left off for the same prefix",
+      "order": "Order",
+      "open": "Open for new requests"
+    },
+    "route": {
+      "title": "Approval Route",
+      "description": "The steps every {name} goes through, in order. Changes apply to requests submitted from now on.",
+      "request": "request",
+      "hint": {
+        "requestor": "Anyone at that position or higher in the requestor's own department (positions come from AD).",
+        "receive": "Receives the request and fills in Project Type / Template / Project Leader.",
+        "authority": "Pick one or more people per step — whoever acts first completes it."
+      }
+    },
+    "criteria": {
+      "title": "AI Clarification Criteria",
+      "description": "What the team needs to know about a project at request time. When the requestor submits, the AI chats with them about what the form does not cover yet — required ones first, optional ones only when they apply — then the requestor confirms a summary per criterion. No criteria = no AI chat.",
+      "none": "No criteria — requests are submitted without AI questions",
+      "name": "Name",
+      "hint": "What to find out — guides the AI's question",
+      "required": "Required",
+      "add": "Add criterion",
+      "reset": "Reset to defaults"
+    },
+    "needApprovers": "Requests can't be submitted until every step has an approver"
+  },
+  "workingDays": {
+    "saved": "Work week saved",
+    "remove": {
+      "title": "Remove {name}?",
+      "text": "This holiday will be removed from the company calendar.",
+      "confirm": "Remove"
+    },
+    "weekTitle": "Work Week",
+    "weekDescription": "Days the company works. Template activities at Convert and delay / schedule variance count only working days.",
+    "week": {
+      "mon-fri": "Monday – Friday",
+      "mon-sat": "Monday – Saturday"
+    },
+    "perWeek": "{count} days / week",
+    "custom": "Custom work week set in the database — pick one to replace it.",
+    "holidays": "Company Holidays",
+    "workdaysIn": "{count} working days in {year}",
+    "col": {
+      "date": "Date",
+      "holiday": "Holiday"
+    },
+    "noHolidays": "No holidays in {year}",
+    "holidayPlaceholder": "e.g. Songkran Festival"
+  },
+  "notificationRules": {
+    "explicit": "Directly involved person",
+    "intro": "Recipients are resolved per event from the Project Team roles. “Directly involved person” = task owner, approver, requestor, activity PIC. Overdue reminders repeat every N days and escalate to more roles (e.g. Manager) after N days overdue.",
+    "title": "Notification Rules",
+    "col": {
+      "event": "Event",
+      "recipients": "Recipients",
+      "inApp": "In-app",
+      "email": "E-mail",
+      "repeat": "Repeat every (days)",
+      "escalateAfter": "Escalate after (days)",
+      "escalateTo": "Escalate to",
+      "active": "Active"
+    },
+    "never": "never"
+  },
+  "insightRules": {
+    "intro": "Smart Insight rules (PRD §22). Set the X thresholds, severity and on/off. Internal rules are only shown to the System Service team.",
+    "title": "Insight Rules",
+    "col": {
+      "rule": "Rule",
+      "threshold": "Threshold (X)",
+      "severity": "Severity",
+      "visibility": "Visibility",
+      "active": "Active"
+    },
+    "internal": "Internal team",
+    "everyone": "Everyone"
+  },
+  "kpi": {
+    "title": "Fair individual KPI",
+    "intro": "Late tasks whose Delay Category is in this list are <b>excused</b> — they are not counted against the owner's on-time rate, overdue count or average delay (e.g. waiting for the user or an external vendor). PRD §23.",
+    "excused": "Excused delay categories",
+    "saved": "KPI settings saved"
+  }
+}

@@ -2,6 +2,7 @@
 
 import dayjs from 'dayjs';
 import { Download, TriangleAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { BoardGroup, EmptyState, HealthDot, PageHeader, Person, PriorityChip, ProgressBar, SearchBox, SelectField, StatusChip, TimelinePill, Tip } from '@/components/common';
@@ -9,6 +10,7 @@ import { BoardSkeleton } from '@/components/motion';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useOptions } from '@/i18n/useOptions';
 import { PROJECT_STATUSES } from '@/lib/constants';
 import { exportProjectListExcel } from '@/lib/exportExcel';
 import { fmtDate } from '@/lib/format';
@@ -16,14 +18,19 @@ import { dbClient } from '@/lib/db/client';
 import type { ProjectView } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
+/** titles: projects.group.<key> */
 const GROUPS = [
-  { key: 'active', title: 'Active', color: '#579bfc', statuses: ['in_progress', 'waiting', 'on_hold', 'at_risk', 'delayed'] },
-  { key: 'planning', title: 'Planning', color: '#a25ddc', statuses: ['draft', 'planning'] },
-  { key: 'done', title: 'Done', color: '#00c875', statuses: ['completed'] },
-  { key: 'cancelled', title: 'Cancelled', color: '#757575', statuses: ['cancelled'] },
-];
+  { key: 'active', color: '#579bfc', statuses: ['in_progress', 'waiting', 'on_hold', 'at_risk', 'delayed'] },
+  { key: 'planning', color: '#a25ddc', statuses: ['draft', 'planning'] },
+  { key: 'done', color: '#00c875', statuses: ['completed'] },
+  { key: 'cancelled', color: '#757575', statuses: ['cancelled'] },
+] as const;
 
 function ProjectList() {
+  const t = useTranslations('projects');
+  const tf = useTranslations('fields');
+  const tc = useTranslations('common');
+  const { options } = useOptions();
   const db = dbClient();
   const router = useRouter();
   const params = useSearchParams();
@@ -48,38 +55,38 @@ function ProjectList() {
   return (
     <>
       <PageHeader
-        title="Projects"
-        subtitle="Controlled Projects — one project, one control workspace"
-        actions={<Button variant="outline" onClick={() => exportProjectListExcel(list, `Project_Status_${dayjs().format('YYYYMMDD')}.xlsx`)}><Download /> Export</Button>}
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={<Button variant="outline" onClick={() => exportProjectListExcel(list, `Project_Status_${dayjs().format('YYYYMMDD')}.xlsx`)}><Download /> {tc('export')}</Button>}
       />
       <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-grid pb-4">
         <SearchBox value={q} onChange={setQ} className="w-60" />
-        <SelectField className="w-44" value={status} allowEmpty placeholder="Status: All" onChange={setStatus}
-          options={[{ value: 'active', label: 'Active (not closed)' }, ...PROJECT_STATUSES]} />
-        <SelectField className="w-36" value={health} allowEmpty placeholder="Health: All" onChange={setHealth}
-          options={[{ value: 'green', label: 'Green' }, { value: 'yellow', label: 'Yellow' }, { value: 'red', label: 'Red' }]} />
-        <label className="flex items-center gap-2 text-sm"><Checkbox checked={attention} onCheckedChange={(c) => setAttention(!!c)} /> Need attention only</label>
+        <SelectField className="w-44" value={status} allowEmpty placeholder={t('statusAll')} onChange={setStatus}
+          options={[{ value: 'active', label: t('activeNotClosed') }, ...options(PROJECT_STATUSES)]} />
+        <SelectField className="w-36" value={health} allowEmpty placeholder={t('healthAll')} onChange={setHealth}
+          options={(['green', 'yellow', 'red'] as const).map((h) => ({ value: h, label: t(`health.${h}`) }))} />
+        <label className="flex items-center gap-2 text-sm"><Checkbox checked={attention} onCheckedChange={(c) => setAttention(!!c)} /> {t('attentionOnly')}</label>
       </div>
 
       {!rows && <BoardSkeleton groups={2} rows={5} cols={7} />}
-      {rows && list.length === 0 && <EmptyState text="No projects" />}
+      {rows && list.length === 0 && <EmptyState text={t('empty')} />}
       {GROUPS.map((g) => {
-        const items = list.filter((p) => g.statuses.includes(p.status));
+        const items = list.filter((p) => (g.statuses as readonly string[]).includes(p.status));
         if (!items.length) return null;
         return (
-          <BoardGroup key={g.key} title={g.title} color={g.color} count={items.length} defaultOpen={g.key !== 'cancelled'}>
+          <BoardGroup key={g.key} title={t(`group.${g.key}`)} color={g.color} count={items.length} defaultOpen={g.key !== 'cancelled'}>
             <Table className="board-table">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-80 text-left">Project</TableHead>
-                  <TableHead>Leader</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Timeline</TableHead>
-                  <TableHead>Forecast</TableHead>
-                  <TableHead>Variance</TableHead>
-                  <TableHead>Progress</TableHead>
-                  <TableHead className="min-w-52">Next Action</TableHead>
+                  <TableHead className="min-w-80 text-left">{tf('project')}</TableHead>
+                  <TableHead>{tf('leader')}</TableHead>
+                  <TableHead>{tf('status')}</TableHead>
+                  <TableHead>{tf('priority')}</TableHead>
+                  <TableHead>{tf('timeline')}</TableHead>
+                  <TableHead>{tf('forecast')}</TableHead>
+                  <TableHead>{tf('variance')}</TableHead>
+                  <TableHead>{tf('progress')}</TableHead>
+                  <TableHead className="min-w-52">{tf('nextAction')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -101,7 +108,7 @@ function ProjectList() {
                     <TableCell><TimelinePill start={p.start_date} end={p.target_date} color={g.color} /></TableCell>
                     <TableCell className={cn('text-center', p.forecast_date && p.target_date && p.forecast_date > p.target_date && 'text-destructive')}>{fmtDate(p.forecast_date)}</TableCell>
                     <TableCell className={cn('text-center font-semibold', (p.schedule_variance ?? 0) > 0 ? 'text-destructive' : 'text-muted-foreground')}>
-                      {p.schedule_variance == null ? '–' : `${p.schedule_variance > 0 ? '+' : ''}${p.schedule_variance}d`}
+                      {p.schedule_variance == null ? '–' : t('varianceDays', { days: `${p.schedule_variance > 0 ? '+' : ''}${p.schedule_variance}` })}
                     </TableCell>
                     <TableCell><ProgressBar value={p.progress} /></TableCell>
                     <TableCell className="whitespace-normal">{p.next_action}</TableCell>

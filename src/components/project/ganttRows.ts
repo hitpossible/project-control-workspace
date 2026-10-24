@@ -1,6 +1,7 @@
 import type { GanttRow } from '@/components/GanttChart';
 import { entityKey } from '@/components/common';
-import { ACTIVITY_STATUSES, TASK_STATUSES, optColor, optLabel } from '@/lib/constants';
+import type { OptionLabels } from '@/i18n/useOptions';
+import { ACTIVITY_STATUSES, TASK_STATUSES, optColor } from '@/lib/constants';
 import { isOverdue } from '@/lib/format';
 import type { Activity, InternalTask } from '@/lib/types';
 
@@ -12,8 +13,10 @@ export function buildGanttRows(opts: {
   name: (id: number | null) => string;
   taskFilter?: (t: InternalTask) => boolean;
   showTasks: boolean;
+  /** status labels in the UI language (useOptions().label) */
+  optLabel: OptionLabels['label'];
 }): GanttRow[] {
-  const { activities, tasks, expanded, name, taskFilter, showTasks } = opts;
+  const { activities, tasks, expanded, name, taskFilter, showTasks, optLabel } = opts;
   const rows: GanttRow[] = [];
   const visibleTasks = taskFilter ? tasks.filter(taskFilter) : tasks;
 

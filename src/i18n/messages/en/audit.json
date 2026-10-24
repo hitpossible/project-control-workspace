@@ -1,0 +1,14 @@
+{
+  "filter": "Filter history…",
+  "loading": "Loading…",
+  "empty": "No history",
+  "system": "System",
+  "col": {
+    "when": "When",
+    "who": "Who",
+    "item": "Item",
+    "field": "Field",
+    "from": "From",
+    "to": "To"
+  }
+}

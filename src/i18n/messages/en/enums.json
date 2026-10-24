@@ -1,0 +1,264 @@
+{
+  "role": {
+    "requestor": "Requestor",
+    "requestor_approver": "Requestor Approver",
+    "system_reviewer": "System Service Reviewer",
+    "authority_approver": "Authority Approver",
+    "project_leader": "Project Leader",
+    "developer": "Developer",
+    "qa": "QA / Tester",
+    "supervisor": "Supervisor",
+    "manager": "Manager",
+    "management_view": "Management / User View",
+    "admin": "Administrator"
+  },
+  "priority": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "critical": "Critical ⚠"
+  },
+  "requestStatus": {
+    "draft": "Draft",
+    "submitted": "Submitted",
+    "waiting_requestor_approval": "Waiting Requestor Approval",
+    "waiting_system_review": "Waiting System Review",
+    "need_more_information": "Need More Information",
+    "waiting_authority_approval": "Waiting Authority Approval",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "converted": "Converted to Project",
+    "cancelled": "Cancelled"
+  },
+  "projectStatus": {
+    "draft": "Draft",
+    "planning": "Planning",
+    "in_progress": "Working on it",
+    "waiting": "Waiting",
+    "on_hold": "On Hold",
+    "at_risk": "At Risk",
+    "delayed": "Delayed",
+    "completed": "Done",
+    "cancelled": "Cancelled"
+  },
+  "activityStatus": {
+    "not_started": "Not Started",
+    "in_progress": "Working on it",
+    "waiting": "Waiting",
+    "delayed": "Delayed",
+    "at_risk": "At Risk",
+    "on_hold": "On Hold",
+    "completed": "Done",
+    "cancelled": "Cancelled"
+  },
+  "taskStatus": {
+    "todo": "To Do",
+    "in_progress": "Working on it",
+    "waiting": "Waiting",
+    "review": "Review",
+    "on_hold": "On Hold",
+    "completed": "Done",
+    "cancelled": "Cancelled"
+  },
+  "taskType": {
+    "design": "Design",
+    "dev": "Dev",
+    "qa": "QA",
+    "review": "Review",
+    "doc": "Document",
+    "deploy": "Deploy",
+    "support": "Support",
+    "other": "Other"
+  },
+  "memberRole": {
+    "leader": "Project Leader",
+    "developer": "Developer",
+    "qa": "QA",
+    "support": "Support",
+    "supervisor": "Supervisor",
+    "manager": "Manager",
+    "requestor_rep": "Requestor Representative"
+  },
+  "delayCategory": {
+    "Waiting User": "Waiting User",
+    "Requirement Change": "Requirement Change",
+    "Resource Constraint": "Resource Constraint",
+    "Technical Issue": "Technical Issue",
+    "Vendor": "Vendor",
+    "Infrastructure": "Infrastructure",
+    "Approval Delay": "Approval Delay",
+    "Data Issue": "Data Issue",
+    "Testing Issue": "Testing Issue",
+    "Other": "Other"
+  },
+  "evidenceType": {
+    "document": "Document",
+    "excel": "Excel",
+    "pdf": "PDF",
+    "image": "Image",
+    "screenshot": "Screenshot",
+    "log": "Log File",
+    "email": "Email",
+    "meeting_note": "Meeting Note",
+    "url": "URL",
+    "sharepoint": "SharePoint Link",
+    "git": "Git Repository / PR Link",
+    "build": "Build Link",
+    "other": "Other"
+  },
+  "severity": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "critical": "Critical"
+  },
+  "bugStatus": {
+    "new": "New",
+    "assigned": "Assigned",
+    "in_progress": "Fixing",
+    "fix_ready": "Fix Ready",
+    "retest": "Retest",
+    "reopened": "Reopened",
+    "closed": "Closed",
+    "cancelled": "Cancelled"
+  },
+  "testRoundStatus": {
+    "planned": "Planned",
+    "in_progress": "Testing",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "testResult": {
+    "passed": "Passed",
+    "failed": "Failed",
+    "partially_passed": "Partially Passed",
+    "blocked": "Blocked"
+  },
+  "testType": {
+    "system": "System Test",
+    "integration": "Integration",
+    "regression": "Regression",
+    "uat": "UAT",
+    "smoke": "Smoke",
+    "performance": "Performance",
+    "other": "Other"
+  },
+  "rootCause": {
+    "Requirement": "Requirement",
+    "Design": "Design",
+    "Coding": "Coding",
+    "Data": "Data",
+    "Configuration": "Configuration",
+    "Environment": "Environment",
+    "Integration": "Integration",
+    "Third-party": "Third-party",
+    "Other": "Other"
+  },
+  "revisionStatus": {
+    "pending": "Waiting Approval",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled"
+  },
+  "workType": {
+    "office": "Office",
+    "onsite": "Onsite",
+    "wfh": "Work from Home",
+    "customer_site": "Customer Site",
+    "factory_support": "Factory Support",
+    "training": "Training",
+    "leave": "Leave",
+    "ot": "OT Plan"
+  },
+  "insightSeverity": {
+    "critical": "Critical",
+    "warning": "Warning",
+    "info": "Info"
+  },
+  "approvalAction": {
+    "submit": "Submitted",
+    "resubmit": "Re-submitted",
+    "approve": "Approved",
+    "reject": "Rejected",
+    "send_back": "Sent Back",
+    "request_more_info": "Requested More Information",
+    "cancel": "Cancelled",
+    "convert": "Converted to Project"
+  },
+  "positionLevel": {
+    "staff": "Staff",
+    "supervisor": "Supervisor",
+    "manager": "Manager",
+    "gm": "GM",
+    "factory_manager": "Factory Manager",
+    "president": "President"
+  },
+  "routeStage": {
+    "requestor": "Requestor side",
+    "receive": "Receive",
+    "authority": "System Service side"
+  },
+  "routeGroup": {
+    "requestor": "Requestor Approval",
+    "receive": "System Service Approval"
+  },
+  "routeProblem": {
+    "noSteps": "the route has no steps",
+    "oneReceive": "the route needs exactly one Receive step",
+    "stageOrder": "steps must go Requestor side → Receive → System Service side",
+    "stepName": "every step needs a name",
+    "uniqueCodes": "step codes must be unique",
+    "requestorLevel": "every Requestor side step needs a position level"
+  },
+  "reduction": {
+    "time": "Time (Min / Month)",
+    "man": "Man (Man / Month)",
+    "cost": "Others Cost (THB)"
+  },
+  "entityType": {
+    "project": "Project",
+    "activity": "Activity",
+    "task": "Task",
+    "request": "Request",
+    "test_round": "Test Round",
+    "bug": "Bug",
+    "fix": "Fix",
+    "retest": "Retest"
+  },
+  "verificationStatus": {
+    "pending": "Pending",
+    "verified": "Verified",
+    "rejected": "Rejected"
+  },
+  "fixStatus": {
+    "in_progress": "In progress",
+    "ready": "Ready",
+    "verified": "Verified",
+    "failed": "Failed"
+  },
+  "auditTable": {
+    "projects": "Project",
+    "activities": "Activity",
+    "internal_tasks": "Task",
+    "project_members": "Team",
+    "evidence": "Evidence",
+    "project_baselines": "Baseline",
+    "project_requests": "Request",
+    "test_rounds": "Test Round",
+    "bugs": "Bug",
+    "bug_fixes": "Fix",
+    "retests": "Retest",
+    "evidence_requirements": "Checklist",
+    "baseline_revisions": "Re-plan"
+  },
+  "auditAction": {
+    "insert": "insert",
+    "delete": "delete",
+    "update": "update"
+  },
+  "picLabel": {
+    "System": "System",
+    "User": "User",
+    "Vendor": "Vendor"
+  }
+}

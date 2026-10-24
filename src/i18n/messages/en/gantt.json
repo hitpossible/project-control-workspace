@@ -1,0 +1,26 @@
+{
+  "day": "Day",
+  "week": "Week",
+  "today": "Today",
+  "todayTip": "Today {date}",
+  "col": {
+    "item": "Activity / Task",
+    "pic": "PIC",
+    "progress": "Progress"
+  },
+  "tip": {
+    "plan": "Plan: {from} → {to}",
+    "milestone": "Milestone: {date}",
+    "actual": "Actual: {from} → {to} · {progress}%",
+    "todayLower": "today",
+    "forecast": "Forecast / Recovery: {date}"
+  },
+  "legend": {
+    "plan": "Plan",
+    "actual": "Actual (status color, progress)",
+    "forecast": "Forecast / Recovery",
+    "milestone": "Milestone",
+    "today": "Today",
+    "overdue": "Overdue / Risk"
+  }
+}

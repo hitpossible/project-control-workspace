@@ -1,9 +1,10 @@
 'use client';
 
 import { Bug, ClipboardList, CornerDownLeft, LayoutDashboard, ListChecks, Search } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { BUG_STATUSES, PROJECT_STATUSES, REQUEST_STATUSES, TASK_STATUSES, type Opt } from '@/lib/constants';
+import { BUG_STATUSES, PROJECT_STATUSES, REQUEST_STATUSES, TASK_STATUSES, type OptList } from '@/lib/constants';
 import { dbClient } from '@/lib/db/client';
 import { cn } from '@/lib/utils';
 import { StatusChip } from './common';
@@ -12,15 +13,17 @@ import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, Comma
 type Hit = { type: 'project' | 'request' | 'task' | 'bug'; id: number; title: string; code: string | null; subtitle: string | null; status: string; link: string };
 export type QuickLink = { href: string; label: string; icon: React.ReactNode };
 
-const GROUPS: { type: Hit['type']; heading: string; icon: React.ReactNode; statuses: Opt[] }[] = [
-  { type: 'project', heading: 'Projects', icon: <LayoutDashboard />, statuses: PROJECT_STATUSES },
-  { type: 'request', heading: 'Project Requests', icon: <ClipboardList />, statuses: REQUEST_STATUSES },
-  { type: 'task', heading: 'Tasks', icon: <ListChecks />, statuses: TASK_STATUSES },
-  { type: 'bug', heading: 'Bugs', icon: <Bug />, statuses: BUG_STATUSES },
+/** headings: search.group.<type> */
+const GROUPS: { type: Hit['type']; icon: React.ReactNode; statuses: OptList }[] = [
+  { type: 'project', icon: <LayoutDashboard />, statuses: PROJECT_STATUSES },
+  { type: 'request', icon: <ClipboardList />, statuses: REQUEST_STATUSES },
+  { type: 'task', icon: <ListChecks />, statuses: TASK_STATUSES },
+  { type: 'bug', icon: <Bug />, statuses: BUG_STATUSES },
 ];
 
 /** Header search button + Ctrl/⌘ K palette: projects, requests, tasks, bugs (server-side, permission filtered) and pages */
 export default function GlobalSearch({ pages }: { pages: QuickLink[] }) {
+  const t = useTranslations('search');
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -43,7 +46,7 @@ export default function GlobalSearch({ pages }: { pages: QuickLink[] }) {
     const text = q.trim();
     if (text.length < 2) return;
     let live = true;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       setLoading(true);
       const { data } = await dbClient().rpc<Hit[]>('global_search', { q: text });
       if (!live) return;
@@ -52,7 +55,7 @@ export default function GlobalSearch({ pages }: { pages: QuickLink[] }) {
     }, 200);
     return () => {
       live = false;
-      clearTimeout(t);
+      clearTimeout(timer);
     };
   }, [q]);
 
@@ -75,21 +78,21 @@ export default function GlobalSearch({ pages }: { pages: QuickLink[] }) {
         className="flex h-9 w-full max-w-md items-center gap-2 rounded-md border border-border bg-white px-3 text-sm text-muted-foreground hover:border-primary/40"
       >
         <Search className="size-4" />
-        <span className="flex-1 truncate text-left">Search projects, requests, tasks, bugs…</span>
+        <span className="flex-1 truncate text-left">{t('button')}</span>
         <kbd className="hidden rounded border bg-muted px-1.5 font-mono text-[11px] sm:inline">Ctrl K</kbd>
       </button>
 
-      <CommandDialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(''); }} title="Search" description="Search projects, requests, tasks and bugs" className="sm:max-w-2xl">
+      <CommandDialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(''); }} title={t('title')} description={t('description')} className="sm:max-w-2xl">
         <Command shouldFilter={false}>
-          <CommandInput value={q} onValueChange={setQ} placeholder="Type a code (SYS-WEB, REQ-, T-0012, BUG-) or a name…" />
+          <CommandInput value={q} onValueChange={setQ} placeholder={t('placeholder')} />
           <CommandList className="max-h-[60vh]">
-            {text.length >= 2 && !loading && shownHits.length === 0 && shownPages.length === 0 && <CommandEmpty>No results for “{text}”.</CommandEmpty>}
-            {text.length >= 2 && loading && shownHits.length === 0 && <div className="py-6 text-center text-sm text-muted-foreground">Searching…</div>}
+            {text.length >= 2 && !loading && shownHits.length === 0 && shownPages.length === 0 && <CommandEmpty>{t('noResults', { text })}</CommandEmpty>}
+            {text.length >= 2 && loading && shownHits.length === 0 && <div className="py-6 text-center text-sm text-muted-foreground">{t('searching')}</div>}
             {GROUPS.map((g) => {
               const items = shownHits.filter((h) => h.type === g.type);
               if (!items.length) return null;
               return (
-                <CommandGroup key={g.type} heading={g.heading}>
+                <CommandGroup key={g.type} heading={t(`group.${g.type}`)}>
                   {items.map((h) => (
                     <CommandItem key={h.id} value={`${h.type}:${h.id}`} onSelect={() => go(h.link)} className="gap-3 [&_svg]:text-muted-foreground">
                       {g.icon}
@@ -107,7 +110,7 @@ export default function GlobalSearch({ pages }: { pages: QuickLink[] }) {
               );
             })}
             {shownPages.length > 0 && (
-              <CommandGroup heading="Go to page">
+              <CommandGroup heading={t('goToPage')}>
                 {shownPages.map((p) => (
                   <CommandItem key={p.href} value={`page:${p.href}`} onSelect={() => go(p.href)} className="gap-3 [&_svg]:text-muted-foreground">
                     {p.icon}<span className="flex-1">{p.label}</span>
@@ -117,10 +120,10 @@ export default function GlobalSearch({ pages }: { pages: QuickLink[] }) {
             )}
           </CommandList>
           <div className={cn('flex items-center gap-3 border-t px-3 py-2 text-[11px] text-muted-foreground')}>
-            <span><kbd className="rounded border px-1">↑</kbd> <kbd className="rounded border px-1">↓</kbd> move</span>
-            <span className="flex items-center gap-1"><kbd className="rounded border px-1"><CornerDownLeft className="inline size-3" /></kbd> open</span>
-            <span><kbd className="rounded border px-1">Esc</kbd> close</span>
-            <span className="ml-auto">Only items you are allowed to see are shown</span>
+            <span><kbd className="rounded border px-1">↑</kbd> <kbd className="rounded border px-1">↓</kbd> {t('keyMove')}</span>
+            <span className="flex items-center gap-1"><kbd className="rounded border px-1"><CornerDownLeft className="inline size-3" /></kbd> {t('keyOpen')}</span>
+            <span><kbd className="rounded border px-1">Esc</kbd> {t('keyClose')}</span>
+            <span className="ml-auto">{t('permissionNote')}</span>
           </div>
         </Command>
       </CommandDialog>

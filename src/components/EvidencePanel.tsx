@@ -1,8 +1,10 @@
 'use client';
 
 import { BadgeCheck, ExternalLink, Link2, Paperclip, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
-import { EVIDENCE_TYPES, optLabel } from '@/lib/constants';
+import { useOptions } from '@/i18n/useOptions';
+import { EVIDENCE_TYPES } from '@/lib/constants';
 import { errMsg, fmtDateTime } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { EntityType, Evidence, EvidenceRequirement } from '@/lib/types';
@@ -41,6 +43,9 @@ export default function EvidencePanel({
   /** checklist items this evidence can satisfy */
   requirements?: EvidenceRequirement[]; reloadKey?: number;
 }) {
+  const t = useTranslations('evidence');
+  const tc = useTranslations('common');
+  const { label: optLabel, options, text: enumText } = useOptions();
   const db = dbClient();
   const { me, profileName, notify } = useApp();
   const [items, setItems] = useState<Evidence[]>([]);
@@ -75,7 +80,7 @@ export default function EvidencePanel({
         const up = await db.uploadEvidence({ ...base, evidence_type: guessType(file), description: null }, file);
         if (up.error) throw up.error;
       }
-      notify('Evidence uploaded');
+      notify(t('uploaded'));
       setReqId('');
       await load();
       onChange?.();
@@ -94,7 +99,7 @@ export default function EvidencePanel({
     if (error) return notify(errMsg(error), 'error');
     setLinkOpen(false);
     setLink({ url: '', file_name: '', evidence_type: 'sharepoint', description: '' });
-    notify('Link added');
+    notify(t('linkAdded'));
     setReqId('');
     await load();
     onChange?.();
@@ -113,7 +118,7 @@ export default function EvidencePanel({
   };
 
   const remove = async (ev: Evidence) => {
-    if (!(await confirmDialog({ title: 'Remove evidence?', description: `"${ev.file_name ?? ev.url}" will be removed.`, confirmText: 'Remove', destructive: true }))) return;
+    if (!(await confirmDialog({ title: t('remove.title'), description: t('remove.text', { name: ev.file_name ?? ev.url ?? '' }), confirmText: t('remove.confirm'), destructive: true }))) return;
     const { error } = await db.from('evidence').delete().eq('id', ev.id);
     if (error) return notify(errMsg(error), 'error');
     await load();
@@ -125,34 +130,34 @@ export default function EvidencePanel({
       {canAdd && (
         <div className="no-print mb-2 flex flex-wrap items-center gap-2">
           {requirements.length > 0 && (
-            <SelectField className="w-64" value={reqId} allowEmpty placeholder="Satisfies checklist item…" onChange={setReqId}
+            <SelectField className="w-64" value={reqId} allowEmpty placeholder={t('satisfies')} onChange={setReqId}
               options={requirements.map((r) => ({ value: String(r.id), label: `${r.is_mandatory ? '★ ' : ''}${r.name}` }))} />
           )}
           <Button variant="outline" size="sm" asChild disabled={busy}>
             <label className="cursor-pointer">
-              <Paperclip /> {busy ? 'Uploading…' : 'Upload file'}
+              <Paperclip /> {busy ? t('uploading') : t('upload')}
               <input hidden type="file" multiple onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
             </label>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setLinkOpen(true)}><Link2 /> Add link</Button>
+          <Button variant="outline" size="sm" onClick={() => setLinkOpen(true)}><Link2 /> {t('addLink')}</Button>
           {allowPublicToggle && (
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Checkbox checked={!internal} onCheckedChange={(c) => setInternal(!c)} /> Visible to User / Management
+              <Checkbox checked={!internal} onCheckedChange={(c) => setInternal(!c)} /> {t('visible')}
             </label>
           )}
         </div>
       )}
       {items.length === 0 ? (
-        <EmptyState text="No evidence attached" />
+        <EmptyState text={t('empty')} />
       ) : (
         <Table className="board-table">
           {!compact && (
             <TableHeader>
               <TableRow>
-                <TableHead className="text-left">File / Link</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Uploaded</TableHead>
-                <TableHead>Verification</TableHead>
+                <TableHead className="text-left">{t('col.file')}</TableHead>
+                <TableHead>{t('col.type')}</TableHead>
+                <TableHead>{t('col.uploaded')}</TableHead>
+                <TableHead>{t('col.verification')}</TableHead>
                 <TableHead className="no-print" />
               </TableRow>
             </TableHeader>
@@ -165,8 +170,8 @@ export default function EvidencePanel({
                     <span className="truncate">{ev.file_name ?? ev.url}</span>
                     <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
                   </button>
-                  {ev.requirement_id && <span className="mr-1 rounded bg-[#cce5ff] px-1.5 text-[10px] text-[#0060b9]">✓ {requirements.find((r) => r.id === ev.requirement_id)?.name ?? 'Checklist'}</span>}
-                  {!ev.is_internal && <span className="mr-1 rounded bg-secondary px-1.5 text-[10px]">Shared</span>}
+                  {ev.requirement_id && <span className="mr-1 rounded bg-[#cce5ff] px-1.5 text-[10px] text-[#0060b9]">✓ {requirements.find((r) => r.id === ev.requirement_id)?.name ?? t('checklist')}</span>}
+                  {!ev.is_internal && <span className="mr-1 rounded bg-secondary px-1.5 text-[10px]">{t('shared')}</span>}
                   {ev.description && <span className="text-xs text-muted-foreground">{ev.description}</span>}
                 </TableCell>
                 <TableCell className="text-center">{optLabel(EVIDENCE_TYPES, ev.evidence_type)}</TableCell>
@@ -175,17 +180,17 @@ export default function EvidencePanel({
                   <div className="text-xs text-muted-foreground">{fmtDateTime(ev.uploaded_at)}</div>
                 </TableCell>
                 <TableCell className="p-1 text-center">
-                  <span className={cn('inline-flex h-7 w-full min-w-24 items-center justify-center rounded text-[13px] capitalize', VERIFY_STYLE[ev.verification_status])}>{ev.verification_status}</span>
+                  <span className={cn('inline-flex h-7 w-full min-w-24 items-center justify-center rounded text-[13px]', VERIFY_STYLE[ev.verification_status])}>{enumText('verificationStatus', ev.verification_status)}</span>
                 </TableCell>
                 <TableCell className="no-print text-right whitespace-nowrap">
                   {canVerify && ev.verification_status !== 'verified' && (
-                    <Tip title="Mark verified"><Button variant="ghost" size="icon-sm" className="text-[#00854d]" onClick={() => verify(ev, 'verified')}><BadgeCheck /></Button></Tip>
+                    <Tip title={t('markVerified')}><Button variant="ghost" size="icon-sm" className="text-[#00854d]" onClick={() => verify(ev, 'verified')}><BadgeCheck /></Button></Tip>
                   )}
                   {canVerify && ev.verification_status === 'pending' && (
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => verify(ev, 'rejected')}>Reject</Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => verify(ev, 'rejected')}>{t('reject')}</Button>
                   )}
                   {(ev.uploaded_by === me?.id || canVerify) && (
-                    <Tip title="Remove"><Button variant="ghost" size="icon-sm" onClick={() => remove(ev)}><Trash2 /></Button></Tip>
+                    <Tip title={t('remove.confirm')}><Button variant="ghost" size="icon-sm" onClick={() => remove(ev)}><Trash2 /></Button></Tip>
                   )}
                 </TableCell>
               </TableRow>
@@ -196,16 +201,16 @@ export default function EvidencePanel({
 
       <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Add evidence link</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('link.title')}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <SelectField label="Type" value={link.evidence_type} onChange={(v) => setLink({ ...link, evidence_type: v })} options={EVIDENCE_TYPES} />
-            <TextField label="URL" required value={link.url} onChange={(v) => setLink({ ...link, url: v })} placeholder="https://…" />
-            <TextField label="Title" value={link.file_name} onChange={(v) => setLink({ ...link, file_name: v })} />
-            <TextField label="Description" value={link.description} onChange={(v) => setLink({ ...link, description: v })} />
+            <SelectField label={t('col.type')} value={link.evidence_type} onChange={(v) => setLink({ ...link, evidence_type: v })} options={options(EVIDENCE_TYPES)} />
+            <TextField label={t('link.url')} required value={link.url} onChange={(v) => setLink({ ...link, url: v })} placeholder="https://…" />
+            <TextField label={t('link.name')} value={link.file_name} onChange={(v) => setLink({ ...link, file_name: v })} />
+            <TextField label={t('link.description')} value={link.description} onChange={(v) => setLink({ ...link, description: v })} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setLinkOpen(false)}>Cancel</Button>
-            <Button disabled={!/^https?:\/\//.test(link.url.trim())} onClick={addLink}>Add</Button>
+            <Button variant="outline" onClick={() => setLinkOpen(false)}>{tc('cancel')}</Button>
+            <Button disabled={!/^https?:\/\//.test(link.url.trim())} onClick={addLink}>{tc('add')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

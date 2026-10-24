@@ -1,0 +1,143 @@
+{
+  "notFound": "Request not found or you do not have access.",
+  "audience": {
+    "levelUp": "{level} up",
+    "anyRole": "Any {role}"
+  },
+  "toast": {
+    "reviewSaved": "Review saved",
+    "projectCreated": "Project created",
+    "cancelled": "Request cancelled",
+    "submitted": "Request submitted for approval",
+    "actDone": "{action}: done"
+  },
+  "celebrate": {
+    "submitted": "Request submitted",
+    "submittedHint": "It is now waiting for approval.",
+    "approved": "Approved"
+  },
+  "draftRequest": "Draft request",
+  "requestedBy": "Requested by {name} · {department}",
+  "openProject": "Open Project",
+  "cancel": {
+    "title": "Cancel this request?",
+    "description": "The request will be cancelled and can no longer move through approval.",
+    "confirm": "Cancel Request",
+    "keep": "Keep"
+  },
+  "deleteDraft": {
+    "title": "Delete this draft?",
+    "description": "This cannot be undone.",
+    "confirm": "Delete",
+    "button": "Delete Draft"
+  },
+  "moreInfoAlert": "More information requested: <b>{comment}</b>. Update the request and submit again — it returns to the same approval step.",
+  "sentBackAlert": "Sent back: <b>{comment}</b>. Revise and submit again — approval restarts from step 1.",
+  "daysOverdue": "{count, plural, one {# day overdue} other {# days overdue}}",
+  "dueToday": "Due today",
+  "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+  "currentStep": "Current Step",
+  "yourTurn": "Your turn",
+  "approvalProgress": "Approval Progress",
+  "stepsProgress": "{done} / {total} steps",
+  "notSubmitted": "Not submitted",
+  "tab": {
+    "details": "Details",
+    "clarify": "Clarifications",
+    "attachments": "Attachments",
+    "history": "History"
+  },
+  "section": {
+    "info": "Project Information",
+    "reduction": "Expected Reduction",
+    "received": "System Service — Received Request",
+    "approvalHistory": "Approval History",
+    "changeHistory": "Change History",
+    "route": "Approval Route",
+    "requestor": "Requestor"
+  },
+  "noDescription": "No description",
+  "requestorApprover": "Requestor Approver",
+  "reduction": {
+    "item": "Item",
+    "current": "Current",
+    "target": "Target"
+  },
+  "review": {
+    "title": "System Service — {step}",
+    "projectType": "Project Type",
+    "template": "Template",
+    "projectTemplate": "Project Template",
+    "projectLeader": "Project Leader",
+    "authorityApprover": "Authority Approver",
+    "estimatedEffort": "Estimated Effort",
+    "md": "{md} MD",
+    "estimatedEffortMd": "Estimated Effort (MD)",
+    "aiRange": "AI: {min}–{max}",
+    "manDays": "Man-days",
+    "estimateHelp": "Your own estimate for the whole project — kept next to the AI's to compare later",
+    "scope": "Scope Assessment",
+    "save": "Save Review"
+  },
+  "clarify": {
+    "title": "Project Clarifications",
+    "checked": "Checked {at}",
+    "note": "Gathered by AI before submit and confirmed by the requestor — please double-check.",
+    "missing": "Still missing: <b>{items}</b>",
+    "required": "Required",
+    "notCovered": "Not covered",
+    "notApplicable": "Not applicable: {items}",
+    "skipped": "Skipped by the requestor",
+    "conversation": "Conversation with the AI",
+    "messages": "{count} messages",
+    "spoken": "Spoken"
+  },
+  "noActions": "No actions yet.",
+  "convert": {
+    "title": "Convert to Controlled Project",
+    "note": "Creates the Project Code, project record, team and default activities from the template.",
+    "startDate": "Start Date",
+    "targetDate": "Target Date",
+    "sponsor": "Sponsor",
+    "confirmTitle": "Convert to Controlled Project?",
+    "confirmText": "Creates the project from {from} to {to}.",
+    "confirmWithSponsor": "Creates the project from {from} to {to} with sponsor {sponsor}.",
+    "confirm": "Convert",
+    "button": "Convert",
+    "buttonSuffix": "to Project"
+  },
+  "notSubmittedYet": "Not submitted yet.",
+  "stepStatus": {
+    "approved": "Approved",
+    "waiting": "Waiting",
+    "rejected": "Rejected",
+    "sent_back": "Sent Back",
+    "more_info": "More Info"
+  },
+  "actedBy": "by <b>{name}</b> · {at}",
+  "ext": "ext. {ext}",
+  "bar": {
+    "actionRequired": "Your action required · Step {step} of {total}",
+    "editDates": "Edit dates",
+    "readyToConvert": "Approved · ready to convert",
+    "setDates": "Set start and target dates"
+  },
+  "act": {
+    "approve": {
+      "label": "Approve",
+      "short": "Approve"
+    },
+    "reject": {
+      "label": "Reject",
+      "short": "Reject"
+    },
+    "send_back": {
+      "label": "Send Back",
+      "short": "Send Back"
+    },
+    "request_more_info": {
+      "label": "Request More Information",
+      "short": "Ask for Info"
+    }
+  }
+}

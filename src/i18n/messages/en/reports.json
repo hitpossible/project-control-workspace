@@ -1,0 +1,28 @@
+{
+  "title": "Reports",
+  "subtitle": "PDF reports generated from the Workspace (master data) — PRD §25.2",
+  "project": "Project",
+  "chooseProject": "Choose project…",
+  "generating": "Generating…",
+  "generate": "Generate PDF",
+  "generated": "PDF report generated",
+  "pdfReport": "PDF Report",
+  "type": {
+    "management": {
+      "title": "Management Report",
+      "desc": "Portfolio status, team KPI and projects needing attention for a period."
+    },
+    "status": {
+      "title": "Project Status Report",
+      "desc": "Status, KPI, User Control Plan timeline, delay & recovery, issues."
+    },
+    "meeting": {
+      "title": "User Meeting Report",
+      "desc": "Agenda for the user progress meeting: progress, user actions, milestones, decisions."
+    },
+    "closure": {
+      "title": "Project Closure Report",
+      "desc": "Baseline vs actual, evidence checklist, quality summary and sign-off."
+    }
+  }
+}

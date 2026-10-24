@@ -1,0 +1,79 @@
+{
+  "title": "Notifications",
+  "unreadCount": "{count, plural, one {You have # unread notification} other {You have # unread notifications}}",
+  "caughtUp": "You are all caught up",
+  "markAllRead": "Mark all read",
+  "markRead": "Mark as read",
+  "tab": {
+    "unread": "Unread",
+    "mentions": "Mentions",
+    "all": "All"
+  },
+  "day": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "week": "This week",
+    "older": "Older"
+  },
+  "event": {
+    "comment_mention": "Mention",
+    "comment_added": "Comment",
+    "task_assigned": "Task assigned",
+    "task_due_tomorrow": "Due tomorrow",
+    "task_overdue": "Task overdue",
+    "activity_delayed": "Delayed",
+    "project_need_attention": "Needs attention",
+    "project_converted": "Project created",
+    "approval_waiting": "Approval",
+    "request_approved": "Request approved",
+    "request_reject": "Request rejected",
+    "request_send_back": "Sent back",
+    "request_request_more_info": "More info needed",
+    "baseline_set": "Baseline",
+    "baseline_revision_requested": "Baseline revision",
+    "baseline_revision_decided": "Baseline revision",
+    "bug_reported": "Bug reported",
+    "bug_assigned": "Bug assigned",
+    "fix_due_tomorrow": "Fix due tomorrow",
+    "fix_overdue": "Fix overdue",
+    "fix_ready": "Ready to retest",
+    "retest_due": "Retest due",
+    "retest_failed": "Retest failed",
+    "bug_closed": "Bug closed",
+    "evidence_missing": "Evidence missing"
+  },
+  "empty": {
+    "unread": {
+      "title": "No unread notifications",
+      "text": "New activity on your projects, tasks and requests will show up here."
+    },
+    "mentions": {
+      "title": "No mentions yet",
+      "text": "When someone @mentions you in a comment, it will show up here."
+    },
+    "all": {
+      "title": "No notifications",
+      "text": "Nothing has happened yet."
+    }
+  },
+  "desktop": {
+    "title": "Desktop notifications",
+    "sendTest": "Send test",
+    "testTitle": "Test notification",
+    "testBody": "Desktop notifications are working.",
+    "status": {
+      "on": "On — a pop-up appears on your screen when a notification arrives while this tab is in the background.",
+      "off": "Off — you only see notifications inside the app.",
+      "ask": "Get a pop-up on your screen for new notifications, even while you work in another tab.",
+      "blocked": "Blocked by your browser. Click the lock icon next to the address bar → Notifications → Allow, then reload this page.",
+      "unsupported": "Not available here. Browsers only allow desktop notifications over HTTPS (or on localhost)."
+    }
+  },
+  "live": {
+    "open": "Open",
+    "askTitle": "Get desktop notifications?",
+    "askText": "Show a pop-up for new notifications while this tab is in the background. You can change this on the Notifications page.",
+    "enable": "Enable",
+    "notNow": "Not now"
+  }
+}

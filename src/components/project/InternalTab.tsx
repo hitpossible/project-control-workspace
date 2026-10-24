@@ -1,6 +1,7 @@
 'use client';
 
 import { CornerDownRight, Lock, Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { BoardGroup, EmptyState, Person, PriorityChip, ProgressBar, SelectField, StatusChip, Tip } from '@/components/common';
@@ -10,7 +11,8 @@ import TaskKanban from '@/components/TaskKanban';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { GROUP_COLORS, TASK_STATUSES, TASK_TYPES, optLabel } from '@/lib/constants';
+import { useOptions } from '@/i18n/useOptions';
+import { GROUP_COLORS, TASK_STATUSES, TASK_TYPES } from '@/lib/constants';
 import { fmtDate, isOverdue } from '@/lib/format';
 import type { InternalTask } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -19,6 +21,10 @@ import { ViewToggle } from './PlanTab';
 import type { TabProps } from './types';
 
 export default function InternalTab({ data, perm, reload, memberProfiles, focusTask, focusPanel }: TabProps & { focusTask?: number | null; focusPanel?: string | null }) {
+  // `t` is the task loop variable in this file
+  const ti = useTranslations('project.internal');
+  const tc = useTranslations('common');
+  const { label: optLabel, options } = useOptions();
   const { me, profileName } = useApp();
   const [view, setView] = useState('table');
   const [owner, setOwner] = useState('');
@@ -41,7 +47,7 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
   const filtered = data.tasks.filter(filter);
   const owners = useMemo(() => [...new Set(data.tasks.map((t) => t.owner_id))], [data.tasks]);
   const all = allGanttKeys(data.activities, data.tasks);
-  const rows = buildGanttRows({ activities: data.activities, tasks: data.tasks, expanded: all, name: profileName, showTasks: true, taskFilter: filter });
+  const rows = buildGanttRows({ activities: data.activities, tasks: data.tasks, expanded: all, name: profileName, showTasks: true, taskFilter: filter, optLabel });
 
   const taskRow = (t: InternalTask, level: number) => {
     const od = isOverdue(t.due_date, t.status);
@@ -55,7 +61,7 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
           </div>
           {(t.delay_reason || t.internal_comment) && (
             <div className={cn('text-xs', od ? 'text-destructive' : 'text-muted-foreground', level && 'pl-4')}>
-              {t.delay_reason ? `Delay: ${t.delay_reason}` : t.internal_comment}
+              {t.delay_reason ? ti('delay', { reason: t.delay_reason }) : t.internal_comment}
             </div>
           )}
         </TableCell>
@@ -68,7 +74,7 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
         <TableCell><ProgressBar value={t.progress} /></TableCell>
         <TableCell className="no-print w-11 text-center" onClick={(e) => e.stopPropagation()}>
           {canCreate && level === 0 && (
-            <Tip title="Add sub-task">
+            <Tip title={ti('addSubTask')}>
               <Button variant="ghost" size="icon-sm" onClick={() => setCreate({ activity_id: t.activity_id, parent_task_id: t.id, planned_start: t.planned_start, due_date: t.due_date, owner_id: t.owner_id })}><Plus /></Button>
             </Tip>
           )}
@@ -81,18 +87,18 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
     <div>
       <Alert className="mb-4 border-[#cce5ff] bg-[#f0f7ff]">
         <Lock />
-        <AlertDescription>Internal Execution Plan — visible to the System Service team only. Technical notes and internal comments are never shown in User / Management views.</AlertDescription>
+        <AlertDescription>{ti('notice')}</AlertDescription>
       </Alert>
       <div className="no-print mb-5 flex flex-wrap items-end gap-3">
-        <ViewToggle value={view} onChange={setView} options={[['table', 'Task List'], ['kanban', 'Kanban'], ['gantt', 'Gantt']]} />
-        <SelectField className="w-48" label="Owner" value={owner} allowEmpty placeholder="All" onChange={setOwner}
-          options={[{ value: 'me', label: 'Assigned to me' }, ...owners.map((o) => ({ value: String(o), label: profileName(o) }))]} />
-        <SelectField className="w-44" label="Status" value={status} allowEmpty placeholder="All" onChange={setStatus}
-          options={[{ value: 'open', label: 'Open' }, { value: 'overdue', label: '⚠ Overdue' }, ...TASK_STATUSES]} />
-        <span className="pb-2 text-sm text-muted-foreground">{filtered.length} task(s)</span>
+        <ViewToggle value={view} onChange={setView} options={[['table', ti('view.table')], ['kanban', ti('view.kanban')], ['gantt', ti('view.gantt')]]} />
+        <SelectField className="w-48" label={ti('owner')} value={owner} allowEmpty placeholder={tc('all')} onChange={setOwner}
+          options={[{ value: 'me', label: ti('assignedToMe') }, ...owners.map((o) => ({ value: String(o), label: profileName(o) }))]} />
+        <SelectField className="w-44" label={ti('status')} value={status} allowEmpty placeholder={tc('all')} onChange={setStatus}
+          options={[{ value: 'open', label: ti('open') }, { value: 'overdue', label: `⚠ ${tc('overdue')}` }, ...options(TASK_STATUSES)]} />
+        <span className="pb-2 text-sm text-muted-foreground">{ti('count', { count: filtered.length })}</span>
         <div className="flex-1" />
         {canCreate && data.activities.length > 0 && (
-          <Button className="h-9" onClick={() => setCreate({ activity_id: data.activities[0].id })}><Plus /> Add Task</Button>
+          <Button className="h-9" onClick={() => setCreate({ activity_id: data.activities[0].id })}><Plus /> {ti('addTask')}</Button>
         )}
       </div>
 
@@ -125,8 +131,8 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
                 <Table className="board-table">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-left">Task</TableHead><TableHead>Owner</TableHead><TableHead>Reviewer</TableHead><TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead><TableHead>Priority</TableHead><TableHead>Due Date</TableHead><TableHead>Progress</TableHead><TableHead className="no-print" />
+                      <TableHead className="text-left">{ti('col.task')}</TableHead><TableHead>{ti('col.owner')}</TableHead><TableHead>{ti('col.reviewer')}</TableHead><TableHead>{ti('col.type')}</TableHead>
+                      <TableHead>{ti('col.status')}</TableHead><TableHead>{ti('col.priority')}</TableHead><TableHead>{ti('col.due')}</TableHead><TableHead>{ti('col.progress')}</TableHead><TableHead className="no-print" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -136,7 +142,7 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
                       <TableRow className="no-print hover:bg-transparent">
                         <TableCell colSpan={9} className="py-1">
                           <Button variant="ghost" size="sm" className="text-muted-foreground"
-                            onClick={() => setCreate({ activity_id: a.id, planned_start: a.plan_start, due_date: a.plan_finish ?? undefined })}><Plus /> Add task</Button>
+                            onClick={() => setCreate({ activity_id: a.id, planned_start: a.plan_start, due_date: a.plan_finish ?? undefined })}><Plus /> {ti('addTaskInline')}</Button>
                         </TableCell>
                       </TableRow>
                     )}
@@ -145,13 +151,13 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
               </BoardGroup>
             );
           })}
-          {data.activities.length === 0 && <EmptyState text="Add activities in the User Control Plan first" />}
+          {data.activities.length === 0 && <EmptyState text={ti('noActivities')} />}
         </div>
       )}
 
       {(edit || create) && (
         <TaskDialog
-          project={data.project} task={edit} defaults={create ?? undefined} initialTab={edit?.id === focusTask && focusPanel === 'comments' ? 'Comments' : undefined}
+          project={data.project} task={edit} defaults={create ?? undefined} initialTab={edit?.id === focusTask && focusPanel === 'comments' ? 'comments' : undefined}
           activities={data.activities} tasks={data.tasks} deps={data.deps}
           canManage={perm.manage} members={memberProfiles}
           onClose={() => { setEdit(null); setCreate(null); }}

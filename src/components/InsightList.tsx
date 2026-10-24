@@ -1,6 +1,7 @@
 'use client';
 
 import { CircleAlert, Info, Lightbulb, TriangleAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { errMsg } from '@/lib/format';
@@ -30,6 +31,7 @@ export function useInsights(projectId?: number | null) {
 }
 
 export function InsightRow({ i, showProject = true }: { i: Insight; showProject?: boolean }) {
+  const t = useTranslations('insights');
   const router = useRouter();
   return (
     <button type="button" onClick={() => router.push(i.link)}
@@ -37,7 +39,7 @@ export function InsightRow({ i, showProject = true }: { i: Insight; showProject?
       {ICON[i.severity]}
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">
-          {showProject && <span className="mr-1.5 text-xs font-semibold text-muted-foreground">{i.project_code ?? 'Team'}</span>}
+          {showProject && <span className="mr-1.5 text-xs font-semibold text-muted-foreground">{i.project_code ?? t('team')}</span>}
           {i.title}
         </div>
         <div className="text-xs text-muted-foreground">{i.detail}</div>
@@ -48,14 +50,15 @@ export function InsightRow({ i, showProject = true }: { i: Insight; showProject?
 
 /** Compact insight list for dashboards / project overview */
 export default function InsightList({ projectId, limit, showProject = true }: { projectId?: number | null; limit?: number; showProject?: boolean }) {
+  const t = useTranslations('insights');
   const rows = useInsights(projectId);
-  if (rows === null) return <EmptyState text="Analysing…" />;
-  if (rows.length === 0) return <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"><Lightbulb className="size-4" /> No insights — everything looks on track</div>;
+  if (rows === null) return <EmptyState text={t('analysing')} />;
+  if (rows.length === 0) return <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"><Lightbulb className="size-4" /> {t('none')}</div>;
   const list = limit ? rows.slice(0, limit) : rows;
   return (
     <div className="divide-y divide-grid">
       {list.map((i, n) => <InsightRow key={`${i.rule_code}-${i.entity_id}-${n}`} i={i} showProject={showProject} />)}
-      {limit && rows.length > limit && <div className="px-3 py-2 text-xs text-muted-foreground">+ {rows.length - limit} more insight(s)</div>}
+      {limit && rows.length > limit && <div className="px-3 py-2 text-xs text-muted-foreground">{t('more', { count: rows.length - limit })}</div>}
     </div>
   );
 }

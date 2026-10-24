@@ -1,0 +1,20 @@
+{
+  "homeAria": "Project Control — หน้าแรก",
+  "home": "หน้าแรก",
+  "myWork": "งานของฉัน",
+  "notifications": "การแจ้งเตือน",
+  "requests": "คำขอโปรเจกต์",
+  "projects": "โปรเจกต์",
+  "management": "มุมมองผู้บริหาร",
+  "workforce": "แผนกำลังคน",
+  "kpi": "KPI",
+  "insights": "Smart Insights",
+  "reports": "รายงาน",
+  "admin": "ผู้ดูแลระบบ",
+  "groupWorkspace": "พื้นที่ทำงาน System Service",
+  "groupIntelligence": "ข้อมูลสำหรับผู้บริหาร",
+  "expandSidebar": "ขยายแถบด้านข้าง",
+  "collapseSidebar": "ย่อแถบด้านข้าง",
+  "navigation": "เมนูนำทาง",
+  "logout": "ออกจากระบบ"
+}

@@ -2,6 +2,7 @@
 
 import dayjs from 'dayjs';
 import { FileText } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { errMsg } from '@/lib/format';
 import type { ReportType } from '@/lib/pdf/data';
@@ -12,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 /** Generates a PDF report from Workspace data and downloads it */
 export function useReport() {
+  const t = useTranslations('reports');
   const db = dbClient();
   const { me, profileName, notify } = useApp();
   const [busy, setBusy] = useState(false);
@@ -25,7 +27,7 @@ export function useReport() {
       const blob = await renderReport(type, data, { generatedBy: me?.full_name ?? '', generatedAt: dayjs().format('DD MMM YYYY HH:mm'), name: (id) => profileName(id) }, window.location.origin);
       const label = { status: 'Status', meeting: 'UserMeeting', closure: 'Closure', management: 'Management' }[type];
       downloadBlob(blob, `${opts.code ?? 'SystemService'}_${label}_${dayjs().format('YYYYMMDD')}.pdf`);
-      notify('PDF report generated');
+      notify(t('generated'));
     } catch (e) {
       notify(errMsg(e), 'error');
     } finally {
@@ -36,16 +38,17 @@ export function useReport() {
 }
 
 export default function ReportButton({ projectId, code }: { projectId: number; code: string }) {
+  const t = useTranslations('reports');
   const { generate, busy } = useReport();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" disabled={busy}><FileText /> {busy ? 'Generating…' : 'PDF Report'}</Button>
+        <Button variant="outline" disabled={busy}><FileText /> {busy ? t('generating') : t('pdfReport')}</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => generate('status', { projectId, code })}>Project Status Report</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => generate('meeting', { projectId, code })}>User Meeting Report</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => generate('closure', { projectId, code })}>Project Closure Report</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => generate('status', { projectId, code })}>{t('type.status.title')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => generate('meeting', { projectId, code })}>{t('type.meeting.title')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => generate('closure', { projectId, code })}>{t('type.closure.title')}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

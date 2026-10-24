@@ -1,0 +1,36 @@
+import admin from './admin.json';
+import ai from './ai.json';
+import audit from './audit.json';
+import chart from './chart.json';
+import comments from './comments.json';
+import common from './common.json';
+import enums from './enums.json';
+import evidence from './evidence.json';
+import fields from './fields.json';
+import gantt from './gantt.json';
+import home from './home.json';
+import insights from './insights.json';
+import kanban from './kanban.json';
+import kpi from './kpi.json';
+import login from './login.json';
+import management from './management.json';
+import meta from './meta.json';
+import myWork from './myWork.json';
+import nav from './nav.json';
+import notifications from './notifications.json';
+import plan from './plan.json';
+import project from './project.json';
+import projects from './projects.json';
+import qa from './qa.json';
+import reports from './reports.json';
+import requestDetail from './requestDetail.json';
+import requestForm from './requestForm.json';
+import requests from './requests.json';
+import search from './search.json';
+import template from './template.json';
+import workforce from './workforce.json';
+
+/** One file per feature (namespace); en is the reference every other language must match */
+const messages = { admin, ai, audit, chart, comments, common, enums, evidence, fields, gantt, home, insights, kanban, kpi, login, management, meta, myWork, nav, notifications, plan, project, projects, qa, reports, requestDetail, requestForm, requests, search, template, workforce };
+
+export default messages;

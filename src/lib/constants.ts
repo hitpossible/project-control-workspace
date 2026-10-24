@@ -1,224 +1,209 @@
+import enEnums from '@/i18n/messages/en/enums.json';
 import type { ProjectRequest, Role } from './types';
 
-export type Opt = { value: string; label: string; color?: string };
+export type EnumMessages = typeof enEnums;
+/** Enum groups whose labels live in messages under enums.<ns>.<value> */
+export type OptNs = { [K in keyof EnumMessages]: EnumMessages[K] extends Record<string, string> ? K : never }[keyof EnumMessages];
 
-export const ROLE_LABELS: Record<Role, string> = {
-  requestor: 'Requestor',
-  requestor_approver: 'Requestor Approver',
-  system_reviewer: 'System Service Reviewer',
-  authority_approver: 'Authority Approver',
-  project_leader: 'Project Leader',
-  developer: 'Developer',
-  qa: 'QA / Tester',
-  supervisor: 'Supervisor',
-  manager: 'Manager',
-  management_view: 'Management / User View',
-  admin: 'Administrator',
-};
+export type Opt = { value: string; color?: string };
+/** Option list tagged with its message group — labels are never kept in code */
+export type OptList = Opt[] & { ns: OptNs };
+
+const opts = (ns: OptNs, items: Opt[]): OptList => Object.assign(items, { ns });
+
+export const ROLES = opts('role', ([
+  'requestor', 'requestor_approver', 'system_reviewer', 'authority_approver', 'project_leader',
+  'developer', 'qa', 'supervisor', 'manager', 'management_view', 'admin',
+] satisfies Role[]).map((value) => ({ value })));
 
 export const SYSTEM_STAFF_ROLES: Role[] = ['system_reviewer', 'project_leader', 'developer', 'qa', 'supervisor', 'manager', 'admin'];
 
-export const PRIORITIES: Opt[] = [
-  { value: 'low', label: 'Low', color: '#579bfc' },
-  { value: 'medium', label: 'Medium', color: '#5559df' },
-  { value: 'high', label: 'High', color: '#401694' },
-  { value: 'critical', label: 'Critical ⚠', color: '#333333' },
-];
+export const PRIORITIES = opts('priority', [
+  { value: 'low', color: '#579bfc' },
+  { value: 'medium', color: '#5559df' },
+  { value: 'high', color: '#401694' },
+  { value: 'critical', color: '#333333' },
+]);
 
-export const REQUEST_STATUSES: Opt[] = [
-  { value: 'draft', label: 'Draft', color: '#c4c4c4' },
-  { value: 'submitted', label: 'Submitted', color: '#579bfc' },
-  { value: 'waiting_requestor_approval', label: 'Waiting Requestor Approval', color: '#fdab3d' },
-  { value: 'waiting_system_review', label: 'Waiting System Review', color: '#fdab3d' },
-  { value: 'need_more_information', label: 'Need More Information', color: '#a25ddc' },
-  { value: 'waiting_authority_approval', label: 'Waiting Authority Approval', color: '#fdab3d' },
-  { value: 'approved', label: 'Approved', color: '#00c875' },
-  { value: 'rejected', label: 'Rejected', color: '#e2445c' },
-  { value: 'converted', label: 'Converted to Project', color: '#037f4c' },
-  { value: 'cancelled', label: 'Cancelled', color: '#757575' },
-];
+export const REQUEST_STATUSES = opts('requestStatus', [
+  { value: 'draft', color: '#c4c4c4' },
+  { value: 'submitted', color: '#579bfc' },
+  { value: 'waiting_requestor_approval', color: '#fdab3d' },
+  { value: 'waiting_system_review', color: '#fdab3d' },
+  { value: 'need_more_information', color: '#a25ddc' },
+  { value: 'waiting_authority_approval', color: '#fdab3d' },
+  { value: 'approved', color: '#00c875' },
+  { value: 'rejected', color: '#e2445c' },
+  { value: 'converted', color: '#037f4c' },
+  { value: 'cancelled', color: '#757575' },
+]);
 
-export const PROJECT_STATUSES: Opt[] = [
-  { value: 'draft', label: 'Draft', color: '#c4c4c4' },
-  { value: 'planning', label: 'Planning', color: '#a25ddc' },
-  { value: 'in_progress', label: 'Working on it', color: '#fdab3d' },
-  { value: 'waiting', label: 'Waiting', color: '#ffcb00' },
-  { value: 'on_hold', label: 'On Hold', color: '#7f5347' },
-  { value: 'at_risk', label: 'At Risk', color: '#ff642e' },
-  { value: 'delayed', label: 'Delayed', color: '#e2445c' },
-  { value: 'completed', label: 'Done', color: '#00c875' },
-  { value: 'cancelled', label: 'Cancelled', color: '#757575' },
-];
+export const PROJECT_STATUSES = opts('projectStatus', [
+  { value: 'draft', color: '#c4c4c4' },
+  { value: 'planning', color: '#a25ddc' },
+  { value: 'in_progress', color: '#fdab3d' },
+  { value: 'waiting', color: '#ffcb00' },
+  { value: 'on_hold', color: '#7f5347' },
+  { value: 'at_risk', color: '#ff642e' },
+  { value: 'delayed', color: '#e2445c' },
+  { value: 'completed', color: '#00c875' },
+  { value: 'cancelled', color: '#757575' },
+]);
 
 // Gantt status colors (PRD §13)
-export const ACTIVITY_STATUSES: Opt[] = [
-  { value: 'not_started', label: 'Not Started', color: '#c4c4c4' },
-  { value: 'in_progress', label: 'Working on it', color: '#fdab3d' },
-  { value: 'waiting', label: 'Waiting', color: '#ffcb00' },
-  { value: 'delayed', label: 'Delayed', color: '#e2445c' },
-  { value: 'at_risk', label: 'At Risk', color: '#ff642e' },
-  { value: 'on_hold', label: 'On Hold', color: '#7f5347' },
-  { value: 'completed', label: 'Done', color: '#00c875' },
-  { value: 'cancelled', label: 'Cancelled', color: '#757575' },
-];
+export const ACTIVITY_STATUSES = opts('activityStatus', [
+  { value: 'not_started', color: '#c4c4c4' },
+  { value: 'in_progress', color: '#fdab3d' },
+  { value: 'waiting', color: '#ffcb00' },
+  { value: 'delayed', color: '#e2445c' },
+  { value: 'at_risk', color: '#ff642e' },
+  { value: 'on_hold', color: '#7f5347' },
+  { value: 'completed', color: '#00c875' },
+  { value: 'cancelled', color: '#757575' },
+]);
 
-export const TASK_STATUSES: Opt[] = [
-  { value: 'todo', label: 'To Do', color: '#c4c4c4' },
-  { value: 'in_progress', label: 'Working on it', color: '#fdab3d' },
-  { value: 'waiting', label: 'Waiting', color: '#ffcb00' },
-  { value: 'review', label: 'Review', color: '#a25ddc' },
-  { value: 'on_hold', label: 'On Hold', color: '#7f5347' },
-  { value: 'completed', label: 'Done', color: '#00c875' },
-  { value: 'cancelled', label: 'Cancelled', color: '#757575' },
-];
+export const TASK_STATUSES = opts('taskStatus', [
+  { value: 'todo', color: '#c4c4c4' },
+  { value: 'in_progress', color: '#fdab3d' },
+  { value: 'waiting', color: '#ffcb00' },
+  { value: 'review', color: '#a25ddc' },
+  { value: 'on_hold', color: '#7f5347' },
+  { value: 'completed', color: '#00c875' },
+  { value: 'cancelled', color: '#757575' },
+]);
 
-export const TASK_TYPES: Opt[] = [
-  { value: 'design', label: 'Design' },
-  { value: 'dev', label: 'Dev' },
-  { value: 'qa', label: 'QA' },
-  { value: 'review', label: 'Review' },
-  { value: 'doc', label: 'Document' },
-  { value: 'deploy', label: 'Deploy' },
-  { value: 'support', label: 'Support' },
-  { value: 'other', label: 'Other' },
-];
+export const TASK_TYPES = opts('taskType', [
+  { value: 'design' },
+  { value: 'dev' },
+  { value: 'qa' },
+  { value: 'review' },
+  { value: 'doc' },
+  { value: 'deploy' },
+  { value: 'support' },
+  { value: 'other' },
+]);
 
-export const MEMBER_ROLES: Opt[] = [
-  { value: 'leader', label: 'Project Leader' },
-  { value: 'developer', label: 'Developer' },
-  { value: 'qa', label: 'QA' },
-  { value: 'support', label: 'Support' },
-  { value: 'supervisor', label: 'Supervisor' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'requestor_rep', label: 'Requestor Representative' },
-];
+export const MEMBER_ROLES = opts('memberRole', [
+  { value: 'leader' },
+  { value: 'developer' },
+  { value: 'qa' },
+  { value: 'support' },
+  { value: 'supervisor' },
+  { value: 'manager' },
+  { value: 'requestor_rep' },
+]);
 
-export const DELAY_CATEGORIES = [
-  'Waiting User',
-  'Requirement Change',
-  'Resource Constraint',
-  'Technical Issue',
-  'Vendor',
-  'Infrastructure',
-  'Approval Delay',
-  'Data Issue',
-  'Testing Issue',
-  'Other',
-];
+/** stored as the English text (delays.category) */
+export const DELAY_CATEGORIES = opts('delayCategory', [{ value: 'Waiting User' }, { value: 'Requirement Change' }, { value: 'Resource Constraint' }, { value: 'Technical Issue' }, { value: 'Vendor' }, { value: 'Infrastructure' }, { value: 'Approval Delay' }, { value: 'Data Issue' }, { value: 'Testing Issue' }, { value: 'Other' }]);
 
-export const EVIDENCE_TYPES: Opt[] = [
-  { value: 'document', label: 'Document' },
-  { value: 'excel', label: 'Excel' },
-  { value: 'pdf', label: 'PDF' },
-  { value: 'image', label: 'Image' },
-  { value: 'screenshot', label: 'Screenshot' },
-  { value: 'log', label: 'Log File' },
-  { value: 'email', label: 'Email' },
-  { value: 'meeting_note', label: 'Meeting Note' },
-  { value: 'url', label: 'URL' },
-  { value: 'sharepoint', label: 'SharePoint Link' },
-  { value: 'git', label: 'Git Repository / PR Link' },
-  { value: 'build', label: 'Build Link' },
-  { value: 'other', label: 'Other' },
-];
+export const EVIDENCE_TYPES = opts('evidenceType', [
+  { value: 'document' },
+  { value: 'excel' },
+  { value: 'pdf' },
+  { value: 'image' },
+  { value: 'screenshot' },
+  { value: 'log' },
+  { value: 'email' },
+  { value: 'meeting_note' },
+  { value: 'url' },
+  { value: 'sharepoint' },
+  { value: 'git' },
+  { value: 'build' },
+  { value: 'other' },
+]);
 
 // Phase 2 — QA
-export const SEVERITIES: Opt[] = [
-  { value: 'low', label: 'Low', color: '#579bfc' },
-  { value: 'medium', label: 'Medium', color: '#fdab3d' },
-  { value: 'high', label: 'High', color: '#ff642e' },
-  { value: 'critical', label: 'Critical', color: '#bb3354' },
-];
+export const SEVERITIES = opts('severity', [
+  { value: 'low', color: '#579bfc' },
+  { value: 'medium', color: '#fdab3d' },
+  { value: 'high', color: '#ff642e' },
+  { value: 'critical', color: '#bb3354' },
+]);
 
-export const BUG_STATUSES: Opt[] = [
-  { value: 'new', label: 'New', color: '#c4c4c4' },
-  { value: 'assigned', label: 'Assigned', color: '#579bfc' },
-  { value: 'in_progress', label: 'Fixing', color: '#fdab3d' },
-  { value: 'fix_ready', label: 'Fix Ready', color: '#a25ddc' },
-  { value: 'retest', label: 'Retest', color: '#784bd1' },
-  { value: 'reopened', label: 'Reopened', color: '#e2445c' },
-  { value: 'closed', label: 'Closed', color: '#00c875' },
-  { value: 'cancelled', label: 'Cancelled', color: '#757575' },
-];
+export const BUG_STATUSES = opts('bugStatus', [
+  { value: 'new', color: '#c4c4c4' },
+  { value: 'assigned', color: '#579bfc' },
+  { value: 'in_progress', color: '#fdab3d' },
+  { value: 'fix_ready', color: '#a25ddc' },
+  { value: 'retest', color: '#784bd1' },
+  { value: 'reopened', color: '#e2445c' },
+  { value: 'closed', color: '#00c875' },
+  { value: 'cancelled', color: '#757575' },
+]);
 
-export const TEST_ROUND_STATUSES: Opt[] = [
-  { value: 'planned', label: 'Planned', color: '#c4c4c4' },
-  { value: 'in_progress', label: 'Testing', color: '#fdab3d' },
-  { value: 'completed', label: 'Completed', color: '#00c875' },
-  { value: 'cancelled', label: 'Cancelled', color: '#757575' },
-];
+export const TEST_ROUND_STATUSES = opts('testRoundStatus', [
+  { value: 'planned', color: '#c4c4c4' },
+  { value: 'in_progress', color: '#fdab3d' },
+  { value: 'completed', color: '#00c875' },
+  { value: 'cancelled', color: '#757575' },
+]);
 
-export const TEST_RESULTS: Opt[] = [
-  { value: 'passed', label: 'Passed', color: '#00c875' },
-  { value: 'failed', label: 'Failed', color: '#e2445c' },
-  { value: 'partially_passed', label: 'Partially Passed', color: '#fdab3d' },
-  { value: 'blocked', label: 'Blocked', color: '#333333' },
-];
+export const TEST_RESULTS = opts('testResult', [
+  { value: 'passed', color: '#00c875' },
+  { value: 'failed', color: '#e2445c' },
+  { value: 'partially_passed', color: '#fdab3d' },
+  { value: 'blocked', color: '#333333' },
+]);
 
-export const TEST_TYPES: Opt[] = [
-  { value: 'system', label: 'System Test' },
-  { value: 'integration', label: 'Integration' },
-  { value: 'regression', label: 'Regression' },
-  { value: 'uat', label: 'UAT' },
-  { value: 'smoke', label: 'Smoke' },
-  { value: 'performance', label: 'Performance' },
-  { value: 'other', label: 'Other' },
-];
+export const TEST_TYPES = opts('testType', [
+  { value: 'system' },
+  { value: 'integration' },
+  { value: 'regression' },
+  { value: 'uat' },
+  { value: 'smoke' },
+  { value: 'performance' },
+  { value: 'other' },
+]);
 
-export const ROOT_CAUSE_CATEGORIES = ['Requirement', 'Design', 'Coding', 'Data', 'Configuration', 'Environment', 'Integration', 'Third-party', 'Other'];
+/** stored as the English text */
+export const ROOT_CAUSE_CATEGORIES = opts('rootCause', [{ value: 'Requirement' }, { value: 'Design' }, { value: 'Coding' }, { value: 'Data' }, { value: 'Configuration' }, { value: 'Environment' }, { value: 'Integration' }, { value: 'Third-party' }, { value: 'Other' }]);
 
-export const REVISION_STATUSES: Opt[] = [
-  { value: 'pending', label: 'Waiting Approval', color: '#fdab3d' },
-  { value: 'approved', label: 'Approved', color: '#00c875' },
-  { value: 'rejected', label: 'Rejected', color: '#e2445c' },
-  { value: 'cancelled', label: 'Cancelled', color: '#757575' },
-];
+export const REVISION_STATUSES = opts('revisionStatus', [
+  { value: 'pending', color: '#fdab3d' },
+  { value: 'approved', color: '#00c875' },
+  { value: 'rejected', color: '#e2445c' },
+  { value: 'cancelled', color: '#757575' },
+]);
 
 // Phase 3
-export const WORK_TYPES: Opt[] = [
-  { value: 'office', label: 'Office', color: '#579bfc' },
-  { value: 'onsite', label: 'Onsite', color: '#a25ddc' },
-  { value: 'wfh', label: 'Work from Home', color: '#66ccff' },
-  { value: 'customer_site', label: 'Customer Site', color: '#784bd1' },
-  { value: 'factory_support', label: 'Factory Support', color: '#fdab3d' },
-  { value: 'training', label: 'Training', color: '#037f4c' },
-  { value: 'leave', label: 'Leave', color: '#e2445c' },
-  { value: 'ot', label: 'OT Plan', color: '#333333' },
-];
+export const WORK_TYPES = opts('workType', [
+  { value: 'office', color: '#579bfc' },
+  { value: 'onsite', color: '#a25ddc' },
+  { value: 'wfh', color: '#66ccff' },
+  { value: 'customer_site', color: '#784bd1' },
+  { value: 'factory_support', color: '#fdab3d' },
+  { value: 'training', color: '#037f4c' },
+  { value: 'leave', color: '#e2445c' },
+  { value: 'ot', color: '#333333' },
+]);
 
-export const INSIGHT_SEVERITIES: Opt[] = [
-  { value: 'critical', label: 'Critical', color: '#e2445c' },
-  { value: 'warning', label: 'Warning', color: '#fdab3d' },
-  { value: 'info', label: 'Info', color: '#579bfc' },
-];
+export const INSIGHT_SEVERITIES = opts('insightSeverity', [
+  { value: 'critical', color: '#e2445c' },
+  { value: 'warning', color: '#fdab3d' },
+  { value: 'info', color: '#579bfc' },
+]);
 
 export const HEALTH_COLORS: Record<string, string> = { green: '#00c875', yellow: '#fdab3d', red: '#e2445c' };
 
 // monday.com group colors (board groups / avatars)
 export const GROUP_COLORS = ['#579bfc', '#a25ddc', '#00c875', '#fdab3d', '#e2445c', '#66ccff', '#ff642e', '#037f4c', '#bb3354', '#784bd1'];
 
-export const APPROVAL_ACTION_LABELS: Record<string, string> = {
-  submit: 'Submitted',
-  resubmit: 'Re-submitted',
-  approve: 'Approved',
-  reject: 'Rejected',
-  send_back: 'Sent Back',
-  request_more_info: 'Requested More Information',
-  cancel: 'Cancelled',
-  convert: 'Converted to Project',
-};
-
-export function optLabel(list: Opt[], value: string | null | undefined) {
-  return list.find((o) => o.value === value)?.label ?? value ?? '-';
+/**
+ * English label — for Excel / PDF exports and server code.
+ * On screen use `useOptions().label` (src/i18n/useOptions.ts), which follows the UI language.
+ */
+export function optLabelEn(list: OptList, value: string | null | undefined) {
+  if (!value) return '-';
+  return (enEnums[list.ns] as Record<string, string>)[value] ?? value;
 }
 
-export function optColor(list: Opt[], value: string | null | undefined) {
+export function optColor(list: readonly Opt[], value: string | null | undefined) {
   return list.find((o) => o.value === value)?.color ?? '#9e9e9e';
 }
 
-/** Reduction rows on FM-SYS-004: current (From) → expected after the project (To) */
+/** Reduction rows on FM-SYS-004: current (From) → expected after the project (To); labels: enums.reduction.<key> */
 export const REDUCTION_ROWS = [
-  { label: 'Time (Min / Month)', from: 'reduction_time_from', to: 'reduction_time_to' },
-  { label: 'Man (Man / Month)', from: 'reduction_man_from', to: 'reduction_man_to' },
-  { label: 'Others Cost (THB)', from: 'reduction_cost_from', to: 'reduction_cost_to' },
-] as const satisfies readonly { label: string; from: keyof ProjectRequest; to: keyof ProjectRequest }[];
+  { key: 'time', from: 'reduction_time_from', to: 'reduction_time_to' },
+  { key: 'man', from: 'reduction_man_from', to: 'reduction_man_to' },
+  { key: 'cost', from: 'reduction_cost_from', to: 'reduction_cost_to' },
+] as const satisfies readonly { key: keyof EnumMessages['reduction']; from: keyof ProjectRequest; to: keyof ProjectRequest }[];

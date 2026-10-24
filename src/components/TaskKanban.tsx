@@ -1,7 +1,9 @@
 'use client';
 
 import { GitBranch } from 'lucide-react';
-import { PRIORITIES, TASK_STATUSES, TASK_TYPES, optLabel } from '@/lib/constants';
+import { useTranslations } from 'next-intl';
+import { useOptions } from '@/i18n/useOptions';
+import { PRIORITIES, TASK_STATUSES, TASK_TYPES } from '@/lib/constants';
 import { dbClient } from '@/lib/db/client';
 import { errMsg } from '@/lib/format';
 import type { InternalTask } from '@/lib/types';
@@ -30,9 +32,11 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
   /** second line on the card, e.g. activity or project name */
   subtitle?: (t: InternalTask) => React.ReactNode;
 }) {
+  const tk = useTranslations('kanban.task');
+  const { label: optLabel, options } = useOptions();
   const { profileName, notify } = useApp();
   // Cancelled is only shown when something is in it
-  const columns = TASK_STATUSES.filter((c) => c.value !== 'cancelled' || tasks.some((t) => t.status === 'cancelled'));
+  const columns = options(TASK_STATUSES).filter((c) => c.value !== 'cancelled' || tasks.some((t) => t.status === 'cancelled'));
   const subCount = (t: InternalTask) => tasks.filter((x) => x.parent_task_id === t.id).length;
 
   const move = async (t: InternalTask, status: string, rank?: number) => {
@@ -41,7 +45,7 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
     if (error) {
       notify(errMsg(error), 'error');
     } else if (data.status !== status) {
-      notify(`${t.task_no} moved to "${optLabel(TASK_STATUSES, data.status)}" (progress is 100% / workflow rule)`, 'info');
+      notify(tk('autoMoved', { no: t.task_no ?? '', status: optLabel(TASK_STATUSES, data.status) }), 'info');
     }
     await onChanged();
     // false: no "Moved … Undo" toast when the task did not land where it was dropped
@@ -56,7 +60,7 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
       canDrag={canEdit}
       onOpen={onOpen}
       onMove={move}
-      emptyText="No tasks"
+      emptyText={tk('empty')}
       renderCard={(t) => {
         const subs = subCount(t);
         const open = !['completed', 'cancelled'].includes(t.status);
@@ -77,7 +81,7 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
                 <KanbanTag list={PRIORITIES} value={t.priority} />
                 <KanbanDue date={t.due_date} open={open} />
                 {subs > 0 && (
-                  <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground" title={`${subs} sub-task(s)`}><GitBranch className="size-3" />{subs}</span>
+                  <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground" title={tk('subTasks', { count: subs })}><GitBranch className="size-3" />{subs}</span>
                 )}
               </div>
               <span className="shrink-0"><Person name={profileName(t.owner_id)} showName={false} size={22} /></span>

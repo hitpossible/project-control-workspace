@@ -4,9 +4,10 @@
  */
 export const WORK_WEEK_KEY = 'work_week';
 export const DEFAULT_WORK_WEEK = [1, 2, 3, 4, 5];
-export const WORK_WEEKS: { value: string; label: string; days: number[] }[] = [
-  { value: 'mon-fri', label: 'Monday – Friday', days: [1, 2, 3, 4, 5] },
-  { value: 'mon-sat', label: 'Monday – Saturday', days: [1, 2, 3, 4, 5, 6] },
+/** labels: admin.workingDays.week.<value> */
+export const WORK_WEEKS: { value: 'mon-fri' | 'mon-sat'; days: number[] }[] = [
+  { value: 'mon-fri', days: [1, 2, 3, 4, 5] },
+  { value: 'mon-sat', days: [1, 2, 3, 4, 5, 6] },
 ];
 
 const shift = (date: string, n: number) => {

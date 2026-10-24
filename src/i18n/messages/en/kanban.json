@@ -1,0 +1,28 @@
+{
+  "empty": "No items",
+  "dropHere": "Drop here",
+  "moveTo": "Move to",
+  "moveToEllipsis": "Move to…",
+  "moved": "Moved {name} to {column}",
+  "movedNoName": "Moved to {column}",
+  "undo": "Undo",
+  "due": "Due {date}",
+  "dueLate": "Due {date} — {days} day(s) late",
+  "lateDays": "+{days}d",
+  "a11y": {
+    "card": "card",
+    "pickedUp": "Picked up {title}.",
+    "over": "Over {column}.",
+    "notOver": "Not over a column.",
+    "dropped": "Dropped {title} in {column}.",
+    "droppedNowhere": "Dropped.",
+    "cancelled": "Moving cancelled.",
+    "instructions": "Press Enter to open. Alt plus left or right arrow moves the card to the previous or next column. Drag with mouse or long-press on touch.",
+    "instructionsRank": "Press Enter to open. Alt plus left or right arrow moves the card to the previous or next column, Alt plus up or down arrow moves it within the column. Drag with mouse or long-press on touch."
+  },
+  "task": {
+    "autoMoved": "{no} moved to \"{status}\" (progress is 100% / workflow rule)",
+    "empty": "No tasks",
+    "subTasks": "{count} sub-task(s)"
+  }
+}

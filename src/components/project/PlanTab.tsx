@@ -2,6 +2,7 @@
 
 import dayjs from 'dayjs';
 import { ChevronsDownUp, ChevronsUpDown, Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { BoardGroup, DateField, EmptyState, Person, ProgressBar, SelectField, StatusChip } from '@/components/common';
@@ -10,6 +11,7 @@ import { ActivityDialog, TaskDialog } from '@/components/PlanDialogs';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useOptions } from '@/i18n/useOptions';
 import { ACTIVITY_STATUSES } from '@/lib/constants';
 import { fmtDate, isOverdue } from '@/lib/format';
 import type { Activity, InternalTask } from '@/lib/types';
@@ -28,6 +30,9 @@ export function ViewToggle({ value, onChange, options }: { value: string; onChan
 }
 
 export default function PlanTab({ data, perm, reload, memberProfiles }: TabProps) {
+  const t = useTranslations('project.plan');
+  const tc = useTranslations('common');
+  const { label, options } = useOptions();
   const { profileName } = useApp();
   const [view, setView] = useState('gantt');
   const [pic, setPic] = useState('');
@@ -49,44 +54,44 @@ export default function PlanTab({ data, perm, reload, memberProfiles }: TabProps
     return true;
   });
 
-  const rows = buildGanttRows({ activities: acts, tasks: data.tasks, expanded, name: profileName, showTasks: perm.internal });
+  const rows = buildGanttRows({ activities: acts, tasks: data.tasks, expanded, name: profileName, showTasks: perm.internal, optLabel: label });
   const toggle = (id: string) => setExpanded((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   return (
     <div>
       <div className="no-print mb-4 flex flex-wrap items-end gap-3">
-        <ViewToggle value={view} onChange={setView} options={[['gantt', 'Gantt'], ['table', 'Table']]} />
-        <SelectField className="w-44" label="PIC" value={pic} allowEmpty placeholder="All" onChange={setPic} options={pics.map((p) => ({ value: p, label: p }))} />
-        <SelectField className="w-44" label="Status" value={status} allowEmpty placeholder="All" onChange={setStatus}
-          options={[{ value: 'overdue', label: '⚠ Overdue' }, ...ACTIVITY_STATUSES]} />
-        <DateField className="w-40" label="From" value={from} onChange={setFrom} />
-        <DateField className="w-40" label="To" value={to} onChange={setTo} />
+        <ViewToggle value={view} onChange={setView} options={[['gantt', t('view.gantt')], ['table', t('view.table')]]} />
+        <SelectField className="w-44" label={t('pic')} value={pic} allowEmpty placeholder={tc('all')} onChange={setPic} options={pics.map((p) => ({ value: p, label: p }))} />
+        <SelectField className="w-44" label={t('status')} value={status} allowEmpty placeholder={tc('all')} onChange={setStatus}
+          options={[{ value: 'overdue', label: `⚠ ${tc('overdue')}` }, ...options(ACTIVITY_STATUSES)]} />
+        <DateField className="w-40" label={t('from')} value={from} onChange={setFrom} />
+        <DateField className="w-40" label={t('to')} value={to} onChange={setTo} />
         {perm.internal && view === 'gantt' && (
           <>
-            <Button variant="ghost" className="h-9" onClick={() => setExpanded(allGanttKeys(data.activities, data.tasks))}><ChevronsUpDown /> Expand</Button>
-            <Button variant="ghost" className="h-9" onClick={() => setExpanded(new Set())}><ChevronsDownUp /> Collapse</Button>
+            <Button variant="ghost" className="h-9" onClick={() => setExpanded(allGanttKeys(data.activities, data.tasks))}><ChevronsUpDown /> {t('expand')}</Button>
+            <Button variant="ghost" className="h-9" onClick={() => setExpanded(new Set())}><ChevronsDownUp /> {t('collapse')}</Button>
           </>
         )}
         <div className="flex-1" />
-        {perm.manage && <Button className="h-9" onClick={() => setEditAct('new')}><Plus /> Add Activity</Button>}
+        {perm.manage && <Button className="h-9" onClick={() => setEditAct('new')}><Plus /> {t('addActivity')}</Button>}
       </div>
 
-      {acts.length === 0 ? <EmptyState text="No activities" /> : view === 'gantt' ? (
+      {acts.length === 0 ? <EmptyState text={t('empty')} /> : view === 'gantt' ? (
         <GanttChart
           rows={rows}
           deps={ganttDeps(data.deps)}
           onToggle={(r) => toggle(r.id)}
           onRowClick={(r) => {
             if (r.level === 0) setEditAct(data.activities.find((a) => a.id === r.entityId) ?? null);
-            else setEditTask(data.tasks.find((t) => t.id === r.entityId) ?? null);
+            else setEditTask(data.tasks.find((x) => x.id === r.entityId) ?? null);
           }}
         />
       ) : (
-        <BoardGroup title="User Control Plan" color="#579bfc" count={acts.length}>
+        <BoardGroup title={t('title')} color="#579bfc" count={acts.length}>
           <Table className="board-table">
             <TableHeader>
               <TableRow>
-                {['#', 'Activity', 'PIC', 'Status', 'Plan Start', 'Plan Finish', 'Actual Start', 'Actual Finish', 'Progress', 'Status Note', 'Next Action', 'Recovery Plan', 'Remark'].map((h) => <TableHead key={h}>{h}</TableHead>)}
+                {(['no', 'activity', 'pic', 'status', 'planStart', 'planFinish', 'actualStart', 'actualFinish', 'progress', 'statusNote', 'nextAction', 'recoveryPlan', 'remark'] as const).map((h) => <TableHead key={h}>{t(`col.${h}`)}</TableHead>)}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -107,7 +112,7 @@ export default function PlanTab({ data, perm, reload, memberProfiles }: TabProps
                     <TableCell className="min-w-40 whitespace-normal">{a.next_action}</TableCell>
                     <TableCell className="min-w-44 whitespace-normal">
                       {a.recovery_plan}
-                      {a.forecast_finish && <div className="text-xs text-destructive">Forecast {fmtDate(a.forecast_finish)}</div>}
+                      {a.forecast_finish && <div className="text-xs text-destructive">{t('forecast', { date: fmtDate(a.forecast_finish) })}</div>}
                     </TableCell>
                     <TableCell className="min-w-36 whitespace-normal">{a.remark}</TableCell>
                   </TableRow>
@@ -122,7 +127,7 @@ export default function PlanTab({ data, perm, reload, memberProfiles }: TabProps
         <ActivityDialog
           project={data.project}
           activity={editAct === 'new' ? null : editAct}
-          hasTasks={editAct !== 'new' && data.tasks.some((t) => t.activity_id === editAct.id)}
+          hasTasks={editAct !== 'new' && data.tasks.some((x) => x.activity_id === editAct.id)}
           canManage={perm.manage}
           canViewInternal={perm.internal}
           members={memberProfiles}

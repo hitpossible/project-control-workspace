@@ -1,0 +1,264 @@
+{
+  "role": {
+    "requestor": "ผู้ขอ",
+    "requestor_approver": "ผู้อนุมัติฝั่งผู้ขอ",
+    "system_reviewer": "ผู้ตรวจสอบ System Service",
+    "authority_approver": "ผู้มีอำนาจอนุมัติ",
+    "project_leader": "หัวหน้าโปรเจกต์",
+    "developer": "นักพัฒนา",
+    "qa": "QA / ผู้ทดสอบ",
+    "supervisor": "หัวหน้างาน",
+    "manager": "ผู้จัดการ",
+    "management_view": "ผู้บริหาร / มุมมองผู้ใช้",
+    "admin": "ผู้ดูแลระบบ"
+  },
+  "priority": {
+    "low": "ต่ำ",
+    "medium": "ปานกลาง",
+    "high": "สูง",
+    "critical": "วิกฤต ⚠"
+  },
+  "requestStatus": {
+    "draft": "ฉบับร่าง",
+    "submitted": "ส่งแล้ว",
+    "waiting_requestor_approval": "รอฝั่งผู้ขออนุมัติ",
+    "waiting_system_review": "รอ System ตรวจสอบ",
+    "need_more_information": "ต้องการข้อมูลเพิ่มเติม",
+    "waiting_authority_approval": "รอผู้มีอำนาจอนุมัติ",
+    "approved": "อนุมัติแล้ว",
+    "rejected": "ปฏิเสธ",
+    "converted": "แปลงเป็นโปรเจกต์แล้ว",
+    "cancelled": "ยกเลิก"
+  },
+  "projectStatus": {
+    "draft": "ฉบับร่าง",
+    "planning": "วางแผน",
+    "in_progress": "กำลังดำเนินการ",
+    "waiting": "รอ",
+    "on_hold": "พักไว้",
+    "at_risk": "มีความเสี่ยง",
+    "delayed": "ล่าช้า",
+    "completed": "เสร็จสิ้น",
+    "cancelled": "ยกเลิก"
+  },
+  "activityStatus": {
+    "not_started": "ยังไม่เริ่ม",
+    "in_progress": "กำลังดำเนินการ",
+    "waiting": "รอ",
+    "delayed": "ล่าช้า",
+    "at_risk": "มีความเสี่ยง",
+    "on_hold": "พักไว้",
+    "completed": "เสร็จสิ้น",
+    "cancelled": "ยกเลิก"
+  },
+  "taskStatus": {
+    "todo": "รอทำ",
+    "in_progress": "กำลังดำเนินการ",
+    "waiting": "รอ",
+    "review": "รอตรวจ",
+    "on_hold": "พักไว้",
+    "completed": "เสร็จสิ้น",
+    "cancelled": "ยกเลิก"
+  },
+  "taskType": {
+    "design": "ออกแบบ",
+    "dev": "พัฒนา",
+    "qa": "QA",
+    "review": "ตรวจทาน",
+    "doc": "เอกสาร",
+    "deploy": "ติดตั้งใช้งาน",
+    "support": "สนับสนุน",
+    "other": "อื่น ๆ"
+  },
+  "memberRole": {
+    "leader": "หัวหน้าโปรเจกต์",
+    "developer": "นักพัฒนา",
+    "qa": "QA",
+    "support": "ผู้สนับสนุน",
+    "supervisor": "หัวหน้างาน",
+    "manager": "ผู้จัดการ",
+    "requestor_rep": "ตัวแทนผู้ขอ"
+  },
+  "delayCategory": {
+    "Waiting User": "รอผู้ใช้",
+    "Requirement Change": "เปลี่ยนความต้องการ",
+    "Resource Constraint": "ทรัพยากรไม่พอ",
+    "Technical Issue": "ปัญหาทางเทคนิค",
+    "Vendor": "ผู้ขาย / Vendor",
+    "Infrastructure": "โครงสร้างพื้นฐาน",
+    "Approval Delay": "รออนุมัติ",
+    "Data Issue": "ปัญหาข้อมูล",
+    "Testing Issue": "ปัญหาการทดสอบ",
+    "Other": "อื่น ๆ"
+  },
+  "evidenceType": {
+    "document": "เอกสาร",
+    "excel": "Excel",
+    "pdf": "PDF",
+    "image": "รูปภาพ",
+    "screenshot": "ภาพหน้าจอ",
+    "log": "ไฟล์ Log",
+    "email": "อีเมล",
+    "meeting_note": "บันทึกการประชุม",
+    "url": "URL",
+    "sharepoint": "ลิงก์ SharePoint",
+    "git": "ลิงก์ Git Repository / PR",
+    "build": "ลิงก์ Build",
+    "other": "อื่น ๆ"
+  },
+  "severity": {
+    "low": "ต่ำ",
+    "medium": "ปานกลาง",
+    "high": "สูง",
+    "critical": "วิกฤต"
+  },
+  "bugStatus": {
+    "new": "ใหม่",
+    "assigned": "มอบหมายแล้ว",
+    "in_progress": "กำลังแก้ไข",
+    "fix_ready": "แก้เสร็จ",
+    "retest": "ทดสอบซ้ำ",
+    "reopened": "เปิดใหม่",
+    "closed": "ปิดแล้ว",
+    "cancelled": "ยกเลิก"
+  },
+  "testRoundStatus": {
+    "planned": "วางแผนแล้ว",
+    "in_progress": "กำลังทดสอบ",
+    "completed": "เสร็จสิ้น",
+    "cancelled": "ยกเลิก"
+  },
+  "testResult": {
+    "passed": "ผ่าน",
+    "failed": "ไม่ผ่าน",
+    "partially_passed": "ผ่านบางส่วน",
+    "blocked": "ติดขัด"
+  },
+  "testType": {
+    "system": "System Test",
+    "integration": "Integration",
+    "regression": "Regression",
+    "uat": "UAT",
+    "smoke": "Smoke",
+    "performance": "Performance",
+    "other": "อื่น ๆ"
+  },
+  "rootCause": {
+    "Requirement": "ความต้องการ",
+    "Design": "การออกแบบ",
+    "Coding": "การเขียนโค้ด",
+    "Data": "ข้อมูล",
+    "Configuration": "การตั้งค่า",
+    "Environment": "สภาพแวดล้อม",
+    "Integration": "การเชื่อมต่อระบบ",
+    "Third-party": "บุคคลภายนอก",
+    "Other": "อื่น ๆ"
+  },
+  "revisionStatus": {
+    "pending": "รออนุมัติ",
+    "approved": "อนุมัติแล้ว",
+    "rejected": "ปฏิเสธ",
+    "cancelled": "ยกเลิก"
+  },
+  "workType": {
+    "office": "ออฟฟิศ",
+    "onsite": "ออนไซต์",
+    "wfh": "ทำงานที่บ้าน",
+    "customer_site": "ไซต์ลูกค้า",
+    "factory_support": "สนับสนุนโรงงาน",
+    "training": "อบรม",
+    "leave": "ลา",
+    "ot": "แผน OT"
+  },
+  "insightSeverity": {
+    "critical": "วิกฤต",
+    "warning": "เตือน",
+    "info": "ข้อมูล"
+  },
+  "approvalAction": {
+    "submit": "ส่งแล้ว",
+    "resubmit": "ส่งใหม่",
+    "approve": "อนุมัติ",
+    "reject": "ปฏิเสธ",
+    "send_back": "ส่งกลับ",
+    "request_more_info": "ขอข้อมูลเพิ่มเติม",
+    "cancel": "ยกเลิก",
+    "convert": "แปลงเป็นโปรเจกต์"
+  },
+  "positionLevel": {
+    "staff": "พนักงาน",
+    "supervisor": "หัวหน้างาน",
+    "manager": "ผู้จัดการ",
+    "gm": "ผู้จัดการทั่วไป (GM)",
+    "factory_manager": "ผู้จัดการโรงงาน",
+    "president": "ประธาน"
+  },
+  "routeStage": {
+    "requestor": "ฝั่งผู้ขอ",
+    "receive": "รับคำขอ",
+    "authority": "ฝั่ง System Service"
+  },
+  "routeGroup": {
+    "requestor": "การอนุมัติฝั่งผู้ขอ",
+    "receive": "การอนุมัติฝั่ง System Service"
+  },
+  "routeProblem": {
+    "noSteps": "เส้นทางยังไม่มีขั้นตอน",
+    "oneReceive": "เส้นทางต้องมีขั้นตอนรับคำขอเพียงหนึ่งขั้นตอน",
+    "stageOrder": "ขั้นตอนต้องเรียงเป็น ฝั่งผู้ขอ → รับคำขอ → ฝั่ง System Service",
+    "stepName": "ทุกขั้นตอนต้องมีชื่อ",
+    "uniqueCodes": "รหัสขั้นตอนต้องไม่ซ้ำกัน",
+    "requestorLevel": "ทุกขั้นตอนฝั่งผู้ขอต้องกำหนดระดับตำแหน่ง"
+  },
+  "reduction": {
+    "time": "เวลา (นาที / เดือน)",
+    "man": "คน (คน / เดือน)",
+    "cost": "ค่าใช้จ่ายอื่น (บาท)"
+  },
+  "entityType": {
+    "project": "โปรเจกต์",
+    "activity": "กิจกรรม",
+    "task": "งาน",
+    "request": "คำขอ",
+    "test_round": "รอบการทดสอบ",
+    "bug": "บั๊ก",
+    "fix": "การแก้ไข",
+    "retest": "ทดสอบซ้ำ"
+  },
+  "verificationStatus": {
+    "pending": "รอตรวจสอบ",
+    "verified": "ตรวจสอบแล้ว",
+    "rejected": "ไม่ผ่าน"
+  },
+  "fixStatus": {
+    "in_progress": "กำลังแก้ไข",
+    "ready": "พร้อมทดสอบ",
+    "verified": "ยืนยันแล้ว",
+    "failed": "ไม่ผ่าน"
+  },
+  "auditTable": {
+    "projects": "โปรเจกต์",
+    "activities": "กิจกรรม",
+    "internal_tasks": "งาน",
+    "project_members": "ทีม",
+    "evidence": "หลักฐาน",
+    "project_baselines": "Baseline",
+    "project_requests": "คำขอ",
+    "test_rounds": "รอบการทดสอบ",
+    "bugs": "บั๊ก",
+    "bug_fixes": "การแก้ไข",
+    "retests": "ทดสอบซ้ำ",
+    "evidence_requirements": "รายการตรวจสอบ",
+    "baseline_revisions": "การปรับแผน"
+  },
+  "auditAction": {
+    "insert": "เพิ่ม",
+    "delete": "ลบ",
+    "update": "แก้ไข"
+  },
+  "picLabel": {
+    "System": "System",
+    "User": "ผู้ใช้",
+    "Vendor": "Vendor"
+  }
+}

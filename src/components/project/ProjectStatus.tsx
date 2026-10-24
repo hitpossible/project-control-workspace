@@ -1,6 +1,7 @@
 'use client';
 
 import { Ban, Check, ChevronDown, CircleCheckBig, RotateCcw, TriangleAlert, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { dispatchEmails, useApp } from '@/components/AppProvider';
 import { ActionButton, CommentDialog, StatusChip } from '@/components/common';
@@ -8,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useOptions } from '@/i18n/useOptions';
 import { PROJECT_STATUSES } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
@@ -19,9 +21,10 @@ const CLOSED = ['completed', 'cancelled'];
 const MANUAL = PROJECT_STATUSES.filter((s) => ['planning', 'in_progress', 'waiting', 'on_hold'].includes(s.value));
 
 type Check = { label: string; ok: boolean; detail?: string; blocking: boolean };
+type CloseT = ReturnType<typeof useTranslations<'project.close'>>;
 
 /** What stops (or should give pause before) completing the project — mirrors the projects.beforeUpdate hook */
-export function closeChecks({ data, perm }: Pick<TabProps, 'data' | 'perm'>): Check[] {
+export function closeChecks({ data, perm }: Pick<TabProps, 'data' | 'perm'>, t: CloseT): Check[] {
   const p = data.project;
   const openActs = data.activities.filter((a) => !CLOSED.includes(a.status));
   const hasEvidence = (id: number) => data.evidence.some((e) => e.requirement_id === id && e.verification_status !== 'rejected');
@@ -29,14 +32,14 @@ export function closeChecks({ data, perm }: Pick<TabProps, 'data' | 'perm'>): Ch
   const missingProject = missing.filter((r) => r.entity_type === 'project');
   const openTasks = data.tasks.filter((t) => !CLOSED.includes(t.status));
   const openBugs = Math.max(0, p.open_bugs - p.critical_bugs);
-  const list = (names: string[]) => names.slice(0, 5).join(', ') + (names.length > 5 ? ` +${names.length - 5} more` : '');
+  const list = (names: string[]) => names.slice(0, 5).join(', ') + (names.length > 5 ? ` ${t('more', { count: names.length - 5 })}` : '');
   return [
-    { label: 'All activities done', ok: openActs.length === 0, blocking: true, detail: openActs.length ? `Still open: ${list(openActs.map((a) => a.name))}` : undefined },
-    { label: 'Mandatory evidence attached', ok: missing.length === 0, blocking: missingProject.length > 0, detail: missing.length ? `Missing: ${list(missing.map((r) => r.name))}` : undefined },
-    { label: 'No open critical bugs', ok: p.critical_bugs === 0, blocking: true, detail: p.critical_bugs ? `${p.critical_bugs} critical bug(s) open` : undefined },
+    { label: t('check.activities'), ok: openActs.length === 0, blocking: true, detail: openActs.length ? t('check.stillOpen', { items: list(openActs.map((a) => a.name)) }) : undefined },
+    { label: t('check.evidence'), ok: missing.length === 0, blocking: missingProject.length > 0, detail: missing.length ? t('check.missing', { items: list(missing.map((r) => r.name)) }) : undefined },
+    { label: t('check.criticalBugs'), ok: p.critical_bugs === 0, blocking: true, detail: p.critical_bugs ? t('check.criticalOpen', { count: p.critical_bugs }) : undefined },
     ...(perm.internal ? [
-      { label: 'All internal tasks closed', ok: openTasks.length === 0, blocking: false, detail: openTasks.length ? `${openTasks.length} task(s) still open` : undefined },
-      { label: 'No other open bugs', ok: openBugs === 0, blocking: false, detail: openBugs ? `${openBugs} bug(s) still open` : undefined },
+      { label: t('check.tasks'), ok: openTasks.length === 0, blocking: false, detail: openTasks.length ? t('check.tasksOpen', { count: openTasks.length }) : undefined },
+      { label: t('check.otherBugs'), ok: openBugs === 0, blocking: false, detail: openBugs ? t('check.bugsOpen', { count: openBugs }) : undefined },
     ] : []),
   ];
 }
@@ -48,16 +51,17 @@ async function setStatus(id: number, patch: Record<string, unknown>) {
 }
 
 export function CloseProjectDialog({ data, perm, reload, onClose }: Pick<TabProps, 'data' | 'perm' | 'reload'> & { onClose: () => void }) {
+  const t = useTranslations('project.close');
   const { notify } = useApp();
   const [busy, setBusy] = useState(false);
-  const checks = closeChecks({ data, perm });
+  const checks = closeChecks({ data, perm }, t);
   const blocked = checks.some((c) => !c.ok && c.blocking);
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Close project</DialogTitle>
-          <DialogDescription>{data.project.project_code} will be marked Done and stop being tracked for delays and alerts.</DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description', { code: data.project.project_code })}</DialogDescription>
         </DialogHeader>
         <ul className="flex flex-col gap-2">
           {checks.map((c) => (
@@ -74,15 +78,15 @@ export function CloseProjectDialog({ data, perm, reload, onClose }: Pick<TabProp
           ))}
         </ul>
         {blocked
-          ? <p className="text-sm text-destructive">Fix the red items before closing.</p>
-          : checks.some((c) => !c.ok) && <p className="text-sm text-amber-700">The yellow items do not block closing, but check them first.</p>}
+          ? <p className="text-sm text-destructive">{t('blocked')}</p>
+          : checks.some((c) => !c.ok) && <p className="text-sm text-amber-700">{t('warnings')}</p>}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Not yet</Button>
+          <Button variant="outline" onClick={onClose}>{t('notYet')}</Button>
           <ActionButton tone="success" disabled={blocked || busy} onClick={async () => {
             setBusy(true);
             try {
               await setStatus(data.project.id, { status: 'completed' });
-              notify('Project closed');
+              notify(t('closed'));
               onClose();
               await reload();
             } catch (e) {
@@ -90,7 +94,7 @@ export function CloseProjectDialog({ data, perm, reload, onClose }: Pick<TabProp
             } finally {
               setBusy(false);
             }
-          }}><CircleCheckBig /> Close project</ActionButton>
+          }}><CircleCheckBig /> {t('title')}</ActionButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -99,6 +103,8 @@ export function CloseProjectDialog({ data, perm, reload, onClose }: Pick<TabProp
 
 /** Status chip in the project header; a menu to change it for whoever can manage the project */
 export function ProjectStatusMenu({ data, perm, reload }: Pick<TabProps, 'data' | 'perm' | 'reload'>) {
+  const t = useTranslations('project.status');
+  const { label } = useOptions();
   const { notify } = useApp();
   const p = data.project;
   const [dialog, setDialog] = useState<'close' | 'cancel' | null>(null);
@@ -119,39 +125,39 @@ export function ProjectStatusMenu({ data, perm, reload }: Pick<TabProps, 'data' 
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="group inline-flex items-center gap-0.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring" title="Change status">
+          <button type="button" className="group inline-flex items-center gap-0.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring" title={t('change')}>
             <StatusChip list={PROJECT_STATUSES} value={p.status} className="group-hover:brightness-95" />
             <ChevronDown className="size-4 text-muted-foreground group-hover:text-foreground" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56">
           {closed ? (
-            <DropdownMenuItem onSelect={() => change({ status: 'in_progress' }, 'Project reopened')}><RotateCcw /> Reopen project</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => change({ status: 'in_progress' }, t('reopened'))}><RotateCcw /> {t('reopen')}</DropdownMenuItem>
           ) : (
             <>
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Set status</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">{t('set')}</DropdownMenuLabel>
               {MANUAL.map((s) => (
-                <DropdownMenuItem key={s.value} disabled={s.value === p.status} onSelect={() => change({ status: s.value }, `Status: ${s.label}`)}>
-                  <span className="size-3 rounded-sm" style={{ background: s.color }} /> {s.label}
+                <DropdownMenuItem key={s.value} disabled={s.value === p.status} onSelect={() => change({ status: s.value }, t('changed', { status: label(PROJECT_STATUSES, s.value) }))}>
+                  <span className="size-3 rounded-sm" style={{ background: s.color }} /> {label(PROJECT_STATUSES, s.value)}
                   {s.value === p.status && <Check className="ml-auto" />}
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setDialog('close')}><CircleCheckBig className="text-[#00c875]" /> Close project (Done)…</DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onSelect={() => setDialog('cancel')}><Ban /> Cancel project…</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog('close')}><CircleCheckBig className="text-[#00c875]" /> {t('closeDone')}</DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={() => setDialog('cancel')}><Ban /> {t('cancelEllipsis')}</DropdownMenuItem>
             </>
           )}
           <DropdownMenuSeparator />
-          <p className="px-1.5 py-1 text-xs text-muted-foreground">Delayed / At Risk are set automatically from the plan.</p>
+          <p className="px-1.5 py-1 text-xs text-muted-foreground">{t('autoNote')}</p>
         </DropdownMenuContent>
       </DropdownMenu>
       {dialog === 'close' && <CloseProjectDialog data={data} perm={perm} reload={reload} onClose={() => setDialog(null)} />}
-      <CommentDialog open={dialog === 'cancel'} title="Cancel project" required variant="destructive" confirmLabel="Cancel project"
-        description={`${p.project_code} will stop and be closed as Cancelled. The reason is added to the project remark.`}
+      <CommentDialog open={dialog === 'cancel'} title={t('cancel')} required variant="destructive" confirmLabel={t('cancel')}
+        description={t('cancelDescription', { code: p.project_code })}
         onClose={() => setDialog(null)}
         onConfirm={async (reason) => {
           setDialog(null);
-          await change({ status: 'cancelled', remark: [p.remark, `Cancelled: ${reason.trim()}`].filter(Boolean).join('\n') }, 'Project cancelled');
+          await change({ status: 'cancelled', remark: [p.remark, t('cancelRemark', { reason: reason.trim() })].filter(Boolean).join('\n') }, t('cancelled'));
         }} />
     </>
   );
@@ -159,14 +165,15 @@ export function ProjectStatusMenu({ data, perm, reload }: Pick<TabProps, 'data' 
 
 /** Header button; solid green once every activity is closed */
 export function CloseProjectButton({ data, perm, reload }: Pick<TabProps, 'data' | 'perm' | 'reload'>) {
+  const t = useTranslations('project.close');
   const [open, setOpen] = useState(false);
   if (!perm.manage || CLOSED.includes(data.project.status)) return null;
   const ready = data.activities.length > 0 && data.activities.every((a) => CLOSED.includes(a.status));
   return (
     <>
       {ready
-        ? <ActionButton tone="success" onClick={() => setOpen(true)}><CircleCheckBig /> Close Project</ActionButton>
-        : <Button variant="outline" onClick={() => setOpen(true)}><CircleCheckBig /> Close Project</Button>}
+        ? <ActionButton tone="success" onClick={() => setOpen(true)}><CircleCheckBig /> {t('button')}</ActionButton>
+        : <Button variant="outline" onClick={() => setOpen(true)}><CircleCheckBig /> {t('button')}</Button>}
       {open && <CloseProjectDialog data={data} perm={perm} reload={reload} onClose={() => setOpen(false)} />}
     </>
   );
@@ -174,6 +181,7 @@ export function CloseProjectButton({ data, perm, reload }: Pick<TabProps, 'data'
 
 /** Overview banner once every activity is closed but the project is still open */
 export function ReadyToCloseBanner({ data, perm, reload }: Pick<TabProps, 'data' | 'perm' | 'reload'>) {
+  const t = useTranslations('project.close');
   const [open, setOpen] = useState(false);
   const p = data.project;
   if (!perm.manage || CLOSED.includes(p.status) || !data.activities.length || data.activities.some((a) => !CLOSED.includes(a.status))) return null;
@@ -181,10 +189,10 @@ export function ReadyToCloseBanner({ data, perm, reload }: Pick<TabProps, 'data'
     <>
       <Alert className="mb-4 border-[#00c875] bg-[#00c875]/5">
         <CircleCheckBig className="text-[#00c875]" />
-        <AlertTitle>All activities are done</AlertTitle>
+        <AlertTitle>{t('bannerTitle')}</AlertTitle>
         <AlertDescription className="flex flex-wrap items-center gap-3">
-          <span>Check the closing list and mark the project Done.</span>
-          <ActionButton tone="success" size="sm" onClick={() => setOpen(true)}><CircleCheckBig /> Close project</ActionButton>
+          <span>{t('bannerText')}</span>
+          <ActionButton tone="success" size="sm" onClick={() => setOpen(true)}><CircleCheckBig /> {t('title')}</ActionButton>
         </AlertDescription>
       </Alert>
       {open && <CloseProjectDialog data={data} perm={perm} reload={reload} onClose={() => setOpen(false)} />}

@@ -1,0 +1,21 @@
+{
+  "title": "Projects",
+  "subtitle": "Controlled Projects — one project, one control workspace",
+  "statusAll": "Status: All",
+  "activeNotClosed": "Active (not closed)",
+  "healthAll": "Health: All",
+  "health": {
+    "green": "Green",
+    "yellow": "Yellow",
+    "red": "Red"
+  },
+  "attentionOnly": "Need attention only",
+  "empty": "No projects",
+  "group": {
+    "active": "Active",
+    "planning": "Planning",
+    "done": "Done",
+    "cancelled": "Cancelled"
+  },
+  "varianceDays": "{days}d"
+}

@@ -1,0 +1,89 @@
+{
+  "clarify": {
+    "aiTyping": "AI is typing",
+    "quick": {
+      "notSure": "Not sure yet",
+      "skip": "Skip this question"
+    },
+    "voiceOff": "Voice is not set up",
+    "voiceStopped": "Voice stopped: {error}",
+    "allowMic": "Allow the microphone to talk with the assistant",
+    "voiceUnavailable": "Voice is not available: {error}",
+    "addedByRequestor": "Added by the requestor",
+    "title": "Project Assistant",
+    "subtitleChat": "A few questions so the System Service team can plan your project",
+    "subtitleReview": "Check what the team will see, then submit",
+    "noAnswer": "The assistant didn't answer this time.",
+    "tryAgain": "Try again",
+    "reviewSubmit": "Review & Submit",
+    "allCovered": "That covers what the team needs",
+    "reviewSummary": "Review summary",
+    "voice": {
+      "connecting": "Connecting…",
+      "speaking": "Assistant is speaking…",
+      "muted": "Microphone off",
+      "listening": "Listening — just talk",
+      "hint": "You can interrupt at any time. Answers are checked as you go.",
+      "micOn": "Turn microphone on",
+      "micOff": "Turn microphone off",
+      "end": "End voice",
+      "start": "Talk with the assistant"
+    },
+    "assistantTyping": "Assistant is typing…",
+    "typeAnswer": "Type your answer…",
+    "reviewNote": "This summary goes to the approvers and the System Service team with your request. Correct anything that is wrong — you can also fill in what is still missing.",
+    "requiredLower": "required",
+    "notCoveredPlaceholder": "Not covered yet — add a line if you can",
+    "checklist": "Checklist",
+    "requiredCount": "Required {covered}/{total}",
+    "group": {
+      "required": "Required",
+      "optional": "Optional"
+    },
+    "backToEdit": "Back to Edit",
+    "skipSubmit": "Skip & Submit",
+    "backToChat": "Back to chat",
+    "submit": "Submit for Approval"
+  },
+  "analysis": {
+    "complexity": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "verdict": {
+      "below": "{pct}% below AI",
+      "above": "{pct}% above AI",
+      "within": "within AI range"
+    },
+    "off": "AI is not set up on this server",
+    "startFailed": "Could not start the analysis",
+    "title": "AI Initial Analysis",
+    "again": "Analyze again",
+    "run": "Run analysis",
+    "reanalyze": "Re-analyze",
+    "analyze": "Analyze",
+    "analyzing": "Analyzing the request…",
+    "failed": "The AI could not analyze this request this time.",
+    "none": "No analysis yet.",
+    "tryAgain": "Press Analyze to try again.",
+    "complexityLabel": "Complexity",
+    "readiness": "Readiness",
+    "effort": "Est. Effort",
+    "md": "{md} MD",
+    "reviewerTip": "System Service's estimate at review",
+    "reviewer": "Reviewer",
+    "phases": "Effort by Phase",
+    "mostLikely": "most likely {md} MD",
+    "why": "Why",
+    "suggested": "Suggested for Review",
+    "type": "Type",
+    "template": "Template",
+    "use": "Use",
+    "similar": "Similar Past Projects",
+    "modules": "Suggested Modules",
+    "risks": "Potential Risks",
+    "nextStep": "Suggested Next Step",
+    "footer": "AI estimate from the request and interview — {at}. Please verify before planning."
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowLeft, ArrowRight, Check, Circle, Loader2, Mic, MicOff, Minus, PhoneOff, RotateCcw, SendHorizontal, Sparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { coverageCount, type AiCoverage, type ChatMessage, type CriterionCoverage } from '@/lib/clarify';
 import { errMsg } from '@/lib/format';
@@ -14,7 +15,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dial
 import { Textarea } from './ui/textarea';
 
 const ENTER = 'pcw-motion motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300';
-const QUICK_REPLIES = ['Not sure yet', 'Skip this question'];
+/** sent to the AI as the user's answer — texts: ai.clarify.quick.<key> */
+const QUICK_REPLIES = ['notSure', 'skip'] as const;
 
 export function CoverageIcon({ c }: { c: Pick<CriterionCoverage, 'status' | 'required'> }) {
   if (c.status === 'covered') return <Check className="size-3.5 shrink-0 text-[#00854d]" strokeWidth={3} />;
@@ -34,8 +36,9 @@ function AiAvatar({ glow, className }: { glow?: boolean; className?: string }) {
 }
 
 function TypingDots() {
+  const t = useTranslations('ai.clarify');
   return (
-    <span className="flex h-5 items-center gap-1" aria-label="AI is typing">
+    <span className="flex h-5 items-center gap-1" aria-label={t('aiTyping')}>
       {[0, 1, 2].map((i) => (
         <span key={i} className="pcw-motion size-1.5 rounded-full bg-muted-foreground" style={{ animation: `pcw-typing 1.2s ease-in-out ${i * 0.15}s infinite` }} />
       ))}
@@ -101,6 +104,7 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
   onSubmit: (r: ProjectRequest) => Promise<void>;
   onClose: () => void;
 }) {
+  const t = useTranslations('ai.clarify');
   const db = dbClient();
   const { notify } = useApp();
   const [messages, setMessages] = useState<ChatMessage[]>(request.ai_chat ?? []);
@@ -290,16 +294,16 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
       });
       const json = await res.json();
       if (!res.ok || json.error) throw new Error(json.error?.message ?? res.statusText);
-      if (json.data?.off) throw new Error('Voice is not set up');
+      if (json.data?.off) throw new Error(t('voiceOff'));
       call.current = await startLive(json.data.token, json.data.model, {
-        onUserText: (t) => { draft.current.user = t; setLiveUser(t); },
+        onUserText: (text) => { draft.current.user = text; setLiveUser(text); },
         onModelStart: () => {
           // the user's answer is complete: show it and have it checked while the assistant talks
           if (say('user', draft.current.user)) void assess();
           draft.current.user = '';
           setLiveUser('');
         },
-        onModelText: (t) => { draft.current.model = t; setLiveModel(t); },
+        onModelText: (text) => { draft.current.model = text; setLiveModel(text); },
         onTurnComplete: () => {
           if (say('assistant', draft.current.model)) setTurns((n) => n + 1);
           draft.current.model = '';
@@ -318,14 +322,14 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
           setSpeaking(false);
           setLevel(0);
           setVoice('off');
-          if (error) notify(`Voice stopped: ${error}`, 'error');
+          if (error) notify(t('voiceStopped', { error }), 'error');
         },
       });
       setVoice('live');
     } catch (e) {
       call.current = null;
       setVoice('off');
-      notify(e instanceof Error && e.name === 'NotAllowedError' ? 'Allow the microphone to talk with the assistant' : `Voice is not available: ${errMsg(e)}`, 'error');
+      notify(e instanceof Error && e.name === 'NotAllowedError' ? t('allowMic') : t('voiceUnavailable', { error: errMsg(e) }), 'error');
     }
   };
 
@@ -358,7 +362,7 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
       const summary = summaries[c.key]?.trim() || null;
       if (c.status !== 'missing') return { ...c, summary };
       // still missing: keep whatever partial information the AI noted, unless the requestor filled it in
-      return summary ? { ...c, summary, status: 'covered', note: 'Added by the requestor' } : c;
+      return summary ? { ...c, summary, status: 'covered', note: t('addedByRequestor') } : c;
     });
     setBusy(true);
     const res = await db.from('project_requests').update({ ai_coverage: { ...coverage, criteria } }).eq('id', request.id).select().single();
@@ -379,9 +383,9 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
         <div className="relative flex items-center gap-3 border-b bg-background px-5 py-4 pr-12">
           <AiAvatar glow={thinking} className="size-9 rounded-lg" />
           <div className="min-w-0 flex-1">
-            <DialogTitle className="font-heading text-lg">Project Assistant</DialogTitle>
+            <DialogTitle className="font-heading text-lg">{t('title')}</DialogTitle>
             <DialogDescription className="mt-1 text-xs">
-              {phase === 'chat' ? 'A few questions so the System Service team can plan your project' : 'Check what the team will see, then submit'}
+              {phase === 'chat' ? t('subtitleChat') : t('subtitleReview')}
             </DialogDescription>
           </div>
           {coverage && (
@@ -442,10 +446,10 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
                     <div className={cn('flex items-end gap-2', ENTER)}>
                       <AiAvatar />
                       <div className="rounded-lg rounded-bl-sm border border-[#fdab3d] bg-[#fff6e5] px-3.5 py-2.5 text-sm">
-                        The assistant didn&apos;t answer this time.
+                        {t('noAnswer')}
                         <div className="mt-2 flex gap-2">
-                          <Button size="sm" variant="outline" className="h-7" onClick={() => ask(messages, turns)}><RotateCcw /> Try again</Button>
-                          <Button size="sm" variant="ghost" className="h-7" onClick={openReview}>Review & Submit</Button>
+                          <Button size="sm" variant="outline" className="h-7" onClick={() => ask(messages, turns)}><RotateCcw /> {t('tryAgain')}</Button>
+                          <Button size="sm" variant="ghost" className="h-7" onClick={openReview}>{t('reviewSubmit')}</Button>
                         </div>
                       </div>
                     </div>
@@ -456,8 +460,8 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
                       <span className="pcw-motion flex size-8 items-center justify-center rounded-full bg-[#00c875] text-white motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-500">
                         <Check className="size-4" strokeWidth={3} />
                       </span>
-                      <div className="text-sm font-medium">That covers what the team needs</div>
-                      <Button size="sm" onClick={openReview}>Review summary <ArrowRight /></Button>
+                      <div className="text-sm font-medium">{t('allCovered')}</div>
+                      <Button size="sm" onClick={openReview}>{t('reviewSummary')} <ArrowRight /></Button>
                     </div>
                   )}
                 </div>
@@ -467,15 +471,15 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
                     <VoiceOrb level={level} speaking={speaking} connecting={voice === 'connecting'} />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium">
-                        {voice === 'connecting' ? 'Connecting…' : speaking ? 'Assistant is speaking…' : muted ? 'Microphone off' : 'Listening — just talk'}
+                        {voice === 'connecting' ? t('voice.connecting') : speaking ? t('voice.speaking') : muted ? t('voice.muted') : t('voice.listening')}
                       </div>
-                      <div className="text-xs text-muted-foreground">You can interrupt at any time. Answers are checked as you go.</div>
+                      <div className="text-xs text-muted-foreground">{t('voice.hint')}</div>
                     </div>
-                    <Button variant="outline" size="icon" disabled={voice !== 'live'} title={muted ? 'Turn microphone on' : 'Turn microphone off'}
+                    <Button variant="outline" size="icon" disabled={voice !== 'live'} title={muted ? t('voice.micOn') : t('voice.micOff')}
                       onClick={() => { const m = !muted; setMuted(m); call.current?.setMuted(m); }}>
                       {muted ? <MicOff /> : <Mic />}
                     </Button>
-                    <Button variant="destructive" onClick={stopVoice} disabled={voice !== 'live'}><PhoneOff /> End voice</Button>
+                    <Button variant="destructive" onClick={stopVoice} disabled={voice !== 'live'}><PhoneOff /> {t('voice.end')}</Button>
                   </div>
                 ) : (
                 <div className="border-t bg-background px-4 py-3">
@@ -483,11 +487,11 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
                     {QUICK_REPLIES.map((q) => (
                       <button key={q} type="button" disabled={inputLocked || !messages.length}
                         className="rounded-md border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:bg-selected/40 hover:text-primary disabled:pointer-events-none disabled:opacity-50"
-                        onClick={() => send(q)}>{q}</button>
+                        onClick={() => send(t(`quick.${q}`))}>{t(`quick.${q}`)}</button>
                     ))}
                   </div>
                   <div className="flex items-end gap-2">
-                    <Textarea ref={inputRef} rows={1} value={input} placeholder={inputLocked ? 'Assistant is typing…' : 'Type your answer…'}
+                    <Textarea ref={inputRef} rows={1} value={input} placeholder={inputLocked ? t('assistantTyping') : t('typeAnswer')}
                       className="max-h-32 min-h-10 resize-none px-3"
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -498,7 +502,7 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
                         }
                       }} />
                     {voiceOk && (
-                      <Button size="icon" variant="outline" className="size-10 shrink-0" title="Talk with the assistant" disabled={inputLocked} onClick={startVoice}>
+                      <Button size="icon" variant="outline" className="size-10 shrink-0" title={t('voice.start')} disabled={inputLocked} onClick={startVoice}>
                         <Mic />
                       </Button>
                     )}
@@ -511,16 +515,16 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
               </>
             ) : (
               <div className="pcw-motion min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-5 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-4 motion-safe:duration-300">
-                <p className="text-sm text-muted-foreground">This summary goes to the approvers and the System Service team with your request. Correct anything that is wrong — you can also fill in what is still missing.</p>
+                <p className="text-sm text-muted-foreground">{t('reviewNote')}</p>
                 {coverage?.criteria.filter((c) => c.status !== 'not_applicable').map((c, i) => (
                   <div key={c.key} className={cn('rounded-lg border p-3 transition-colors focus-within:border-primary', c.required && c.status === 'missing' && 'border-[#fdab3d] bg-[#fff6e5]', ENTER)}
                     style={{ animationDelay: `${i * 40}ms`, animationFillMode: 'backwards' }}>
                     <div className="mb-1.5 flex items-center gap-1.5 text-sm font-medium">
                       <CoverageIcon c={c} /> {c.label}
-                      {c.required && <span className="text-xs font-normal text-muted-foreground">· required</span>}
+                      {c.required && <span className="text-xs font-normal text-muted-foreground">· {t('requiredLower')}</span>}
                     </div>
                     {c.status === 'missing' && (c.summary || c.note) && <p className="mb-1.5 text-xs text-muted-foreground">{c.summary || c.note}</p>}
-                    <Textarea rows={1} value={summaries[c.key] ?? ''} placeholder={c.status === 'missing' ? 'Not covered yet — add a line if you can' : ''}
+                    <Textarea rows={1} value={summaries[c.key] ?? ''} placeholder={c.status === 'missing' ? t('notCoveredPlaceholder') : ''}
                       className="min-h-9 resize-none bg-background text-sm"
                       onChange={(e) => setSummaries((s) => ({ ...s, [c.key]: e.target.value }))} />
                   </div>
@@ -532,8 +536,8 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
           {/* Checklist */}
           <aside className="hidden min-h-0 overflow-y-auto border-l bg-muted/50 p-4 sm:block">
             <div className="mb-1 flex items-baseline justify-between">
-              <span className="font-heading text-sm font-medium">Checklist</span>
-              <span className="text-xs text-muted-foreground">Required {covered}/{total}</span>
+              <span className="font-heading text-sm font-medium">{t('checklist')}</span>
+              <span className="text-xs text-muted-foreground">{t('requiredCount', { covered, total })}</span>
             </div>
             <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-grid">
               <div className="pcw-motion h-full rounded-full bg-[#00c875] transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
@@ -543,11 +547,11 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
                 {Array.from({ length: 8 }, (_, i) => <div key={i} className="h-4 animate-pulse rounded bg-grid" style={{ width: `${60 + ((i * 37) % 35)}%` }} />)}
               </div>
             ) : (
-              (['Required', 'Optional'] as const).map((group) => (
+              (['required', 'optional'] as const).map((group) => (
                 <div key={group} className="mb-3">
-                  <div className="mb-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">{group}</div>
+                  <div className="mb-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">{t(`group.${group}`)}</div>
                   <ul className="space-y-0.5">
-                    {coverage.criteria.filter((c) => c.required === (group === 'Required')).map((c) => (
+                    {coverage.criteria.filter((c) => c.required === (group === 'required')).map((c) => (
                       <li key={c.key} title={c.summary ?? c.note ?? undefined}
                         className={cn('pcw-motion flex items-center gap-2 rounded-md px-1.5 py-1 text-xs transition-colors duration-700', flash.has(c.key) ? 'bg-[#00c875]/15' : 'bg-transparent')}>
                         <span key={c.status} className="pcw-motion motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-300"><CoverageIcon c={c} /></span>
@@ -565,16 +569,16 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
         <div className="flex items-center gap-2 border-t bg-muted/50 px-5 py-3">
           {phase === 'chat' ? (
             <>
-              <Button variant="ghost" disabled={busy} onClick={async () => { ctrl.current?.abort(); await endVoice(); onClose(); }}>Back to Edit</Button>
+              <Button variant="ghost" disabled={busy} onClick={async () => { ctrl.current?.abort(); await endVoice(); onClose(); }}>{t('backToEdit')}</Button>
               <span className="flex-1" />
-              <Button variant="outline" disabled={busy} onClick={submit}>Skip & Submit</Button>
-              <Button disabled={busy || (!coverage && thinking)} onClick={openReview}>Review & Submit <ArrowRight /></Button>
+              <Button variant="outline" disabled={busy} onClick={submit}>{t('skipSubmit')}</Button>
+              <Button disabled={busy || (!coverage && thinking)} onClick={openReview}>{t('reviewSubmit')} <ArrowRight /></Button>
             </>
           ) : (
             <>
-              <Button variant="outline" disabled={busy} onClick={() => setPhase('chat')}><ArrowLeft /> Back to chat</Button>
+              <Button variant="outline" disabled={busy} onClick={() => setPhase('chat')}><ArrowLeft /> {t('backToChat')}</Button>
               <span className="flex-1" />
-              <Button disabled={busy} onClick={confirm}>{busy && <Loader2 className="animate-spin" />} Submit for Approval</Button>
+              <Button disabled={busy} onClick={confirm}>{busy && <Loader2 className="animate-spin" />} {t('submit')}</Button>
             </>
           )}
         </div>

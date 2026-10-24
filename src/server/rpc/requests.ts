@@ -1,4 +1,4 @@
-import { ROUTE_STAGES, canActOnStep, formatPrefix, positionsForLevels, routeApprovers, routeProblems, statusForStep, stepStage } from '@/lib/approval';
+import { ROUTE_STAGES, canActOnStep, formatPrefix, positionsForLevels, routeApprovers, routeProblems, routeProblemsEn, statusForStep, stepStage } from '@/lib/approval';
 import type { ApprovalStep, DocumentType, ProjectRequest } from '@/lib/types';
 import { AppError, type Ctx, type Row } from '../db';
 import { getRow, insertRow, updateRow } from '../engine';
@@ -77,7 +77,7 @@ export async function submitRequest(ctx: Ctx, a: { p_request_id: number }) {
   if (!doc) throw new AppError('The request has no document type');
   if (!doc.is_active && !r.request_no) throw new AppError(`${doc.name} is no longer accepted — ask an administrator`);
   const problems = routeProblems(doc.approval_route ?? []);
-  if (problems.length) throw new AppError(`The ${doc.name} approval route is not set up: ${problems.join('; ')}. Ask an administrator to fix it in Admin → Document Types.`);
+  if (problems.length) throw new AppError(`The ${doc.name} approval route is not set up: ${routeProblemsEn(problems).join('; ')}. Ask an administrator to fix it in Admin → Document Types.`);
   const steps: Row[] = doc.approval_route.map((s, i) => ({
     step_no: i + 1, step_code: s.step_code, step_name: s.step_name, stage: s.stage,
     approver_role: ROUTE_STAGES.find((x) => x.value === s.stage)!.group,

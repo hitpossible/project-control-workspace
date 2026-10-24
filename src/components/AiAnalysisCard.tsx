@@ -2,6 +2,7 @@
 
 import { ArrowRight, FolderKanban, Loader2, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import type { AiAnalysis } from '@/lib/clarify';
 import { dbClient } from '@/lib/db/client';
@@ -10,17 +11,18 @@ import { cn } from '@/lib/utils';
 import { Section } from './common';
 import { Button } from './ui/button';
 
-const COMPLEXITY: Record<NonNullable<AiAnalysis['complexity']>, { label: string; fg: string; bg: string }> = {
-  low: { label: 'Low', fg: '#00854d', bg: '#e3f8ee' },
-  medium: { label: 'Medium', fg: '#b45309', bg: '#fff1d6' },
-  high: { label: 'High', fg: '#d83a52', bg: '#fdebee' },
+/** labels: ai.analysis.complexity.<level> */
+const COMPLEXITY: Record<NonNullable<AiAnalysis['complexity']>, { fg: string; bg: string }> = {
+  low: { fg: '#00854d', bg: '#e3f8ee' },
+  medium: { fg: '#b45309', bg: '#fff1d6' },
+  high: { fg: '#d83a52', bg: '#fdebee' },
 };
 const readinessColor = (n: number) => (n >= 80 ? '#00c875' : n >= 50 ? '#fdab3d' : '#e2445c');
 /** where the reviewer's estimate falls against the AI's range */
-function mdVerdict(md: number, lo: number, hi: number) {
-  if (md < lo) return { label: `${Math.round(((lo - md) / lo) * 100)}% below AI`, color: '#0073ea' };
-  if (md > hi) return { label: `${Math.round(((md - hi) / hi) * 100)}% above AI`, color: '#d83a52' };
-  return { label: 'within AI range', color: '#00854d' };
+function mdVerdict(md: number, lo: number, hi: number, t: ReturnType<typeof useTranslations<'ai.analysis'>>) {
+  if (md < lo) return { label: t('verdict.below', { pct: Math.round(((lo - md) / lo) * 100) }), color: '#0073ea' };
+  if (md > hi) return { label: t('verdict.above', { pct: Math.round(((md - hi) / hi) * 100) }), color: '#d83a52' };
+  return { label: t('verdict.within'), color: '#00854d' };
 }
 const PHASE_COLORS = ['#579bfc', '#a25ddc', '#fdab3d', '#00c875'];
 /** a pending analysis older than this is treated as lost (server restarted mid-way) */
@@ -46,6 +48,7 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
   onApply?: (projectTypeId: number | null, templateId: number | null) => void;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('ai.analysis');
   const db = dbClient();
   const [analysis, setAnalysis] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -61,8 +64,8 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
 
   useEffect(() => {
     if (!pending) return;
-    const t = setInterval(() => onRefresh(), 4000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => onRefresh(), 4000);
+    return () => clearInterval(timer);
   }, [pending, onRefresh]);
 
   const run = async () => {
@@ -70,10 +73,10 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
     try {
       const j = await fetch(`/api/requests/${requestId}/analysis`, { method: 'POST' }).then((r) => r.json());
       if (j.error) onError(j.error.message);
-      else if (j.data?.off) onError('AI is not set up on this server');
+      else if (j.data?.off) onError(t('off'));
       await onRefresh();
     } catch {
-      onError('Could not start the analysis');
+      onError(t('startFailed'));
     } finally {
       setBusy(false);
     }
@@ -85,43 +88,43 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
 
   return (
     <Section
-      title={<span className="flex items-center gap-1.5"><Sparkles className="size-4 text-[#784bd1]" /> AI Initial Analysis</span>}
+      title={<span className="flex items-center gap-1.5"><Sparkles className="size-4 text-[#784bd1]" /> {t('title')}</span>}
       className="ring-[#784bd1]/30"
       actions={canRun && !pending && (
-        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" disabled={busy} onClick={run} title={done ? 'Analyze again' : 'Run analysis'}>
-          <RefreshCw className={cn('size-3.5', busy && 'animate-spin')} /> {done ? 'Re-analyze' : 'Analyze'}
+        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" disabled={busy} onClick={run} title={done ? t('again') : t('run')}>
+          <RefreshCw className={cn('size-3.5', busy && 'animate-spin')} /> {done ? t('reanalyze') : t('analyze')}
         </Button>
       )}
     >
       {pending ? (
-        <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Analyzing the request…</div>
+        <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> {t('analyzing')}</div>
       ) : !done ? (
         <p className="text-sm text-muted-foreground">
-          {analysis ? 'The AI could not analyze this request this time.' : 'No analysis yet.'}
-          {canRun && ' Press Analyze to try again.'}
+          {analysis ? t('failed') : t('none')}
+          {canRun && ` ${t('tryAgain')}`}
         </p>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg bg-border ring-1 ring-border">
             <div className="bg-card px-2.5 py-2">
-              <div className="text-[11px] text-muted-foreground">Complexity</div>
-              {cx && <span className="mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: cx.bg, color: cx.fg }}>{cx.label}</span>}
+              <div className="text-[11px] text-muted-foreground">{t('complexityLabel')}</div>
+              {cx && <span className="mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: cx.bg, color: cx.fg }}>{t(`complexity.${done.complexity!}`)}</span>}
             </div>
             <div className="bg-card px-2.5 py-2">
-              <div className="text-[11px] text-muted-foreground">Readiness</div>
+              <div className="text-[11px] text-muted-foreground">{t('readiness')}</div>
               <div className="text-sm font-semibold tabular-nums">{done.readiness ?? 0}%</div>
               <span className="mt-1 block h-1 overflow-hidden rounded-full bg-muted">
                 <span className="block h-full rounded-full" style={{ width: `${done.readiness ?? 0}%`, background: readinessColor(done.readiness ?? 0) }} />
               </span>
             </div>
             <div className="bg-card px-2.5 py-2">
-              <div className="text-[11px] text-muted-foreground">Est. Effort</div>
-              <div className="text-sm font-semibold tabular-nums">{done.effort_min === done.effort_max ? done.effort_min : `${done.effort_min}–${done.effort_max}`} MD</div>
+              <div className="text-[11px] text-muted-foreground">{t('effort')}</div>
+              <div className="text-sm font-semibold tabular-nums">{t('md', { md: done.effort_min === done.effort_max ? String(done.effort_min) : `${done.effort_min}–${done.effort_max}` })}</div>
               {reviewerMd != null && (() => {
-                const v = mdVerdict(reviewerMd, done.effort_min ?? 0, done.effort_max ?? 0);
+                const v = mdVerdict(reviewerMd, done.effort_min ?? 0, done.effort_max ?? 0, t);
                 return (
-                  <div className="mt-0.5 text-[11px] tabular-nums" title="System Service's estimate at review">
-                    <span className="text-muted-foreground">Reviewer</span> <span className="font-semibold">{reviewerMd} MD</span>{' '}
+                  <div className="mt-0.5 text-[11px] tabular-nums" title={t('reviewerTip')}>
+                    <span className="text-muted-foreground">{t('reviewer')}</span> <span className="font-semibold">{t('md', { md: String(reviewerMd) })}</span>{' '}
                     <span className="font-medium" style={{ color: v.color }}>{v.label}</span>
                   </div>
                 );
@@ -130,10 +133,10 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
           </div>
 
           {!!done.phases?.length && (() => {
-            const total = done.phases.reduce((t, x) => t + x.md, 0);
+            const total = done.phases.reduce((sum, x) => sum + x.md, 0);
             return (
               <div>
-                <Label>Effort by Phase <span className="font-normal tracking-normal normal-case">· most likely {total} MD</span></Label>
+                <Label>{t('phases')} <span className="font-normal tracking-normal normal-case">· {t('mostLikely', { md: total })}</span></Label>
                 <div className="mb-1.5 flex h-1.5 overflow-hidden rounded-full bg-muted">
                   {done.phases.map((x, i) => <span key={x.phase} style={{ width: `${(x.md / total) * 100}%`, background: PHASE_COLORS[i % PHASE_COLORS.length] }} />)}
                 </div>
@@ -142,7 +145,7 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
                     <li key={x.phase} className="flex items-center gap-2">
                       <span className="size-2 shrink-0 rounded-full" style={{ background: PHASE_COLORS[i % PHASE_COLORS.length] }} />
                       <span className="flex-1">{x.phase}</span>
-                      <span className="font-medium tabular-nums">{x.md} MD</span>
+                      <span className="font-medium tabular-nums">{t('md', { md: String(x.md) })}</span>
                     </li>
                   ))}
                 </ul>
@@ -152,7 +155,7 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
 
           {done.rationale && (
             <div>
-              <Label>Why</Label>
+              <Label>{t('why')}</Label>
               <p className="text-sm text-muted-foreground">{done.rationale}</p>
             </div>
           )}
@@ -161,12 +164,12 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
             <div className="rounded-lg border px-3 py-2">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
-                  <Label>Suggested for Review</Label>
-                  <div className="text-sm"><span className="text-muted-foreground">Type</span> <span className="font-medium">{done.project_type?.name ?? '-'}</span></div>
-                  <div className="text-sm"><span className="text-muted-foreground">Template</span> <span className="font-medium">{done.template?.name ?? '-'}</span></div>
+                  <Label>{t('suggested')}</Label>
+                  <div className="text-sm"><span className="text-muted-foreground">{t('type')}</span> <span className="font-medium">{done.project_type?.name ?? '-'}</span></div>
+                  <div className="text-sm"><span className="text-muted-foreground">{t('template')}</span> <span className="font-medium">{done.template?.name ?? '-'}</span></div>
                 </div>
                 {onApply && (
-                  <Button variant="outline" size="sm" className="h-7 shrink-0 px-2 text-xs" onClick={() => onApply(done.project_type?.id ?? null, done.template?.id ?? null)}>Use</Button>
+                  <Button variant="outline" size="sm" className="h-7 shrink-0 px-2 text-xs" onClick={() => onApply(done.project_type?.id ?? null, done.template?.id ?? null)}>{t('use')}</Button>
                 )}
               </div>
             </div>
@@ -174,7 +177,7 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
 
           {reviewer && !!done.similar?.length && (
             <div>
-              <Label>Similar Past Projects</Label>
+              <Label>{t('similar')}</Label>
               <ul className="space-y-1.5">
                 {done.similar.map((p) => (
                   <li key={p.id} className="flex gap-1.5 text-sm">
@@ -191,7 +194,7 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
 
           {!!done.modules?.length && (
             <div>
-              <Label>Suggested Modules</Label>
+              <Label>{t('modules')}</Label>
               <div className="flex flex-wrap gap-1.5">
                 {done.modules.map((m) => <span key={m} className="rounded-md bg-[#f1eafc] px-2 py-0.5 text-xs font-medium text-[#784bd1]">{m}</span>)}
               </div>
@@ -200,7 +203,7 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
 
           {!!done.risks?.length && (
             <div>
-              <Label>Potential Risks</Label>
+              <Label>{t('risks')}</Label>
               <ul className="space-y-1">
                 {done.risks.map((x) => (
                   <li key={x} className="flex gap-1.5 text-sm"><TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-[#b45309]" />{x}</li>
@@ -211,12 +214,12 @@ export default function AiAnalysisCard({ requestId, initial, reviewerMd, canRun,
 
           {done.next_step && (
             <div className="rounded-lg bg-[#e6f1fd] px-3 py-2">
-              <Label>Suggested Next Step</Label>
+              <Label>{t('nextStep')}</Label>
               <div className="flex gap-1.5 text-sm font-medium text-[#0060c2]"><ArrowRight className="mt-0.5 size-3.5 shrink-0" />{done.next_step}</div>
             </div>
           )}
 
-          <p className="text-[11px] text-muted-foreground">AI estimate from the request and interview — {fmtDateTime(done.analyzed_at)}. Please verify before planning.</p>
+          <p className="text-[11px] text-muted-foreground">{t('footer', { at: fmtDateTime(done.analyzed_at) })}</p>
         </div>
       )}
     </Section>

@@ -1,0 +1,11 @@
+{
+  "deleted": "Comment deleted",
+  "empty": "No comments yet — start the discussion. Type @ to mention someone.",
+  "count": "{count, plural, one {# comment} other {# comments}}",
+  "editedAt": "Edited {at}",
+  "edited": "(edited)",
+  "edit": "Edit comment",
+  "delete": "Delete comment",
+  "submit": "Comment",
+  "placeholder": "Write a comment… type @ to mention (Ctrl + Enter to send)"
+}

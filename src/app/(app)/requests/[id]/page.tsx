@@ -2,6 +2,7 @@
 
 import dayjs from 'dayjs';
 import { ArrowRight, Ban, CalendarClock, CalendarDays, Check, ChevronRight, CircleHelp, Hourglass, ListChecks, Mail, MessageCircleQuestion, Mic, Phone, Rocket, Send, Sparkles, Undo2, Users, X, type LucideIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Fragment, useCallback, useEffect, useState } from 'react';
@@ -19,38 +20,41 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocumentTypes } from '@/components/useDocumentTypes';
 import { coverageCount } from '@/lib/clarify';
 import { canActOnStep, canConvertRequest, stepAudience, stepGroup, stepStage } from '@/lib/approval';
-import { APPROVAL_ACTION_LABELS, optLabel, REQUEST_STATUSES, ROLE_LABELS } from '@/lib/constants';
+import { useOptions } from '@/i18n/useOptions';
+import { REQUEST_STATUSES, ROLES } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, fmtNum } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
-import type { ApprovalAction, ApprovalStep, ProjectRequest, ProjectTemplate, ProjectType, Role } from '@/lib/types';
+import type { ApprovalAction, ApprovalStep, ProjectRequest, ProjectTemplate, ProjectType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
 type Act = 'approve' | 'reject' | 'send_back' | 'request_more_info';
-const ACT_META: Record<Act, { label: string; short: string; icon: LucideIcon; tone: 'success' | 'destructive' | 'warning' | 'secondary'; required: boolean }> = {
-  approve: { label: 'Approve', short: 'Approve', icon: Check, tone: 'success', required: false },
-  reject: { label: 'Reject', short: 'Reject', icon: X, tone: 'destructive', required: true },
-  send_back: { label: 'Send Back', short: 'Send Back', icon: Undo2, tone: 'warning', required: true },
-  request_more_info: { label: 'Request More Information', short: 'Ask for Info', icon: MessageCircleQuestion, tone: 'secondary', required: true },
+/** labels: requestDetail.act.<act>.label / .short */
+const ACT_META: Record<Act, { icon: LucideIcon; tone: 'success' | 'destructive' | 'warning' | 'secondary'; required: boolean }> = {
+  approve: { icon: Check, tone: 'success', required: false },
+  reject: { icon: X, tone: 'destructive', required: true },
+  send_back: { icon: Undo2, tone: 'warning', required: true },
+  request_more_info: { icon: MessageCircleQuestion, tone: 'secondary', required: true },
 };
 
-type Tone = { label: string; icon: LucideIcon; fg: string; bg: string };
+/** step status labels: requestDetail.stepStatus.<status> */
+type Tone = { icon: LucideIcon; fg: string; bg: string };
 const STEP_META: Record<string, Tone> = {
-  approved: { label: 'Approved', icon: Check, fg: '#00854d', bg: '#e3f8ee' },
-  waiting: { label: 'Waiting', icon: Hourglass, fg: '#b45309', bg: '#fff1d6' },
-  rejected: { label: 'Rejected', icon: X, fg: '#d83a52', bg: '#fdebee' },
-  sent_back: { label: 'Sent Back', icon: Undo2, fg: '#b45309', bg: '#fff1d6' },
-  more_info: { label: 'More Info', icon: MessageCircleQuestion, fg: '#784bd1', bg: '#f1eafc' },
+  approved: { icon: Check, fg: '#00854d', bg: '#e3f8ee' },
+  waiting: { icon: Hourglass, fg: '#b45309', bg: '#fff1d6' },
+  rejected: { icon: X, fg: '#d83a52', bg: '#fdebee' },
+  sent_back: { icon: Undo2, fg: '#b45309', bg: '#fff1d6' },
+  more_info: { icon: MessageCircleQuestion, fg: '#784bd1', bg: '#f1eafc' },
 };
 const HISTORY_META: Record<string, Tone> = {
-  submit: { label: '', icon: Send, fg: '#0073ea', bg: '#e6f1fd' },
-  resubmit: { label: '', icon: Send, fg: '#0073ea', bg: '#e6f1fd' },
+  submit: { icon: Send, fg: '#0073ea', bg: '#e6f1fd' },
+  resubmit: { icon: Send, fg: '#0073ea', bg: '#e6f1fd' },
   approve: STEP_META.approved,
   reject: STEP_META.rejected,
   send_back: STEP_META.sent_back,
   request_more_info: STEP_META.more_info,
-  cancel: { label: '', icon: Ban, fg: '#676879', bg: '#eef0f4' },
-  convert: { label: '', icon: Rocket, fg: '#00854d', bg: '#e3f8ee' },
+  cancel: { icon: Ban, fg: '#676879', bg: '#eef0f4' },
+  convert: { icon: Rocket, fg: '#00854d', bg: '#e3f8ee' },
 };
 
 function Bubble({ tone, children }: { tone: Pick<Tone, 'fg' | 'bg'>; children: React.ReactNode }) {
@@ -81,6 +85,10 @@ function InfoBlock({ label, children }: { label: string; children: React.ReactNo
 }
 
 export default function RequestDetailPage() {
+  const t = useTranslations('requestDetail');
+  const tf = useTranslations('requestForm.field');
+  const te = useTranslations('enums');
+  const { label: optLabel, text: enumText } = useOptions();
   const { id } = useParams<{ id: string }>();
   const db = dbClient();
   const router = useRouter();
@@ -97,7 +105,7 @@ export default function RequestDetailPage() {
   const [formKey, setFormKey] = useState(0);
   const [tab, setTab] = useState('details');
   const [convertCard, setConvertCard] = useState<HTMLDivElement | null>(null);
-  const docType = useDocumentTypes().find((t) => t.id === r?.document_type_id);
+  const docType = useDocumentTypes().find((x) => x.id === r?.document_type_id);
 
   const load = useCallback(async () => {
     const { data, error } = await db.from('project_requests').select('*').eq('id', id).maybeSingle();
@@ -124,7 +132,7 @@ export default function RequestDetailPage() {
     db.from('project_templates').select('*').eq('is_active', true).order('name').then(({ data }) => setTemplates(data ?? []));
   }, [load, db]);
 
-  if (notFound) return <Alert><AlertDescription>Request not found or you do not have access.</AlertDescription></Alert>;
+  if (notFound) return <Alert><AlertDescription>{t('notFound')}</AlertDescription></Alert>;
   if (!r || !me) return null;
 
   const mine = r.requestor_id === me.id;
@@ -140,8 +148,14 @@ export default function RequestDetailPage() {
   const hasClarify = !!r.ai_clarifications?.length || !!r.ai_coverage || !!r.ai_chat?.length;
   const coverage = r.ai_coverage ? coverageCount(r.ai_coverage) : null;
   const daysLeft = r.date_required ? dayjs(r.date_required).startOf('day').diff(dayjs().startOf('day'), 'day') : null;
+  const levelAudience = (s: ApprovalStep) => {
+    const a = stepAudience(s);
+    const level = enumText('positionLevel', a.level);
+    const who = a.andUp ? t('audience.levelUp', { level }) : level;
+    return a.department ? `${who} · ${a.department}` : who;
+  };
   const audience = (s: ApprovalStep) =>
-    s.approver_levels ? stepAudience(s) : s.approver_ids?.length ? s.approver_ids.map(profileName).join(' / ') : s.approver_id ? profileName(s.approver_id) : `Any ${ROLE_LABELS[s.approver_role as Role] ?? s.approver_role}`;
+    s.approver_levels ? levelAudience(s) : s.approver_ids?.length ? s.approver_ids.map(profileName).join(' / ') : s.approver_id ? profileName(s.approver_id) : t('audience.anyRole', { role: optLabel(ROLES, s.approver_role) });
 
   const rpc = async (fn: string, args: Record<string, unknown>, ok: string) => {
     const { data, error } = await db.rpc(fn, args);
@@ -163,7 +177,7 @@ export default function RequestDetailPage() {
       p_authority_approver_id: review.authority_approver_id,
       p_scope_assessment: review.scope_assessment || null,
       p_estimated_md: review.estimated_md.trim() || null,
-    }, 'Review saved');
+    }, t('toast.reviewSaved'));
 
   const go = async (a: Act) => {
     if (a === 'approve' && isReview) {
@@ -174,7 +188,7 @@ export default function RequestDetailPage() {
   };
   const otherActs = (Object.keys(ACT_META) as Act[]).filter((a) => a !== 'approve');
   const convert = async () => {
-    const p = await rpc('convert_request_to_project', { p_request_id: r.id, p_start_date: conv.start, p_target_date: conv.target, p_sponsor: conv.sponsor || null }, 'Project created');
+    const p = await rpc('convert_request_to_project', { p_request_id: r.id, p_start_date: conv.start, p_target_date: conv.target, p_sponsor: conv.sponsor || null }, t('toast.projectCreated'));
     if (p) router.push(`/projects/${(p as { id: number }).id}`);
   };
   const floating = canAct && waiting ? 'approval' : canConvert ? 'convert' : null;
@@ -182,47 +196,47 @@ export default function RequestDetailPage() {
   return (
     <>
       <PageHeader
-        title={<>{r.request_no ?? 'Draft request'} — {r.project_name}</>}
+        title={<>{r.request_no ?? t('draftRequest')} — {r.project_name}</>}
         subtitle={<div className="flex flex-wrap items-center gap-2">
           {docType && <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">{docType.name}</span>}
           <StatusChip list={REQUEST_STATUSES} value={r.status} /> <PriorityChip value={r.priority} />
-          <span className="text-xs">Requested by {r.req_full_name} · {r.req_department}</span>
+          <span className="text-xs">{t('requestedBy', { name: r.req_full_name ?? '', department: r.req_department ?? '' })}</span>
         </div>}
         actions={<>
-          {r.project_id && <Button asChild><Link href={`/projects/${r.project_id}`}>Open Project</Link></Button>}
+          {r.project_id && <Button asChild><Link href={`/projects/${r.project_id}`}>{t('openProject')}</Link></Button>}
           {mine && ['draft', 'need_more_information', 'waiting_requestor_approval'].includes(r.status) && r.request_no && (
-            <Button variant="destructive" onClick={async () => { if (await confirmDialog({ title: 'Cancel this request?', description: 'The request will be cancelled and can no longer move through approval.', confirmText: 'Cancel Request', cancelText: 'Keep', destructive: true })) await rpc('cancel_request', { p_request_id: r.id, p_comment: null }, 'Request cancelled'); }}>Cancel Request</Button>
+            <Button variant="destructive" onClick={async () => { if (await confirmDialog({ title: t('cancel.title'), description: t('cancel.description'), confirmText: t('cancel.confirm'), cancelText: t('cancel.keep'), destructive: true })) await rpc('cancel_request', { p_request_id: r.id, p_comment: null }, t('toast.cancelled')); }}>{t('cancel.confirm')}</Button>
           )}
           {mine && r.status === 'draft' && !r.request_no && (
             <Button variant="destructive" onClick={async () => {
-              if (!(await confirmDialog({ title: 'Delete this draft?', description: 'This cannot be undone.', confirmText: 'Delete', destructive: true }))) return;
+              if (!(await confirmDialog({ title: t('deleteDraft.title'), description: t('deleteDraft.description'), confirmText: t('deleteDraft.confirm'), destructive: true }))) return;
               const { error } = await db.from('project_requests').delete().eq('id', r.id);
               if (error) return notify(errMsg(error), 'error');
               router.replace('/requests');
-            }}>Delete Draft</Button>
+            }}>{t('deleteDraft.button')}</Button>
           )}
         </>}
       />
 
       {r.status === 'need_more_information' && mine && (
         <Alert className="mb-4 border-[#a25ddc] bg-[#f6effc]"><CircleHelp /><AlertDescription>
-          More information requested: <b>{current.find((s) => s.status === 'more_info')?.comment}</b>. Update the request and submit again — it returns to the same approval step.
+          {t.rich('moreInfoAlert', { comment: current.find((s) => s.status === 'more_info')?.comment ?? '', b: (c) => <b>{c}</b> })}
         </AlertDescription></Alert>
       )}
       {r.status === 'draft' && r.request_no && mine && (
         <Alert className="mb-4 border-[#fdab3d] bg-[#fff6e5]"><Undo2 /><AlertDescription>
-          Sent back: <b>{[...actions].reverse().find((a) => a.action === 'send_back')?.comment}</b>. Revise and submit again — approval restarts from step 1.
+          {t.rich('sentBackAlert', { comment: [...actions].reverse().find((a) => a.action === 'send_back')?.comment ?? '', b: (c) => <b>{c}</b> })}
         </AlertDescription></Alert>
       )}
 
       <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border lg:grid-cols-4">
-        <Stat icon={CalendarDays} label="Date Submitted" value={fmtDate(r.date_submitted)} />
-        <Stat icon={CalendarClock} label="Date Required" value={fmtDate(r.date_required)}
+        <Stat icon={CalendarDays} label={tf('dateSubmitted')} value={fmtDate(r.date_submitted)} />
+        <Stat icon={CalendarClock} label={tf('dateRequired')} value={fmtDate(r.date_required)}
           hint={daysLeft == null || ['converted', 'cancelled', 'rejected'].includes(r.status) ? null
-            : <span className={cn(daysLeft < 0 ? 'text-[#d83a52]' : daysLeft <= 7 && 'text-[#b45309]')}>{daysLeft < 0 ? `${-daysLeft} days overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft} days left`}</span>} />
-        <Stat icon={Hourglass} label="Current Step" value={waiting?.step_name ?? optLabel(REQUEST_STATUSES, r.status)}
-          hint={waiting && (canAct ? <span className="font-medium text-primary">Your turn</span> : audience(waiting))} />
-        <Stat icon={ListChecks} label="Approval Progress" value={current.length ? `${approvedCount} / ${current.length} steps` : 'Not submitted'}
+            : <span className={cn(daysLeft < 0 ? 'text-[#d83a52]' : daysLeft <= 7 && 'text-[#b45309]')}>{daysLeft < 0 ? t('daysOverdue', { count: -daysLeft }) : daysLeft === 0 ? t('dueToday') : t('daysLeft', { count: daysLeft })}</span>} />
+        <Stat icon={Hourglass} label={t('currentStep')} value={waiting?.step_name ?? optLabel(REQUEST_STATUSES, r.status)}
+          hint={waiting && (canAct ? <span className="font-medium text-primary">{t('yourTurn')}</span> : audience(waiting))} />
+        <Stat icon={ListChecks} label={t('approvalProgress')} value={current.length ? t('stepsProgress', { done: approvedCount, total: current.length }) : t('notSubmitted')}
           hint={current.length > 0 && (
             <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted">
               <span className="block h-full rounded-full bg-[#00c875] transition-all" style={{ width: `${(approvedCount / current.length) * 100}%` }} />
@@ -234,16 +248,16 @@ export default function RequestDetailPage() {
         <div className="col-span-12 min-w-0 xl:col-span-8">
           <Tabs value={tab} onValueChange={setTab} className="mb-4">
             <TabsList variant="line" className="w-full justify-start overflow-x-auto overflow-y-hidden border-b border-grid">
-              <TabsTrigger value="details" className="flex-none px-3">Details</TabsTrigger>
+              <TabsTrigger value="details" className="flex-none px-3">{t('tab.details')}</TabsTrigger>
               {hasClarify && (
                 <TabsTrigger value="clarify" className="flex-none gap-1.5 px-3">
-                  <Sparkles className="size-3.5" /> Clarifications
+                  <Sparkles className="size-3.5" /> {t('tab.clarify')}
                   {coverage && <span className={cn('rounded-full px-1.5 text-[11px] font-medium', coverage.missing.length ? 'bg-[#fff1d6] text-[#b45309]' : 'bg-[#e3f8ee] text-[#00854d]')}>{coverage.covered}/{coverage.total}</span>}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="attachments" className="flex-none px-3">Attachments</TabsTrigger>
+              <TabsTrigger value="attachments" className="flex-none px-3">{t('tab.attachments')}</TabsTrigger>
               <TabsTrigger value="history" className="flex-none gap-1.5 px-3">
-                History {actions.length > 0 && <span className="rounded-full bg-muted px-1.5 text-[11px] font-medium">{actions.length}</span>}
+                {t('tab.history')} {actions.length > 0 && <span className="rounded-full bg-muted px-1.5 text-[11px] font-medium">{actions.length}</span>}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -254,32 +268,32 @@ export default function RequestDetailPage() {
               initial={r}
               onSaved={() => load()}
               onSubmit={async (saved) => {
-                if (await rpc('submit_request', { p_request_id: saved.id }, 'Request submitted for approval') !== null) celebrate('Request submitted', 'It is now waiting for approval.');
+                if (await rpc('submit_request', { p_request_id: saved.id }, t('toast.submitted')) !== null) celebrate(t('celebrate.submitted'), t('celebrate.submittedHint'));
               }}
             />
           ) : (
             <>
-              <Section title="Project Information">
-                <p className="mb-4 text-[15px] leading-relaxed break-words whitespace-pre-wrap">{r.description || <span className="text-muted-foreground">No description</span>}</p>
+              <Section title={t('section.info')}>
+                <p className="mb-4 text-[15px] leading-relaxed break-words whitespace-pre-wrap">{r.description || <span className="text-muted-foreground">{t('noDescription')}</span>}</p>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <InfoBlock label="Reason for Request">{r.reason}</InfoBlock>
-                  <InfoBlock label="Expectation for Project Result">{r.expectation}</InfoBlock>
+                  <InfoBlock label={tf('reason')}>{r.reason}</InfoBlock>
+                  <InfoBlock label={tf('expectation')}>{r.expectation}</InfoBlock>
                 </div>
                 {r.requestor_approver_id && (
-                  <div className="mt-3 text-xs text-muted-foreground">Requestor Approver · <span className="font-medium text-foreground">{profileName(r.requestor_approver_id)}</span></div>
+                  <div className="mt-3 text-xs text-muted-foreground">{t('requestorApprover')} · <span className="font-medium text-foreground">{profileName(r.requestor_approver_id)}</span></div>
                 )}
               </Section>
               {REDUCTION_ROWS.some((row) => r[row.from] != null || r[row.to] != null) && (
-                <Section title="Expected Reduction">
+                <Section title={t('section.reduction')}>
                   <div className="overflow-hidden rounded-lg border">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/60 text-xs text-muted-foreground">
-                        <tr><th className="px-3 py-2 text-left font-medium">Item</th><th className="px-3 py-2 text-right font-medium">Current</th><th className="w-8" /><th className="px-3 py-2 text-right font-medium">Target</th></tr>
+                        <tr><th className="px-3 py-2 text-left font-medium">{t('reduction.item')}</th><th className="px-3 py-2 text-right font-medium">{t('reduction.current')}</th><th className="w-8" /><th className="px-3 py-2 text-right font-medium">{t('reduction.target')}</th></tr>
                       </thead>
                       <tbody className="divide-y">
                         {REDUCTION_ROWS.filter((row) => r[row.from] != null || r[row.to] != null).map((row) => (
-                          <tr key={row.label}>
-                            <td className="px-3 py-2">{row.label}</td>
+                          <tr key={row.key}>
+                            <td className="px-3 py-2">{te(`reduction.${row.key}`)}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{fmtNum(r[row.from])}</td>
                             <td className="text-center text-muted-foreground"><ArrowRight className="mx-auto size-3.5" /></td>
                             <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtNum(r[row.to])}</td>
@@ -291,15 +305,15 @@ export default function RequestDetailPage() {
                 </Section>
               )}
               {(r.project_type_id || r.scope_assessment || r.estimated_md != null) && (
-                <Section title="System Service — Received Request">
+                <Section title={t('section.received')}>
                   <div className="grid grid-cols-2 gap-x-4 md:grid-cols-4">
-                    <Field label="Project Type">{types.find((t) => t.id === r.project_type_id)?.name}</Field>
-                    <Field label="Template">{templates.find((t) => t.id === r.template_id)?.name}</Field>
-                    <Field label="Project Leader">{profileName(r.proposed_leader_id)}</Field>
-                    {r.authority_approver_id && <Field label="Authority Approver">{profileName(r.authority_approver_id)}</Field>}
-                    {r.estimated_md != null && <Field label="Estimated Effort">{fmtNum(r.estimated_md)} MD</Field>}
+                    <Field label={t('review.projectType')}>{types.find((x) => x.id === r.project_type_id)?.name}</Field>
+                    <Field label={t('review.template')}>{templates.find((x) => x.id === r.template_id)?.name}</Field>
+                    <Field label={t('review.projectLeader')}>{profileName(r.proposed_leader_id)}</Field>
+                    {r.authority_approver_id && <Field label={t('review.authorityApprover')}>{profileName(r.authority_approver_id)}</Field>}
+                    {r.estimated_md != null && <Field label={t('review.estimatedEffort')}>{t('review.md', { md: fmtNum(r.estimated_md) })}</Field>}
                   </div>
-                  {r.scope_assessment && <InfoBlock label="Scope Assessment">{r.scope_assessment}</InfoBlock>}
+                  {r.scope_assessment && <InfoBlock label={t('review.scope')}>{r.scope_assessment}</InfoBlock>}
                 </Section>
               )}
             </>
@@ -307,13 +321,13 @@ export default function RequestDetailPage() {
 
           {tab === 'clarify' && hasClarify && (
             <Section
-              title="Project Clarifications"
-              actions={r.ai_coverage && <span className="text-xs text-muted-foreground">Checked {fmtDateTime(r.ai_coverage.checked_at)}</span>}
+              title={t('clarify.title')}
+              actions={r.ai_coverage && <span className="text-xs text-muted-foreground">{t('clarify.checked', { at: fmtDateTime(r.ai_coverage.checked_at) })}</span>}
             >
-              <p className="mb-3 text-xs text-muted-foreground">Gathered by AI before submit and confirmed by the requestor — please double-check.</p>
+              <p className="mb-3 text-xs text-muted-foreground">{t('clarify.note')}</p>
               {coverage && coverage.missing.length > 0 && (
                 <Alert className="mb-3 border-[#fdab3d] bg-[#fff6e5]"><CircleHelp /><AlertDescription>
-                  Still missing: <b>{coverage.missing.map((m) => m.label).join(', ')}</b>
+                  {t.rich('clarify.missing', { items: coverage.missing.map((m) => m.label).join(', '), b: (c) => <b>{c}</b> })}
                 </AlertDescription></Alert>
               )}
               {r.ai_coverage && (() => {
@@ -327,16 +341,16 @@ export default function RequestDetailPage() {
                           <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
                             <CoverageIcon c={c} />
                             <span className="flex-1">{c.label}</span>
-                            {c.required && <span className="rounded bg-muted px-1.5 text-[10px] font-medium text-muted-foreground uppercase">Required</span>}
+                            {c.required && <span className="rounded bg-muted px-1.5 text-[10px] font-medium text-muted-foreground uppercase">{t('clarify.required')}</span>}
                           </div>
                           <div className="text-sm break-words whitespace-pre-wrap text-muted-foreground" title={c.note ?? undefined}>
-                            {c.summary || (c.status === 'missing' ? <i>Not covered</i> : c.note)}
+                            {c.summary || (c.status === 'missing' ? <i>{t('clarify.notCovered')}</i> : c.note)}
                           </div>
                         </div>
                       ))}
                     </div>
                     {na.length > 0 && (
-                      <p className="mt-3 text-xs text-muted-foreground">Not applicable: {na.map((c) => c.label).join(', ')}</p>
+                      <p className="mt-3 text-xs text-muted-foreground">{t('clarify.notApplicable', { items: na.map((c) => c.label).join(', ') })}</p>
                     )}
                   </>
                 );
@@ -348,7 +362,7 @@ export default function RequestDetailPage() {
                       <div className="font-medium">{i + 1}. {c.question}</div>
                       {c.answer
                         ? <div className="mt-0.5 whitespace-pre-wrap break-words text-muted-foreground">{c.answer}</div>
-                        : <div className="mt-0.5 text-xs text-muted-foreground italic">Skipped by the requestor</div>}
+                        : <div className="mt-0.5 text-xs text-muted-foreground italic">{t('clarify.skipped')}</div>}
                     </li>
                   ))}
                 </ol>
@@ -356,8 +370,8 @@ export default function RequestDetailPage() {
               {!!r.ai_chat?.length && (
                 <details className="group mt-4 rounded-lg border">
                   <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium select-none">
-                    <ChevronRight className="size-4 transition-transform group-open:rotate-90" /> Conversation with the AI
-                    <span className="text-xs font-normal text-muted-foreground">· {r.ai_chat.length} messages</span>
+                    <ChevronRight className="size-4 transition-transform group-open:rotate-90" /> {t('clarify.conversation')}
+                    <span className="text-xs font-normal text-muted-foreground">· {t('clarify.messages', { count: r.ai_chat.length })}</span>
                   </summary>
                   <div className="max-h-[32rem] space-y-2 overflow-y-auto border-t px-3 py-3">
                     {r.ai_chat.map((m, i) => (
@@ -366,7 +380,7 @@ export default function RequestDetailPage() {
                           m.role === 'user' ? 'rounded-br-md bg-primary text-white' : 'rounded-bl-md bg-muted')}>
                           {m.content}
                           {/* a speech-to-text transcript: words may be misheard */}
-                          {m.voice && <span className="mt-1 flex items-center gap-1 text-[10px] opacity-70"><Mic className="size-3" /> Spoken</span>}
+                          {m.voice && <span className="mt-1 flex items-center gap-1 text-[10px] opacity-70"><Mic className="size-3" /> {t('clarify.spoken')}</span>}
                         </div>
                       </div>
                     ))}
@@ -377,15 +391,15 @@ export default function RequestDetailPage() {
           )}
 
           {tab === 'attachments' && (
-            <Section title="Attachments">
+            <Section title={t('tab.attachments')}>
               <EvidencePanel entityType="request" entityId={r.id} requestId={r.id} canAdd={editable || (mine && !['converted', 'cancelled', 'rejected'].includes(r.status)) || hasRole('system_reviewer')} defaultInternal={false} />
             </Section>
           )}
 
           {tab === 'history' && (
             <>
-              <Section title="Approval History">
-                {actions.length === 0 ? <p className="text-sm text-muted-foreground">No actions yet.</p> : (
+              <Section title={t('section.approvalHistory')}>
+                {actions.length === 0 ? <p className="text-sm text-muted-foreground">{t('noActions')}</p> : (
                   <ol>
                     {[...actions].reverse().map((a, i, all) => {
                       const meta = HISTORY_META[a.action] ?? HISTORY_META.cancel;
@@ -395,7 +409,7 @@ export default function RequestDetailPage() {
                           <Bubble tone={meta}><meta.icon className="size-3.5" strokeWidth={2.5} /></Bubble>
                           <div className="min-w-0 flex-1 pt-0.5">
                             <div className="text-sm">
-                              <span className="font-semibold" style={{ color: meta.fg }}>{APPROVAL_ACTION_LABELS[a.action] ?? a.action}</span>
+                              <span className="font-semibold" style={{ color: meta.fg }}>{enumText('approvalAction', a.action)}</span>
                               {a.step_code && <span className="text-xs text-muted-foreground"> · {steps.find((s) => s.id === a.step_id)?.step_name ?? a.step_code.replace('_', ' ')}</span>}
                             </div>
                             <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{profileName(a.action_by)}</span> · {fmtDateTime(a.created_at)}</div>
@@ -407,7 +421,7 @@ export default function RequestDetailPage() {
                   </ol>
                 )}
               </Section>
-              <Section title="Change History">
+              <Section title={t('section.changeHistory')}>
                 <AuditHistory requestId={r.id} entity={{ table: 'project_requests', id: r.id }} />
               </Section>
             </>
@@ -423,40 +437,40 @@ export default function RequestDetailPage() {
             />
           )}
           {isReview && (
-            <Section title={`System Service — ${waiting?.step_name}`} className="ring-2 ring-[#fdab3d]">
+            <Section title={t('review.title', { step: waiting?.step_name ?? '' })} className="ring-2 ring-[#fdab3d]">
               <div className="space-y-3">
-                <SelectField label="Project Type" required value={review.project_type_id} onChange={(v) => {
-                  const tpl = templates.find((t) => t.project_type_id === Number(v));
+                <SelectField label={t('review.projectType')} required value={review.project_type_id} onChange={(v) => {
+                  const tpl = templates.find((x) => x.project_type_id === Number(v));
                   setReview({ ...review, project_type_id: v, template_id: review.template_id || tpl?.id.toString() || '' });
-                }} options={types.map((t) => ({ value: t.id.toString(), label: t.name }))} />
-                <SelectField label="Project Template" allowEmpty value={review.template_id} onChange={(v) => setReview({ ...review, template_id: v })} options={templates.map((t) => ({ value: t.id.toString(), label: t.name }))} />
-                <UserSelect label="Project Leader" required roles={['project_leader']} value={review.proposed_leader_id} onChange={(v) => setReview({ ...review, proposed_leader_id: v })} />
-                {legacyReview && <UserSelect label="Authority Approver" required roles={['authority_approver']} value={review.authority_approver_id} onChange={(v) => setReview({ ...review, authority_approver_id: v })} />}
-                <TextField label="Estimated Effort (MD)" type="number" value={review.estimated_md} onChange={(v) => setReview({ ...review, estimated_md: v })}
-                  placeholder={r.ai_analysis?.status === 'done' ? `AI: ${r.ai_analysis.effort_min}–${r.ai_analysis.effort_max}` : 'Man-days'}
-                  helperText="Your own estimate for the whole project — kept next to the AI's to compare later" />
-                <TextField label="Scope Assessment" multiline value={review.scope_assessment} onChange={(v) => setReview({ ...review, scope_assessment: v })} />
-                <Button variant="outline" className="w-full" onClick={saveReview}>Save Review</Button>
+                }} options={types.map((x) => ({ value: x.id.toString(), label: x.name }))} />
+                <SelectField label={t('review.projectTemplate')} allowEmpty value={review.template_id} onChange={(v) => setReview({ ...review, template_id: v })} options={templates.map((x) => ({ value: x.id.toString(), label: x.name }))} />
+                <UserSelect label={t('review.projectLeader')} required roles={['project_leader']} value={review.proposed_leader_id} onChange={(v) => setReview({ ...review, proposed_leader_id: v })} />
+                {legacyReview && <UserSelect label={t('review.authorityApprover')} required roles={['authority_approver']} value={review.authority_approver_id} onChange={(v) => setReview({ ...review, authority_approver_id: v })} />}
+                <TextField label={t('review.estimatedEffortMd')} type="number" value={review.estimated_md} onChange={(v) => setReview({ ...review, estimated_md: v })}
+                  placeholder={r.ai_analysis?.status === 'done' ? t('review.aiRange', { min: r.ai_analysis.effort_min ?? '', max: r.ai_analysis.effort_max ?? '' }) : t('review.manDays')}
+                  helperText={t('review.estimateHelp')} />
+                <TextField label={t('review.scope')} multiline value={review.scope_assessment} onChange={(v) => setReview({ ...review, scope_assessment: v })} />
+                <Button variant="outline" className="w-full" onClick={saveReview}>{t('review.save')}</Button>
               </div>
             </Section>
           )}
 
           {canConvert && (
             <div ref={setConvertCard} className="scroll-mt-4">
-              <Section title="Convert to Controlled Project" className="ring-2 ring-[#00c875]">
-                <p className="mb-3 text-sm text-muted-foreground">Creates the Project Code, project record, team and default activities from the template.</p>
+              <Section title={t('convert.title')} className="ring-2 ring-[#00c875]">
+                <p className="mb-3 text-sm text-muted-foreground">{t('convert.note')}</p>
                 <div className="space-y-3">
-                  <DateField label="Start Date" required value={conv.start} onChange={(v) => setConv({ ...conv, start: v })} />
-                  <DateField label="Target Date" required value={conv.target} onChange={(v) => setConv({ ...conv, target: v })} />
-                  <TextField label="Sponsor" value={conv.sponsor} onChange={(v) => setConv({ ...conv, sponsor: v })} />
+                  <DateField label={t('convert.startDate')} required value={conv.start} onChange={(v) => setConv({ ...conv, start: v })} />
+                  <DateField label={t('convert.targetDate')} required value={conv.target} onChange={(v) => setConv({ ...conv, target: v })} />
+                  <TextField label={t('convert.sponsor')} value={conv.sponsor} onChange={(v) => setConv({ ...conv, sponsor: v })} />
                 </div>
               </Section>
             </div>
           )}
 
-          <Section title="Approval Route">
+          <Section title={t('section.route')}>
             {current.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Not submitted yet.</p>
+              <p className="text-sm text-muted-foreground">{t('notSubmittedYet')}</p>
             ) : (
               <ol>
                 {current.map((s, i) => {
@@ -469,7 +483,7 @@ export default function RequestDetailPage() {
                       {newGroup && (
                         <li className={cn('relative pb-2 pl-10', i > 0 && 'pt-1')}>
                           {i > 0 && <span className={cn('absolute inset-y-0 left-[13px] w-0.5', current[i - 1].status === 'approved' ? 'bg-[#00c875]' : 'bg-border')} />}
-                          <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{group}</span>
+                          <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{te(`routeGroup.${group}`)}</span>
                         </li>
                       )}
                       <li className="relative flex gap-3 pb-4 last:pb-0">
@@ -486,7 +500,7 @@ export default function RequestDetailPage() {
                               className={cn('mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', isWaiting && canAct && 'motion-pulse')}
                               style={meta ? { background: meta.bg, color: meta.fg } : { background: '#eef0f4', color: '#676879' }}
                             >
-                              {isWaiting && canAct ? 'Your turn' : meta?.label ?? s.status.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase())}
+                              {isWaiting && canAct ? t('yourTurn') : t.has(`stepStatus.${s.status}` as 'stepStatus.waiting') ? t(`stepStatus.${s.status}` as 'stepStatus.waiting') : s.status.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase())}
                             </span>
                           </div>
                           <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
@@ -495,7 +509,7 @@ export default function RequestDetailPage() {
                           </div>
                           {s.acted_at && (
                             <div className="mt-0.5 text-xs text-muted-foreground">
-                              by <span className="font-medium text-foreground">{profileName(s.acted_by)}</span> · {fmtDateTime(s.acted_at)}
+                              {t.rich('actedBy', { name: profileName(s.acted_by), at: fmtDateTime(s.acted_at), b: (c) => <span className="font-medium text-foreground">{c}</span> })}
                             </div>
                           )}
                           {s.comment && <div className="mt-1.5 rounded-md border-l-2 bg-muted/60 px-2.5 py-1.5 text-xs italic" style={{ borderColor: meta?.fg }}>“{s.comment}”</div>}
@@ -508,7 +522,7 @@ export default function RequestDetailPage() {
             )}
           </Section>
 
-          <Section title="Requestor">
+          <Section title={t('section.requestor')}>
             <div className="mb-3 flex items-center gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#e6f1fd] text-sm font-semibold text-[#0073ea]">
                 {(r.req_full_name ?? '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
@@ -520,7 +534,7 @@ export default function RequestDetailPage() {
             </div>
             <div className="space-y-1.5 text-sm">
               {r.req_email && <a href={`mailto:${r.req_email}`} className="flex items-center gap-2 truncate text-primary hover:underline"><Mail className="size-3.5 shrink-0 text-muted-foreground" />{r.req_email}</a>}
-              {(r.req_telephone || r.req_extension) && <div className="flex items-center gap-2"><Phone className="size-3.5 shrink-0 text-muted-foreground" />{[r.req_telephone, r.req_extension && `ext. ${r.req_extension}`].filter(Boolean).join(' · ')}</div>}
+              {(r.req_telephone || r.req_extension) && <div className="flex items-center gap-2"><Phone className="size-3.5 shrink-0 text-muted-foreground" />{[r.req_telephone, r.req_extension && t('ext', { ext: r.req_extension })].filter(Boolean).join(' · ')}</div>}
             </div>
           </Section>
         </div>
@@ -537,16 +551,16 @@ export default function RequestDetailPage() {
             <div className="flex min-w-0 flex-1 items-center gap-2.5">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-white"><Hourglass className="size-3.5" /></span>
               <span className="min-w-0">
-                <span className="block text-[11px] font-medium text-primary">Your action required · Step {current.indexOf(waiting) + 1} of {current.length}</span>
+                <span className="block text-[11px] font-medium text-primary">{t('bar.actionRequired', { step: current.indexOf(waiting) + 1, total: current.length })}</span>
                 <span className="block truncate text-sm font-semibold">{waiting.step_name}</span>
               </span>
             </div>
           ) : (
-            <button type="button" title="Edit dates" className="flex min-w-0 flex-1 items-center gap-2.5 text-left" onClick={() => convertCard?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+            <button type="button" title={t('bar.editDates')} className="flex min-w-0 flex-1 items-center gap-2.5 text-left" onClick={() => convertCard?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#00c875] text-white"><Rocket className="size-3.5" /></span>
               <span className="min-w-0">
-                <span className="block text-[11px] font-medium text-[#00854d]">Approved · ready to convert</span>
-                <span className="block truncate text-sm font-semibold">{conv.start && conv.target ? `${fmtDate(conv.start)} → ${fmtDate(conv.target)}` : 'Set start and target dates'}</span>
+                <span className="block text-[11px] font-medium text-[#00854d]">{t('bar.readyToConvert')}</span>
+                <span className="block truncate text-sm font-semibold">{conv.start && conv.target ? `${fmtDate(conv.start)} → ${fmtDate(conv.target)}` : t('bar.setDates')}</span>
               </span>
             </button>
           )}
@@ -556,22 +570,22 @@ export default function RequestDetailPage() {
                 {otherActs.map((a) => {
                   const Icon = ACT_META[a].icon;
                   return (
-                    <ActionButton key={a} tone={ACT_META[a].tone} outline title={ACT_META[a].label} aria-label={ACT_META[a].label} className="h-9 gap-1.5 px-2.5 text-xs" onClick={() => go(a)}>
-                      <Icon className="size-4" /><span className="hidden lg:inline">{ACT_META[a].short}</span>
+                    <ActionButton key={a} tone={ACT_META[a].tone} outline title={t(`act.${a}.label`)} aria-label={t(`act.${a}.label`)} className="h-9 gap-1.5 px-2.5 text-xs" onClick={() => go(a)}>
+                      <Icon className="size-4" /><span className="hidden lg:inline">{t(`act.${a}.short`)}</span>
                     </ActionButton>
                   );
                 })}
                 <ActionButton tone="success" className="h-9 gap-1.5 px-4 text-sm shadow-sm" onClick={() => go('approve')}>
-                  <Check className="size-4" strokeWidth={3} /> Approve
+                  <Check className="size-4" strokeWidth={3} /> {t('act.approve.label')}
                 </ActionButton>
               </>
             ) : (
               <ActionButton tone="success" className="h-9 gap-1.5 px-4 text-sm shadow-sm" onClick={async () => {
                 // Dates live in the card, so send the user there when they are missing; otherwise confirm what will be created.
                 if (!conv.start || !conv.target) return convertCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                if (await confirmDialog({ title: 'Convert to Controlled Project?', description: `Creates the project from ${fmtDate(conv.start)} to ${fmtDate(conv.target)}${conv.sponsor ? ` with sponsor ${conv.sponsor}` : ''}.`, confirmText: 'Convert' })) await convert();
+                if (await confirmDialog({ title: t('convert.confirmTitle'), description: conv.sponsor ? t('convert.confirmWithSponsor', { from: fmtDate(conv.start), to: fmtDate(conv.target), sponsor: conv.sponsor }) : t('convert.confirmText', { from: fmtDate(conv.start), to: fmtDate(conv.target) }), confirmText: t('convert.confirm') })) await convert();
               }}>
-                <Rocket className="size-4" /> Convert<span className="hidden sm:inline"> to Project</span>
+                <Rocket className="size-4" /> {t('convert.button')}<span className="hidden sm:inline"> {t('convert.buttonSuffix')}</span>
               </ActionButton>
             )}
           </div>
@@ -581,17 +595,17 @@ export default function RequestDetailPage() {
       {dialog && waiting && (
         <CommentDialog
           open
-          title={`${ACT_META[dialog].label} — ${waiting.step_name}`}
+          title={`${t(`act.${dialog}.label`)} — ${waiting.step_name}`}
           description={`${r.request_no} · ${r.project_name}`}
-          confirmLabel={ACT_META[dialog].label}
+          confirmLabel={t(`act.${dialog}.label`)}
           variant={ACT_META[dialog].tone}
           required={ACT_META[dialog].required}
           onClose={() => setDialog(null)}
           onConfirm={async (comment) => {
-            const ok = await rpc('act_on_approval', { p_step_id: waiting.id, p_action: dialog, p_comment: comment || null }, `${ACT_META[dialog].label}: done`);
+            const ok = await rpc('act_on_approval', { p_step_id: waiting.id, p_action: dialog, p_comment: comment || null }, t('toast.actDone', { action: t(`act.${dialog}.label`) }));
             if (!ok) return;
             setDialog(null);
-            if (dialog === 'approve') celebrate('Approved', waiting.step_name);
+            if (dialog === 'approve') celebrate(t('celebrate.approved'), waiting.step_name);
           }}
         />
       )}

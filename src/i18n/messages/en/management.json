@@ -1,0 +1,18 @@
+{
+  "title": "Management Dashboard",
+  "subtitle": "Project status overview — high-level information for Management / User",
+  "allDepartments": "All departments",
+  "stat": {
+    "total": "Total Projects",
+    "inProgress": "Working on it",
+    "planningWaiting": "Planning / Waiting",
+    "delayedAtRisk": "Delayed / At Risk",
+    "done": "Done",
+    "needAttention": "Need Attention"
+  },
+  "attention": "Projects Need Attention",
+  "healthRed": "Health RED",
+  "insights": "Smart Insights",
+  "allProjects": "All Projects",
+  "empty": "No projects"
+}

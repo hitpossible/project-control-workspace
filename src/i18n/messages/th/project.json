@@ -1,0 +1,352 @@
+{
+  "notFound": "ไม่พบโปรเจกต์ หรือคุณไม่มีสิทธิ์เข้าถึง",
+  "tab": {
+    "overview": "ภาพรวม",
+    "plan": "User Control Plan",
+    "internal": "Internal Execution Plan",
+    "qa": "QA และบั๊ก",
+    "team": "ทีม",
+    "baseline": "Baseline",
+    "evidence": "หลักฐาน",
+    "history": "ประวัติ"
+  },
+  "round": "รอบที่ {no}",
+  "leader": "หัวหน้า {name}",
+  "request": "คำขอ",
+  "exportUserPlan": "แผนผู้ใช้ (Excel)",
+  "exportFull": "ส่งออกทั้งหมด (Excel)",
+  "close": {
+    "more": "+อีก {count}",
+    "check": {
+      "activities": "กิจกรรมทั้งหมดเสร็จแล้ว",
+      "stillOpen": "ยังค้าง: {items}",
+      "evidence": "แนบหลักฐานบังคับครบแล้ว",
+      "missing": "ยังขาด: {items}",
+      "criticalBugs": "ไม่มีบั๊กวิกฤตค้าง",
+      "criticalOpen": "บั๊กวิกฤตค้าง {count} รายการ",
+      "tasks": "งานภายในปิดครบแล้ว",
+      "tasksOpen": "งานยังค้าง {count} งาน",
+      "otherBugs": "ไม่มีบั๊กอื่นค้าง",
+      "bugsOpen": "บั๊กยังค้าง {count} รายการ"
+    },
+    "title": "ปิดโปรเจกต์",
+    "description": "{code} จะถูกตั้งเป็นเสร็จสิ้น และหยุดติดตามความล่าช้าและการแจ้งเตือน",
+    "blocked": "แก้ไขรายการสีแดงก่อนปิดโปรเจกต์",
+    "warnings": "รายการสีเหลืองไม่ขัดขวางการปิด แต่ควรตรวจสอบก่อน",
+    "notYet": "ยังไม่ปิด",
+    "closed": "ปิดโปรเจกต์แล้ว",
+    "button": "ปิดโปรเจกต์",
+    "bannerTitle": "กิจกรรมทั้งหมดเสร็จแล้ว",
+    "bannerText": "ตรวจรายการก่อนปิด แล้วตั้งโปรเจกต์เป็นเสร็จสิ้น"
+  },
+  "status": {
+    "change": "เปลี่ยนสถานะ",
+    "reopened": "เปิดโปรเจกต์อีกครั้งแล้ว",
+    "reopen": "เปิดโปรเจกต์อีกครั้ง",
+    "set": "ตั้งสถานะ",
+    "changed": "สถานะ: {status}",
+    "closeDone": "ปิดโปรเจกต์ (เสร็จสิ้น)…",
+    "cancelEllipsis": "ยกเลิกโปรเจกต์…",
+    "autoNote": "สถานะล่าช้า / มีความเสี่ยง ระบบตั้งให้อัตโนมัติจากแผน",
+    "cancel": "ยกเลิกโปรเจกต์",
+    "cancelDescription": "{code} จะหยุดและปิดเป็นยกเลิก เหตุผลจะถูกเพิ่มในหมายเหตุของโปรเจกต์",
+    "cancelRemark": "ยกเลิก: {reason}",
+    "cancelled": "ยกเลิกโปรเจกต์แล้ว"
+  },
+  "overview": {
+    "kpi": {
+      "progress": "ความคืบหน้า",
+      "activitiesDone": "กิจกรรมเสร็จ {done}/{total}",
+      "targetForecast": "เป้าหมาย / คาดการณ์",
+      "forecast": "คาดการณ์ {date}",
+      "baseline": "Baseline V{version} · {date}",
+      "noBaseline": "ยังไม่ตั้ง Baseline",
+      "overdue": "เลยกำหนด",
+      "activities": "กิจกรรม",
+      "tasks": "งาน",
+      "withoutRecovery": "ไม่มีแผนกู้คืน {count} รายการ",
+      "openTasks": "งานค้าง {count} งาน",
+      "allRecovery": "มีแผนกู้คืนครบทุกรายการ",
+      "bugs": "บั๊ก",
+      "open": "ค้าง",
+      "critical": "วิกฤต",
+      "waitingRetest": "รอทดสอบซ้ำ {count}",
+      "evidenceMissing": "หลักฐานยังไม่ครบ",
+      "checklistItems": "รายการตรวจสอบ {count} รายการ"
+    },
+    "days": "{n} วัน",
+    "attention": "โปรเจกต์ต้องติดตาม",
+    "focus": "สิ่งที่โฟกัสตอนนี้",
+    "edit": "แก้ไข",
+    "nextAction": "สิ่งที่ต้องทำต่อ",
+    "notSet": "ยังไม่ระบุ",
+    "remark": "หมายเหตุระดับสูง",
+    "remarkVisible": "ผู้ใช้ / ผู้บริหารมองเห็น",
+    "lastUpdated": "อัปเดตล่าสุด {at} โดย {by}",
+    "system": "ระบบ",
+    "activityStatus": "สถานะกิจกรรม",
+    "doneCount": "เสร็จ {done} / {total}",
+    "noActivities": "ไม่มีกิจกรรม",
+    "details": "รายละเอียดโปรเจกต์",
+    "row": {
+      "type": "ประเภทโปรเจกต์",
+      "leader": "หัวหน้า",
+      "sponsor": "ผู้สนับสนุน",
+      "department": "แผนก",
+      "priority": "ความสำคัญ",
+      "health": "สุขภาพ",
+      "startTarget": "เริ่ม → เป้าหมาย"
+    },
+    "insights": "Smart Insights",
+    "team": "ทีมโปรเจกต์",
+    "upcoming": "งานใกล้ครบกำหนด / เลยกำหนด",
+    "openCount": "ค้าง {count}",
+    "noOpenTasks": "ไม่มีงานค้าง"
+  },
+  "edit": {
+    "title": "แก้ไขโปรเจกต์",
+    "leader": "หัวหน้าโปรเจกต์",
+    "sponsor": "ผู้สนับสนุน",
+    "priority": "ความสำคัญ",
+    "targetDate": "วันเป้าหมาย",
+    "targetHelp": "การเปลี่ยนแปลงจะถูกเก็บในประวัติ หากต้องวางแผนใหม่ให้ใช้การปรับ Baseline",
+    "nextAction": "สิ่งที่ต้องทำต่อ",
+    "remark": "หมายเหตุระดับสูง",
+    "saved": "อัปเดตโปรเจกต์แล้ว"
+  },
+  "plan": {
+    "view": {
+      "gantt": "Gantt",
+      "table": "ตาราง"
+    },
+    "pic": "ผู้รับผิดชอบ",
+    "status": "สถานะ",
+    "from": "ตั้งแต่",
+    "to": "ถึง",
+    "expand": "ขยาย",
+    "collapse": "ย่อ",
+    "addActivity": "เพิ่มกิจกรรม",
+    "empty": "ไม่มีกิจกรรม",
+    "title": "User Control Plan",
+    "col": {
+      "no": "#",
+      "activity": "กิจกรรม",
+      "pic": "ผู้รับผิดชอบ",
+      "status": "สถานะ",
+      "planStart": "เริ่มตามแผน",
+      "planFinish": "เสร็จตามแผน",
+      "actualStart": "เริ่มจริง",
+      "actualFinish": "เสร็จจริง",
+      "progress": "ความคืบหน้า",
+      "statusNote": "บันทึกสถานะ",
+      "nextAction": "สิ่งที่ต้องทำต่อ",
+      "recoveryPlan": "แผนกู้คืน",
+      "remark": "หมายเหตุ"
+    },
+    "forecast": "คาดการณ์ {date}"
+  },
+  "team": {
+    "added": "เพิ่มสมาชิกแล้ว",
+    "intro": "ทีมโปรเจกต์และกลุ่มรับการแจ้งเตือน — ผู้รับการแจ้งเตือนกำหนดจากบทบาทในทีมและกฎการแจ้งเตือนของแต่ละเหตุการณ์",
+    "member": "สมาชิก",
+    "roleInProject": "บทบาทในโปรเจกต์",
+    "add": "เพิ่มสมาชิก",
+    "title": "ทีมโปรเจกต์",
+    "col": {
+      "name": "ชื่อ",
+      "role": "บทบาทในโปรเจกต์",
+      "department": "แผนก",
+      "email": "อีเมล",
+      "notify": "รับการแจ้งเตือน"
+    },
+    "remove": {
+      "title": "นำ {name} ออก?",
+      "description": "จะถูกนำออกจากทีมโปรเจกต์ ({role})",
+      "confirm": "นำออก"
+    }
+  },
+  "evidence": {
+    "checklist": "รายการหลักฐานที่ต้องมี",
+    "checklistNote": "รายการบังคับต้องมีหลักฐานก่อนจึงจะปิดกิจกรรม / งาน / โปรเจกต์ได้ แนบหลักฐานได้จากแท็บหลักฐานของแต่ละรายการ",
+    "entity": {
+      "project": "โปรเจกต์ (ปิดโปรเจกต์)",
+      "activity": "กิจกรรม: {name}",
+      "task": "งาน: {name}"
+    },
+    "projectLevel": "หลักฐานระดับโปรเจกต์",
+    "boundNote": "หลักฐานผูกกับคำขอ กิจกรรม หรืองานที่ใช้พิสูจน์โดยตรง ให้เพิ่มหลักฐานจากรายการนั้น ๆ",
+    "all": "หลักฐานทั้งหมดในโปรเจกต์นี้",
+    "empty": "ยังไม่มีหลักฐาน",
+    "col": {
+      "boundTo": "ผูกกับ",
+      "file": "ไฟล์ / ลิงก์",
+      "type": "ประเภท",
+      "uploaded": "อัปโหลดโดย",
+      "visibility": "การมองเห็น",
+      "verification": "การตรวจสอบ"
+    },
+    "internal": "ภายใน",
+    "shared": "แชร์"
+  },
+  "internal": {
+    "delay": "ล่าช้า: {reason}",
+    "addSubTask": "เพิ่มงานย่อย",
+    "notice": "Internal Execution Plan — มองเห็นเฉพาะทีม System Service บันทึกทางเทคนิคและความเห็นภายในจะไม่แสดงในมุมมองผู้ใช้ / ผู้บริหาร",
+    "view": {
+      "table": "รายการงาน",
+      "kanban": "คัมบัง",
+      "gantt": "Gantt"
+    },
+    "owner": "ผู้รับผิดชอบ",
+    "assignedToMe": "มอบหมายให้ฉัน",
+    "status": "สถานะ",
+    "open": "ค้างอยู่",
+    "count": "{count} งาน",
+    "addTask": "เพิ่มงาน",
+    "addTaskInline": "เพิ่มงาน",
+    "col": {
+      "task": "งาน",
+      "owner": "ผู้รับผิดชอบ",
+      "reviewer": "ผู้ตรวจ",
+      "type": "ประเภท",
+      "status": "สถานะ",
+      "priority": "ความสำคัญ",
+      "due": "กำหนดเสร็จ",
+      "progress": "ความคืบหน้า"
+    },
+    "noActivities": "เพิ่มกิจกรรมใน User Control Plan ก่อน"
+  },
+  "baseline": {
+    "v1Set": "ตั้ง Baseline V1 แล้ว — เริ่มโปรเจกต์",
+    "created": "สร้าง Baseline เวอร์ชันใหม่แล้ว",
+    "intro": "Baseline คือการตรึง User Control Plan ที่อนุมัติแล้ว การวางแผนใหม่ต้องมีเหตุผลและผู้จัดการอนุมัติ เวอร์ชันเก่าจะไม่ถูกเขียนทับ ส่วนต่างกำหนดการ = วันเสร็จที่คาดการณ์ − วันเสร็จตาม Baseline",
+    "setV1Start": "ตั้ง Baseline V1 และเริ่มโปรเจกต์",
+    "requestRevision": "ขอปรับ Baseline",
+    "pending": {
+      "title": "ขอปรับ Baseline V{from} → V{to} รออนุมัติ",
+      "requestedBy": "ขอโดย",
+      "targetDate": "วันเป้าหมาย",
+      "baselineFinish": "วันเสร็จตาม Baseline V{version}",
+      "proposedFinish": "วันเสร็จที่เสนอ",
+      "change": "เปลี่ยนแปลง",
+      "approve": "อนุมัติ → สร้าง V{version}",
+      "reject": "ปฏิเสธ",
+      "cancelled": "ยกเลิกคำขอแล้ว",
+      "cancel": "ยกเลิกคำขอ",
+      "waiting": "รอผู้จัดการ / หัวหน้างานอนุมัติ"
+    },
+    "reason": "เหตุผล",
+    "impact": "ผลกระทบ",
+    "impactValue": "ผลกระทบ: {impact}",
+    "new": "ใหม่",
+    "notSet": "ยังไม่ได้ตั้ง Baseline V1 ทำ User Control Plan ให้เสร็จ (ทุกกิจกรรมต้องมีวันเริ่ม / วันเสร็จตามแผน) แล้วตั้ง Baseline V1 เพื่อเริ่มโปรเจกต์",
+    "version": "Baseline V{version}",
+    "info": {
+      "version": "เวอร์ชัน",
+      "planned": "เริ่ม → เสร็จตามแผน",
+      "forecast": "คาดการณ์ปัจจุบัน",
+      "variance": "ส่วนต่าง",
+      "created": "สร้างโดย",
+      "approvedBy": "อนุมัติโดย"
+    },
+    "vsCurrent": "Baseline V{version} เทียบกับแผนปัจจุบัน",
+    "col": {
+      "activity": "กิจกรรม",
+      "pic": "ผู้รับผิดชอบ (ตาม Baseline)",
+      "start": "เริ่มตาม Baseline",
+      "finish": "เสร็จตาม Baseline",
+      "currentFinish": "เสร็จตามแผนปัจจุบัน",
+      "actualForecast": "เสร็จจริง / คาดการณ์"
+    },
+    "removed": "ถูกลบ",
+    "actual": "(จริง)",
+    "empty": "ยังไม่มี Baseline",
+    "history": {
+      "title": "ประวัติการปรับ Baseline",
+      "from": "จาก",
+      "targetChange": "การเปลี่ยนวันเป้าหมาย",
+      "requested": "ขอโดย",
+      "decision": "ผลการพิจารณา",
+      "status": "สถานะ"
+    },
+    "revision": {
+      "title": "ขอปรับ Baseline (V{from} → V{to})",
+      "description": "แก้ไขวันที่ใน User Control Plan ก่อน แผนปัจจุบันจะถูกบันทึกเป็นข้อเสนอและต้องได้รับอนุมัติจากผู้จัดการ / หัวหน้างาน Baseline V{version} จะยังถูกเก็บไว้",
+      "reason": "เหตุผล (จำเป็น)",
+      "impactPlaceholder": "เช่น Go-live เลื่อน 1 สัปดาห์; ไม่กระทบค่าใช้จ่าย",
+      "newTarget": "วันเป้าหมายใหม่",
+      "sent": "ส่งคำขอปรับแผนเพื่ออนุมัติแล้ว",
+      "submit": "ส่งขออนุมัติ"
+    },
+    "decide": {
+      "approveTitle": "อนุมัติ Baseline V{version}",
+      "rejectTitle": "ปฏิเสธการปรับ Baseline",
+      "approve": "อนุมัติ",
+      "reject": "ปฏิเสธ",
+      "approved": "สร้าง Baseline V{version} แล้ว",
+      "rejected": "ปฏิเสธการปรับแผนแล้ว"
+    },
+    "setV1": "ตั้ง Baseline V1",
+    "setV1Description": "ตรึง User Control Plan ปัจจุบันเป็น Baseline V1 และเปลี่ยนสถานะโปรเจกต์เป็นกำลังดำเนินการ"
+  },
+  "qa": {
+    "group": {
+      "new": "ใหม่ — ยังไม่มอบหมาย",
+      "assigned": "มอบหมายแล้ว / เปิดใหม่",
+      "fixing": "นักพัฒนากำลังแก้ไข",
+      "retest": "รอทดสอบซ้ำ",
+      "closed": "ปิดแล้ว",
+      "cancelled": "ยกเลิก"
+    },
+    "dueOn": "กำหนด {date}",
+    "stat": {
+      "open": "บั๊กค้าง",
+      "total": "ทั้งหมด {count}",
+      "critical": "วิกฤตค้าง",
+      "blocksGoLive": "ขัดขวาง Go-live",
+      "waitingRetest": "รอทดสอบซ้ำ",
+      "fixOverdue": "แก้เลยกำหนด",
+      "passRate": "อัตราผ่านทดสอบซ้ำ",
+      "reopenRate": "อัตราเปิดใหม่ {rate}%",
+      "rounds": "รอบการทดสอบ",
+      "completed": "เสร็จแล้ว {count}"
+    },
+    "view": {
+      "bugs": "บอร์ดบั๊ก",
+      "kanban": "คัมบัง",
+      "rounds": "รอบการทดสอบ"
+    },
+    "severity": "ความรุนแรง",
+    "developer": "นักพัฒนา",
+    "assignedToMe": "มอบหมายให้ฉัน",
+    "newRound": "รอบการทดสอบใหม่",
+    "reportBug": "แจ้งบั๊ก",
+    "kanbanNote": "ดูอย่างเดียว — สถานะบั๊กเปลี่ยนตามขั้นตอนงาน (มอบหมาย → เริ่มแก้ → แก้เสร็จ → ทดสอบซ้ำ) เปิดการ์ดเพื่อดำเนินการ",
+    "noBugs": "ไม่มีบั๊ก",
+    "reopened": "เปิดใหม่",
+    "retestBy": "ทดสอบซ้ำ: {name} · กำหนด {date}",
+    "col": {
+      "bug": "บั๊ก",
+      "severity": "ความรุนแรง",
+      "status": "สถานะ",
+      "developer": "นักพัฒนา",
+      "reporter": "ผู้แจ้ง",
+      "fixDue": "กำหนดแก้เสร็จ",
+      "retest": "ทดสอบซ้ำ"
+    },
+    "noRounds": "ยังไม่มีรอบการทดสอบ",
+    "round": "รอบที่ {no}",
+    "open": "เปิด",
+    "info": {
+      "type": "ประเภท",
+      "tester": "ผู้ทดสอบ",
+      "plannedDue": "วางแผน / กำหนด",
+      "actual": "ทดสอบจริง",
+      "cases": "เคส",
+      "casesValue": "<ok>{passed}</ok> / <bad>{failed}</bad> จาก {total}",
+      "activity": "กิจกรรม"
+    },
+    "noBugsInRound": "ไม่มีบั๊กในรอบนี้",
+    "reportInRound": "แจ้งบั๊กในรอบนี้"
+  }
+}

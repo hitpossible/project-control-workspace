@@ -1,0 +1,18 @@
+{
+  "title": "แดชบอร์ดผู้บริหาร",
+  "subtitle": "ภาพรวมสถานะโปรเจกต์ — ข้อมูลระดับสูงสำหรับผู้บริหาร / ผู้ใช้",
+  "allDepartments": "ทุกแผนก",
+  "stat": {
+    "total": "โปรเจกต์ทั้งหมด",
+    "inProgress": "กำลังดำเนินการ",
+    "planningWaiting": "วางแผน / รอ",
+    "delayedAtRisk": "ล่าช้า / มีความเสี่ยง",
+    "done": "เสร็จสิ้น",
+    "needAttention": "ต้องติดตาม"
+  },
+  "attention": "โปรเจกต์ที่ต้องติดตาม",
+  "healthRed": "สุขภาพ: แดง",
+  "insights": "Smart Insights",
+  "allProjects": "โปรเจกต์ทั้งหมด",
+  "empty": "ไม่มีโปรเจกต์"
+}

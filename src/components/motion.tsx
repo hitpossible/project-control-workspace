@@ -1,6 +1,7 @@
 'use client';
 
 import { Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -103,8 +104,9 @@ export function StatCardsSkeleton({ count = 6, className }: { count?: number; cl
 
 /** a board group (coloured left edge) with table-like rows */
 export function BoardSkeleton({ rows = 5, cols = 5, groups = 1 }: { rows?: number; cols?: number; groups?: number }) {
+  const t = useTranslations('common');
   return (
-    <div role="status" aria-label="Loading">
+    <div role="status" aria-label={t('loading')}>
       {Array.from({ length: groups }, (_, g) => (
         <section key={g} className="mb-7">
           <Skeleton className="mb-2.5 h-5 w-48" />
@@ -128,8 +130,9 @@ export function BoardSkeleton({ rows = 5, cols = 5, groups = 1 }: { rows?: numbe
 
 /** single-line rows (notifications, small lists) */
 export function ListSkeleton({ rows = 6 }: { rows?: number }) {
+  const t = useTranslations('common');
   return (
-    <div role="status" aria-label="Loading" className="divide-y divide-grid">
+    <div role="status" aria-label={t('loading')} className="divide-y divide-grid">
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-start gap-3 px-4 py-3.5">
           <Skeleton className="size-9 shrink-0 rounded-full" />

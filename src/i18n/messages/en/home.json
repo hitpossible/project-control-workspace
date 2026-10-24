@@ -1,0 +1,58 @@
+{
+  "title": "Internal Dashboard",
+  "subtitle": "System Service · {date}",
+  "scan": "Run Notification Scan",
+  "scanTip": "Runs hourly automatically (scheduler). Run now to send due / overdue reminders.",
+  "scanDone": "Scan done: {dueTomorrow} due-tomorrow, {overdue} overdue reminders, {delayed} activities marked delayed",
+  "approvalsWaiting": "You have <b>{count}</b> request(s) waiting for your approval / review.",
+  "open": "Open",
+  "stat": {
+    "total": "Total Project",
+    "inProgress": "Working on it",
+    "planningWaiting": "Planning / Waiting",
+    "delayed": "Delayed",
+    "atRisk": "At Risk",
+    "done": "Done",
+    "overdueTasks": "Overdue Tasks",
+    "openTasks": "{count} open tasks",
+    "needAttention": "Need Attention",
+    "retestPending": "Retest Pending",
+    "overdue": "{count} overdue",
+    "evidenceMissing": "Evidence Missing",
+    "pendingReview": "{count} pending review",
+    "bugs": "Bugs Open / Critical",
+    "fixOverdue": "{count} fix overdue"
+  },
+  "attention": {
+    "title": "Projects Need Attention",
+    "empty": "All projects on track",
+    "healthRed": "Health RED"
+  },
+  "due": {
+    "title": "Upcoming Due Date (next 7 days) & Overdue",
+    "empty": "Nothing due",
+    "task": "Task",
+    "project": "Project",
+    "owner": "Owner",
+    "status": "Status",
+    "due": "Due"
+  },
+  "insights": "Smart Insights",
+  "viewAll": "View all",
+  "today": {
+    "title": "Who's where today",
+    "link": "Workforce plan",
+    "empty": "No workforce plan for today"
+  },
+  "workload": {
+    "title": "Workload by Member",
+    "open": "Open, on time",
+    "overdue": "Overdue",
+    "empty": "No open tasks",
+    "tip": "{name}: {open} open on time, {overdue} overdue"
+  },
+  "active": {
+    "title": "Active Projects",
+    "empty": "No active projects"
+  }
+}

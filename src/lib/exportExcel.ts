@@ -1,6 +1,6 @@
 // Excel export — always generated from Workspace data (Workspace = Source of Truth, Excel = Output)
 import dayjs from 'dayjs';
-import { ACTIVITY_STATUSES, BUG_STATUSES, INSIGHT_SEVERITIES, WORK_TYPES, MEMBER_ROLES, PROJECT_STATUSES, SEVERITIES, TASK_STATUSES, TASK_TYPES, optColor, optLabel } from './constants';
+import { ACTIVITY_STATUSES, BUG_STATUSES, INSIGHT_SEVERITIES, WORK_TYPES, MEMBER_ROLES, PROJECT_STATUSES, SEVERITIES, TASK_STATUSES, TASK_TYPES, optColor, optLabelEn } from './constants';
 import type { Activity, Bug, Insight, InternalTask, KpiIndividual, KpiProject, KpiTeam, ProjectMember, ProjectView, WorkforcePlan } from './types';
 
 type Wb = import('exceljs').Workbook;
@@ -51,7 +51,7 @@ function summarySheet(wb: Wb, p: ProjectView, members: ProjectMember[], name: (i
     ['Forecast Finish', d(p.forecast_date)],
     ['Schedule Variance (days)', p.schedule_variance ?? '-'],
     ['Baseline Version', p.baseline_version ? `V${p.baseline_version}` : 'Not set'],
-    ['Status', optLabel(PROJECT_STATUSES, p.status)],
+    ['Status', optLabelEn(PROJECT_STATUSES, p.status)],
     ['Health', p.health.toUpperCase()],
     ['Progress', Number(p.progress) / 100],
     ['Next Action', p.next_action],
@@ -74,7 +74,7 @@ function summarySheet(wb: Wb, p: ProjectView, members: ProjectMember[], name: (i
   ws.getCell(`A${r}`).font = { bold: true, size: 12 };
   r++;
   members.forEach((m) => {
-    ws.getCell(`A${r}`).value = optLabel(MEMBER_ROLES, m.member_role);
+    ws.getCell(`A${r}`).value = optLabelEn(MEMBER_ROLES, m.member_role);
     ws.getCell(`B${r}`).value = name(m.user_id);
     r++;
   });
@@ -99,7 +99,7 @@ function planSheet(wb: Wb, p: ProjectView, acts: Activity[], picName: (a: Activi
   ws.getCell(1, 1).value = `Action Plan & Result — ${p.project_code} ${p.project_name}`;
   ws.getCell(1, 1).font = { bold: true, size: 14, color: { argb: 'FF0D47A1' } };
   ws.mergeCells(2, 1, 2, fixed.length);
-  ws.getCell(2, 1).value = `Leader: ${p.leader_name ?? '-'}   Target: ${p.target_date ? dayjs(p.target_date).format('DD MMM YYYY') : '-'}   Forecast: ${p.forecast_date ? dayjs(p.forecast_date).format('DD MMM YYYY') : '-'}   Progress: ${Math.round(p.progress)}%   Status: ${optLabel(PROJECT_STATUSES, p.status)}`;
+  ws.getCell(2, 1).value = `Leader: ${p.leader_name ?? '-'}   Target: ${p.target_date ? dayjs(p.target_date).format('DD MMM YYYY') : '-'}   Forecast: ${p.forecast_date ? dayjs(p.forecast_date).format('DD MMM YYYY') : '-'}   Progress: ${Math.round(p.progress)}%   Status: ${optLabelEn(PROJECT_STATUSES, p.status)}`;
 
   // month header (row 3) + week header (row 4)
   weeks.forEach((w, i) => {
@@ -121,7 +121,7 @@ function planSheet(wb: Wb, p: ProjectView, acts: Activity[], picName: (a: Activi
   acts.forEach((a, idx) => {
     const r = ws.getRow(5 + idx);
     const vals = [idx + 1, a.name, picName(a), d(a.plan_start), d(a.plan_finish), d(a.actual_start), d(a.actual_finish),
-      Number(a.progress) / 100, optLabel(ACTIVITY_STATUSES, a.status), a.status_note, a.next_action, a.recovery_plan, a.remark];
+      Number(a.progress) / 100, optLabelEn(ACTIVITY_STATUSES, a.status), a.status_note, a.next_action, a.recovery_plan, a.remark];
     vals.forEach((v, i) => (r.getCell(i + 1).value = v as never));
     [4, 5, 6, 7].forEach((c) => (r.getCell(c).numFmt = 'dd-mmm-yy'));
     r.getCell(8).numFmt = '0%';
@@ -172,9 +172,9 @@ function taskSheet(wb: Wb, acts: Activity[], tasks: InternalTask[], name: (id: n
   order.forEach((t) => {
     const od = dayjs(t.due_date).isBefore(dayjs(), 'day') && !['completed', 'cancelled'].includes(t.status);
     const row = ws.addRow({
-      no: t.task_no, act: actName.get(t.activity_id), name: (t.parent_task_id ? '   └ ' : '') + t.name, type: optLabel(TASK_TYPES, t.task_type),
+      no: t.task_no, act: actName.get(t.activity_id), name: (t.parent_task_id ? '   └ ' : '') + t.name, type: optLabelEn(TASK_TYPES, t.task_type),
       owner: name(t.owner_id), rev: t.reviewer_id ? name(t.reviewer_id) : '', ps: d(t.planned_start), due: d(t.due_date), af: d(t.actual_finish),
-      prog: Number(t.progress) / 100, status: optLabel(TASK_STATUSES, t.status), od: od ? 'YES' : '', dr: t.delay_reason, ra: t.recovery_action,
+      prog: Number(t.progress) / 100, status: optLabelEn(TASK_STATUSES, t.status), od: od ? 'YES' : '', dr: t.delay_reason, ra: t.recovery_action,
     });
     ['ps', 'due', 'af'].forEach((k) => (row.getCell(k).numFmt = 'dd-mmm-yy'));
     row.getCell('prog').numFmt = '0%';
@@ -194,7 +194,7 @@ function bugSheet(wb: Wb, bugs: Bug[], name: (id: number | null) => string) {
   styleHeader(ws, 1);
   bugs.forEach((b) => {
     const row = ws.addRow({
-      no: b.bug_no, title: b.title, sev: optLabel(SEVERITIES, b.severity), status: optLabel(BUG_STATUSES, b.status),
+      no: b.bug_no, title: b.title, sev: optLabelEn(SEVERITIES, b.severity), status: optLabelEn(BUG_STATUSES, b.status),
       dev: b.assigned_dev_id ? name(b.assigned_dev_id) : '', rep: b.reporter_id ? name(b.reporter_id) : '', due: d(b.due_date),
       reopen: b.reopen_count, rc: [b.root_cause_category, b.root_cause].filter(Boolean).join(': '), closed: d(b.closed_at),
     });
@@ -236,7 +236,7 @@ export async function exportProjectListExcel(projects: ProjectView[], filename: 
   projects.forEach((p) => {
     const row = ws.addRow({
       code: p.project_code, name: p.project_name, type: p.project_type_name, leader: p.leader_name, dept: p.requestor_department ?? p.department,
-      prio: p.priority, target: d(p.target_date), fc: d(p.forecast_date), sv: p.schedule_variance, status: optLabel(PROJECT_STATUSES, p.status),
+      prio: p.priority, target: d(p.target_date), fc: d(p.forecast_date), sv: p.schedule_variance, status: optLabelEn(PROJECT_STATUSES, p.status),
       health: p.health.toUpperCase(), prog: Number(p.progress) / 100, next: p.next_action, att: p.attention.join('; '),
     });
     ['target', 'fc'].forEach((k) => (row.getCell(k).numFmt = 'dd-mmm-yy'));
@@ -289,7 +289,7 @@ export async function exportKpiExcel(opts: { from: string; to: string; team: Kpi
     { header: 'Overdue Tasks', key: 'od', width: 11 }, { header: 'Task On-time %', key: 'tot', width: 12 }, { header: 'Evidence %', key: 'ev', width: 10 },
     { header: 'Open Bugs', key: 'ob', width: 10 }, { header: 'Bug Closure %', key: 'bc', width: 12 }, { header: 'Retest Pass %', key: 'rp', width: 12 },
   ], opts.projects.map((p) => ({
-    code: p.project_code, name: p.project_name, leader: p.leader_name, status: optLabel(PROJECT_STATUSES, p.status), health: p.health.toUpperCase(),
+    code: p.project_code, name: p.project_name, leader: p.leader_name, status: optLabelEn(PROJECT_STATUSES, p.status), health: p.health.toUpperCase(),
     progress: Number(p.progress), sv: p.schedule_variance, resch: p.reschedules, wait: Number(p.waiting_days), od: p.overdue_tasks,
     tot: p.tasks_on_time_rate, ev: p.evidence_completion, ob: p.open_bugs, bc: p.bug_closure_rate, rp: p.retest_pass_rate,
   })));
@@ -317,7 +317,7 @@ export async function exportInsightsExcel(rows: Insight[]) {
   const ws = simpleSheet(wb, 'Smart Insights', [
     { header: 'Severity', key: 's', width: 10 }, { header: 'Project', key: 'p', width: 20 }, { header: 'Insight', key: 't', width: 44 },
     { header: 'Detail', key: 'd', width: 70 }, { header: 'Rule', key: 'r', width: 22 },
-  ], rows.map((r) => ({ s: optLabel(INSIGHT_SEVERITIES, r.severity), p: r.project_code ?? 'Team', t: r.title, d: r.detail, r: r.rule_code })));
+  ], rows.map((r) => ({ s: optLabelEn(INSIGHT_SEVERITIES, r.severity), p: r.project_code ?? 'Team', t: r.title, d: r.detail, r: r.rule_code })));
   ws.eachRow((row, i) => { if (i > 1) row.getCell('s').font = { bold: true, color: { argb: argb(optColor(INSIGHT_SEVERITIES, rows[i - 2].severity)) } }; });
   const buf = await wb.xlsx.writeBuffer();
   download(buf as ArrayBuffer, `Smart_Insights_${dayjs().format('YYYYMMDD')}.xlsx`);
@@ -335,7 +335,7 @@ export async function exportWorkforceExcel(opts: { from: string; to: string; pla
   days.forEach((_, i) => (ws.getColumn(i + 2).width = 16));
   opts.people.forEach((p) => {
     const row = ws.addRow([p.full_name, ...days.map((d) => opts.plans.filter((x) => x.user_id === p.id && x.work_date === d)
-      .map((x) => `${optLabel(WORK_TYPES, x.work_type)}${x.location ? ` @${x.location}` : ''}`).join('\n'))]);
+      .map((x) => `${optLabelEn(WORK_TYPES, x.work_type)}${x.location ? ` @${x.location}` : ''}`).join('\n'))]);
     days.forEach((d, i) => {
       const first = opts.plans.find((x) => x.user_id === p.id && x.work_date === d);
       const cell = row.getCell(i + 2);
@@ -348,7 +348,7 @@ export async function exportWorkforceExcel(opts: { from: string; to: string; pla
     { header: 'Start', key: 's', width: 8 }, { header: 'End', key: 'e', width: 8 }, { header: 'Location', key: 'l', width: 24 },
     { header: 'Project', key: 'p', width: 20 }, { header: 'Remark', key: 'r', width: 30 },
   ], opts.plans.map((x) => ({
-    d: x.work_date, m: opts.people.find((p) => p.id === x.user_id)?.full_name, t: optLabel(WORK_TYPES, x.work_type), s: x.start_time?.slice(0, 5),
+    d: x.work_date, m: opts.people.find((p) => p.id === x.user_id)?.full_name, t: optLabelEn(WORK_TYPES, x.work_type), s: x.start_time?.slice(0, 5),
     e: x.end_time?.slice(0, 5), l: x.location, p: opts.projectCode(x.project_id), r: x.remark,
   })));
   const buf = await wb.xlsx.writeBuffer();

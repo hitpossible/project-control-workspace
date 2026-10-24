@@ -1,0 +1,24 @@
+{
+  "nameRequired": "Project Name is required to save a draft",
+  "noDepartment": "Your user profile has no department — ask an administrator to update it before submitting.",
+  "section": {
+    "info": "Project Information",
+    "reduction": "Reduction"
+  },
+  "field": {
+    "projectName": "Project Name",
+    "description": "Brief Description of Request",
+    "reason": "Reason for Request",
+    "expectation": "Expectation for Project Result",
+    "priority": "Priority",
+    "dateSubmitted": "Date Submitted",
+    "dateRequired": "Date Required"
+  },
+  "setOnSubmit": "Set on submit",
+  "from": "From",
+  "to": "To",
+  "saveFirst": "Save the draft first to attach documents (PDF, Excel, Word, screenshot, e-mail, links…).",
+  "draftSaved": "Draft saved",
+  "saveDraft": "Save Draft",
+  "submit": "Submit for Approval"
+}

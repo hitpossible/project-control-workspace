@@ -1,11 +1,11 @@
 'use client';
 
-import dayjs from 'dayjs';
 import { Pencil, Send, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SYSTEM_STAFF_ROLES } from '@/lib/constants';
 import { dbClient } from '@/lib/db/client';
-import { errMsg, fmtDateTime } from '@/lib/format';
+import { day, errMsg, fmtDateTime } from '@/lib/format';
 import { deleteWithUndo } from '@/lib/undo';
 import type { Comment, Profile } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,8 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
   canModerate?: boolean;
   onCount?: (n: number) => void;
 }) {
+  const t = useTranslations('comments');
+  const tc = useTranslations('common');
   const db = dbClient();
   const { me, profiles, profileName, notify } = useApp();
   const [items, setItems] = useState<Comment[]>([]);
@@ -89,7 +91,8 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
     const unhide = () => setHidden((h) => h.filter((id) => id !== c.id));
     setHidden((h) => [...h, c.id]);
     deleteWithUndo({
-      message: 'Comment deleted',
+      message: t('deleted'),
+      undoLabel: tc('undo'),
       undo: unhide,
       commit: async () => {
         const { error } = await db.from('comments').delete().eq('id', c.id);
@@ -106,8 +109,8 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
 
   return (
     <div className="space-y-3">
-      {loaded && shown.length === 0 && <EmptyState text="No comments yet — start the discussion. Type @ to mention someone." />}
-      {shown.length > 0 && <div className="text-xs font-medium text-muted-foreground">{shown.length} comment{shown.length > 1 ? 's' : ''}</div>}
+      {loaded && shown.length === 0 && <EmptyState text={t('empty')} />}
+      {shown.length > 0 && <div className="text-xs font-medium text-muted-foreground">{t('count', { count: shown.length })}</div>}
       {/* the thread scrolls on its own so the composer below never gets pushed out of view */}
       <ul ref={listRef} className="-mx-1 max-h-[min(45vh,26rem)] space-y-2 overflow-y-auto px-1">
         {shown.map((c) => {
@@ -119,17 +122,17 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
               <div className="min-w-0 flex-1 rounded-lg bg-muted/60 px-3 py-1.5">
                 <div className="flex min-h-6 flex-wrap items-center gap-x-2 text-xs">
                   <span className="text-[13px] font-semibold">{profileName(c.created_by)}</span>
-                  <Tip title={fmtDateTime(c.created_at)}><span className="text-muted-foreground">{dayjs(c.created_at).format('DD MMM HH:mm')}</span></Tip>
-                  {c.edited_at && <Tip title={`Edited ${fmtDateTime(c.edited_at)}`}><span className="text-muted-foreground">(edited)</span></Tip>}
+                  <Tip title={fmtDateTime(c.created_at)}><span className="text-muted-foreground">{day(c.created_at).format('DD MMM HH:mm')}</span></Tip>
+                  {c.edited_at && <Tip title={t('editedAt', { at: fmtDateTime(c.edited_at) })}><span className="text-muted-foreground">{t('edited')}</span></Tip>}
                   {!editing && (mine || canModerate) && (
                     <span className="ml-auto flex gap-0.5 opacity-0 transition-opacity group-hover/comment:opacity-100 focus-within:opacity-100">
-                      {mine && <Button variant="ghost" size="icon-xs" aria-label="Edit comment" onClick={() => setEditing(c.id)}><Pencil /></Button>}
-                      <Button variant="ghost" size="icon-xs" aria-label="Delete comment" onClick={() => remove(c)}><Trash2 /></Button>
+                      {mine && <Button variant="ghost" size="icon-xs" aria-label={t('edit')} onClick={() => setEditing(c.id)}><Pencil /></Button>}
+                      <Button variant="ghost" size="icon-xs" aria-label={t('delete')} onClick={() => remove(c)}><Trash2 /></Button>
                     </span>
                   )}
                 </div>
                 {editing === c.id ? (
-                  <Composer key={c.id} candidates={candidates} initial={c} saving={saving} submitLabel="Save"
+                  <Composer key={c.id} candidates={candidates} initial={c} saving={saving} submitLabel={tc('save')}
                     onCancel={() => setEditing(null)} onSubmit={(b, m) => update(c, b, m)} />
                 ) : (
                   <MentionText body={c.body} names={c.mentions.map((id) => profileName(id))} />
@@ -139,7 +142,7 @@ export default function CommentThread({ projectId, entityType, entityId, canMode
           );
         })}
       </ul>
-      {!editing && <Composer candidates={candidates} saving={saving} submitLabel="Comment" onSubmit={post} />}
+      {!editing && <Composer candidates={candidates} saving={saving} submitLabel={t('submit')} sendIcon onSubmit={post} />}
     </div>
   );
 }
@@ -164,10 +167,12 @@ function MentionText({ body, names }: { body: string; names: string[] }) {
   return <p className="mt-0.5 text-sm break-words whitespace-pre-wrap">{parts}</p>;
 }
 
-function Composer({ candidates, initial, saving, submitLabel, onSubmit, onCancel }: {
-  candidates: Profile[]; initial?: Comment; saving: boolean; submitLabel: string;
+function Composer({ candidates, initial, saving, submitLabel, sendIcon, onSubmit, onCancel }: {
+  candidates: Profile[]; initial?: Comment; saving: boolean; submitLabel: string; sendIcon?: boolean;
   onSubmit: (body: string, mentions: number[]) => Promise<boolean>; onCancel?: () => void;
 }) {
+  const t = useTranslations('comments');
+  const tc = useTranslations('common');
   const [text, setText] = useState(initial?.body ?? '');
   const [picked, setPicked] = useState<Profile[]>(() => candidates.filter((p) => initial?.mentions.includes(p.id)));
   const [query, setQuery] = useState<string | null>(null);
@@ -219,9 +224,9 @@ function Composer({ candidates, initial, saving, submitLabel, onSubmit, onCancel
             ref={ref}
             value={text}
             rows={2}
-            placeholder="Write a comment… type @ to mention (Ctrl + Enter to send)"
+            placeholder={t('placeholder')}
             className="bg-white"
-            aria-label="Comment"
+            aria-label={t('submit')}
             aria-autocomplete="list"
             aria-expanded={matches.length > 0}
             onChange={(e) => {
@@ -274,9 +279,9 @@ function Composer({ candidates, initial, saving, submitLabel, onSubmit, onCancel
         </PopoverContent>
       </Popover>
       <div className="mt-1.5 flex justify-end gap-2">
-        {onCancel && <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>}
+        {onCancel && <Button variant="ghost" size="sm" onClick={onCancel}>{tc('cancel')}</Button>}
         <Button size="sm" disabled={!text.trim() || saving} onClick={submit}>
-          {submitLabel === 'Save' ? null : <Send />} {saving ? 'Saving…' : submitLabel}
+          {sendIcon && <Send />} {saving ? tc('saving') : submitLabel}
         </Button>
       </div>
     </div>

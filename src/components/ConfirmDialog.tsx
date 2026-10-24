@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangleIcon, HelpCircleIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -31,6 +32,7 @@ export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
 
 /** Mount once near the app root. */
 export function ConfirmDialogHost() {
+  const t = useTranslations('common');
   const [pending, setPending] = useState<Pending | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -62,12 +64,12 @@ export function ConfirmDialogHost() {
           {pending?.description && <AlertDialogDescription>{pending.description}</AlertDialogDescription>}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => settle(false)}>{pending?.cancelText ?? 'Cancel'}</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => settle(false)}>{pending?.cancelText ?? t('cancel')}</AlertDialogCancel>
           <AlertDialogAction
             variant={pending?.destructive ? 'destructive' : 'default'}
             onClick={() => settle(true)}
           >
-            {pending?.confirmText ?? 'Confirm'}
+            {pending?.confirmText ?? t('confirm')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

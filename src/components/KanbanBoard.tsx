@@ -8,11 +8,15 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy, t
 import { CSS } from '@dnd-kit/utilities';
 import dayjs from 'dayjs';
 import { AlertTriangle, CalendarClock, Check, MoreHorizontal } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { optColor, optLabel, type Opt } from '@/lib/constants';
+import { useOptions } from '@/i18n/useOptions';
+import { day } from '@/lib/format';
+import { optColor, type OptList } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import type { Opt } from './common';
 
 type Item = { id: number; status: string };
 type Lists = Record<string, number[]>;
@@ -31,9 +35,10 @@ const noSorting: SortingStrategy = () => null;
  * `onMove` persists the change; the board re-renders from the reloaded data. Return false
  * when the card did not end up where it was dropped (error, workflow rule) — otherwise moving
  * to another column shows a "Moved" toast with Undo.
+ * `columns` carry their labels — pass lists from constants.ts through useOptions().options.
  */
 export default function KanbanBoard<T extends Item>({
-  columns, items, renderCard, onMove, rankOf, canDrag = () => true, onOpen, emptyText = 'No items',
+  columns, items, renderCard, onMove, rankOf, canDrag = () => true, onOpen, emptyText,
 }: {
   columns: Opt[];
   items: T[];
@@ -45,6 +50,7 @@ export default function KanbanBoard<T extends Item>({
   onOpen?: (item: T) => void;
   emptyText?: string;
 }) {
+  const t = useTranslations('kanban');
   const [activeId, setActiveId] = useState<number | null>(null);
   const [moving, setMoving] = useState<number | null>(null);
   // while dragging: card ids per column, as they currently sit under the pointer
@@ -69,8 +75,8 @@ export default function KanbanBoard<T extends Item>({
       return;
     }
     if (moving !== null) return;
-    const t = setTimeout(() => setPlaced(null), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setPlaced(null), 3000);
+    return () => clearTimeout(timer);
   }, [savedKey, placed, moving]);
 
   const statusOf = (i: T) => (placed?.id === i.id ? placed.status : i.status);
@@ -106,10 +112,10 @@ export default function KanbanBoard<T extends Item>({
   };
 
   const announcements: Announcements = {
-    onDragStart: ({ active: a }) => `Picked up ${a.data.current?.title ?? 'card'}.`,
-    onDragOver: ({ over }) => (over ? `Over ${label(colOf(over.id) ?? '')}.` : 'Not over a column.'),
-    onDragEnd: ({ active: a, over }) => (over ? `Dropped ${a.data.current?.title ?? 'card'} in ${label(colOf(over.id) ?? '')}.` : 'Dropped.'),
-    onDragCancel: () => 'Moving cancelled.',
+    onDragStart: ({ active: a }) => t('a11y.pickedUp', { title: a.data.current?.title ?? t('a11y.card') }),
+    onDragOver: ({ over }) => (over ? t('a11y.over', { column: label(colOf(over.id) ?? '') }) : t('a11y.notOver')),
+    onDragEnd: ({ active: a, over }) => (over ? t('a11y.dropped', { title: a.data.current?.title ?? t('a11y.card'), column: label(colOf(over.id) ?? '') }) : t('a11y.droppedNowhere')),
+    onDragCancel: () => t('a11y.cancelled'),
   };
 
   /** rank for the card at `index` of `list`: between its neighbours */
@@ -137,9 +143,9 @@ export default function KanbanBoard<T extends Item>({
     // re-ordering inside a column needs no toast; a column change can be undone
     if (ok === false || undoing || status === from.status) return;
     const name = (item as { task_no?: string; name?: string }).task_no ?? (item as { name?: string }).name;
-    toast.success(`Moved${name ? ` ${name}` : ''} to ${label(status)}`, {
+    toast.success(name ? t('moved', { name, column: label(status) }) : t('movedNoName', { column: label(status) }), {
       duration: 6000,
-      action: { label: 'Undo', onClick: () => void move({ ...item, status }, from.status, rankOf ? from.rank : undefined, true) },
+      action: { label: t('undo'), onClick: () => void move({ ...item, status }, from.status, rankOf ? from.rank : undefined, true) },
     });
   };
 
@@ -213,7 +219,7 @@ export default function KanbanBoard<T extends Item>({
       collisionDetection={collision}
       accessibility={{
         announcements,
-        screenReaderInstructions: { draggable: `Press Enter to open. Alt plus left or right arrow moves the card to the previous or next column${rankOf ? ', Alt plus up or down arrow moves it within the column' : ''}. Drag with mouse or long-press on touch.` },
+        screenReaderInstructions: { draggable: rankOf ? t('a11y.instructionsRank') : t('a11y.instructions') },
       }}
       onDragStart={(e) => {
         setActiveId(Number(e.active.id));
@@ -233,7 +239,7 @@ export default function KanbanBoard<T extends Item>({
           return (
             <Column key={col.value} col={col} count={ids.length} dragging={!!active}
               hot={!!active && overCol === col.value && statusOf(active) !== col.value}
-              isTarget={!!active && statusOf(active) !== col.value} emptyText={emptyText}>
+              isTarget={!!active && statusOf(active) !== col.value} emptyText={emptyText ?? t('empty')}>
               <SortableContext items={ids} strategy={rankOf ? verticalListSortingStrategy : noSorting}>
                 {ids.map((id) => {
                   const item = byId.get(id);
@@ -267,6 +273,7 @@ export default function KanbanBoard<T extends Item>({
 function Column({ col, count, dragging, hot, isTarget, emptyText, children }: {
   col: Opt; count: number; dragging: boolean; hot: boolean; isTarget: boolean; emptyText: string; children: React.ReactNode;
 }) {
+  const t = useTranslations('kanban');
   const { setNodeRef } = useDroppable({ id: col.value });
   return (
     <div
@@ -292,7 +299,7 @@ function Column({ col, count, dragging, hot, isTarget, emptyText, children }: {
             'flex h-24 items-center justify-center rounded-lg border-2 border-dashed px-2 text-center text-xs transition-colors',
             hot ? 'border-primary/60 text-primary' : isTarget ? 'border-primary/30 text-muted-foreground' : 'border-black/[.07] text-muted-foreground/70',
           )}>
-            {dragging && isTarget ? 'Drop here' : emptyText}
+            {dragging && isTarget ? t('dropHere') : emptyText}
           </div>
         )}
       </div>
@@ -340,18 +347,19 @@ function Card({ id, title, draggable, dimmed, landed, onLanded, onOpen, onShift,
 
 /** "⋯" on a card: move it to another column without dragging */
 function MoveMenu({ columns, current, onPick }: { columns: Opt[]; current: string; onPick: (status: string) => void }) {
+  const t = useTranslations('kanban');
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   return (
     <div onMouseDown={stop} onTouchStart={stop} onClick={stop} onKeyDown={stop}>
       <DropdownMenu>
         <DropdownMenuTrigger
-          aria-label="Move to…"
+          aria-label={t('moveToEllipsis')}
           className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 data-[state=open]:bg-muted data-[state=open]:opacity-100"
         >
           <MoreHorizontal className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuLabel className="text-xs text-muted-foreground">Move to</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-xs text-muted-foreground">{t('moveTo')}</DropdownMenuLabel>
           {columns.map((c) => (
             <DropdownMenuItem key={c.value} disabled={c.value === current} onSelect={() => onPick(c.value)} className="gap-2">
               <span className="size-2.5 rounded-full" style={{ background: c.color }} />
@@ -370,27 +378,29 @@ function MoveMenu({ columns, current, onPick }: { columns: Opt[]; current: strin
 // ---------------------------------------------------------------------------
 
 /** soft tinted label (priority, severity) — lighter than a solid StatusChip */
-export function KanbanTag({ list, value }: { list: Opt[]; value: string | null | undefined }) {
+export function KanbanTag({ list, value }: { list: OptList; value: string | null | undefined }) {
+  const { label } = useOptions();
   const color = optColor(list, value);
   return (
     <span className="inline-flex h-5 items-center gap-1 rounded-full px-2 text-[11px] font-medium whitespace-nowrap" style={{ background: `${color}1a`, color }}>
       <span className="size-1.5 rounded-full" style={{ background: color }} />
-      {optLabel(list, value)}
+      {label(list, value)}
     </span>
   );
 }
 
 /** due date: red when late (with how many days), amber when due within 2 days, grey otherwise */
 export function KanbanDue({ date, open }: { date: string | null | undefined; open: boolean }) {
+  const t = useTranslations('kanban');
   if (!date) return null;
-  const d = dayjs(date);
+  const d = day(date);
   const days = d.startOf('day').diff(dayjs().startOf('day'), 'day');
   const text = d.format(d.year() === dayjs().year() ? 'DD MMM' : 'DD MMM YY');
   const late = open && days < 0;
   const soon = open && days >= 0 && days <= 2;
   return (
     <span
-      title={late ? `Due ${d.format('DD MMM YYYY')} — ${-days} day(s) late` : `Due ${d.format('DD MMM YYYY')}`}
+      title={late ? t('dueLate', { date: d.format('DD MMM YYYY'), days: -days }) : t('due', { date: d.format('DD MMM YYYY') })}
       className={cn(
         'inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-[11px] font-medium whitespace-nowrap',
         late ? 'bg-red-50 text-red-600' : soon ? 'bg-amber-50 text-amber-700' : 'text-muted-foreground',
@@ -398,7 +408,7 @@ export function KanbanDue({ date, open }: { date: string | null | undefined; ope
     >
       {late ? <AlertTriangle className="size-3" /> : <CalendarClock className="size-3" />}
       {text}
-      {late && <span className="font-semibold">+{-days}d</span>}
+      {late && <span className="font-semibold">{t('lateDays', { days: -days })}</span>}
     </span>
   );
 }

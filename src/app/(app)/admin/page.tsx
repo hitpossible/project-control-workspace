@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowDown, ArrowUp, Copy, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
 import { BoardGroup, DateField, MultiSelect, PageHeader, Person, SelectField, TextField } from '@/components/common';
@@ -16,8 +17,9 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { DELAY_CATEGORIES, INSIGHT_SEVERITIES, MEMBER_ROLES, ROLE_LABELS } from '@/lib/constants';
-import { errMsg, fmtDate } from '@/lib/format';
+import { useOptions } from '@/i18n/useOptions';
+import { DELAY_CATEGORIES, INSIGHT_SEVERITIES, MEMBER_ROLES, ROLES } from '@/lib/constants';
+import { day, errMsg, fmtDate } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { Department, DocumentType, InsightRule, NotificationRule, Position, PositionLevel, Profile, ProjectTemplate, ProjectType, Role, Section } from '@/lib/types';
 import { DEFAULT_CRITERIA, type ClarifyCriterion } from '@/lib/clarify';
@@ -26,7 +28,6 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_WORK_WEEK, WORK_WEEKS, WORK_WEEK_KEY, makeCalendar } from '@/lib/workdays';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
-const ROLE_OPTS = (Object.keys(ROLE_LABELS) as Role[]).map((r) => ({ value: r, label: ROLE_LABELS[r] }));
 // A plain mouse wheel only scrolls vertically, so turn it into horizontal scrolling of the tab strip.
 function wheelScrollX(el: HTMLDivElement | null) {
   if (!el) return;
@@ -43,37 +44,42 @@ function wheelScrollX(el: HTMLDivElement | null) {
   return () => el.removeEventListener('wheel', onWheel);
 }
 
-const TABS = ['Users & Roles', 'Departments', 'Document Types', 'Project Types', 'Project Templates', 'Project Code', 'Working Days', 'Notification Rules', 'Insight Rules', 'KPI Settings'];
+/** labels: admin.tab.<key> */
+const TABS = ['users', 'departments', 'documentTypes', 'projectTypes', 'templates', 'projectCode', 'workingDays', 'notificationRules', 'insightRules', 'kpi'] as const;
 
 export default function AdminPage() {
+  const t = useTranslations('admin');
   const { hasRole } = useApp();
-  const [tab, setTab] = useState(TABS[0]);
-  if (!hasRole('admin')) return <Alert><AlertDescription>Administrator only.</AlertDescription></Alert>;
+  const [tab, setTab] = useState<string>(TABS[0]);
+  if (!hasRole('admin')) return <Alert><AlertDescription>{t('adminOnly')}</AlertDescription></Alert>;
   return (
     <>
-      <PageHeader title="Administration" subtitle="Master data, roles, workflow configuration" />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
       <Tabs value={tab} onValueChange={setTab} className="mb-5">
         <TabsList ref={wheelScrollX} variant="line" className="no-scrollbar w-full justify-start overflow-x-auto border-b border-grid">
-          {TABS.map((t) => <TabsTrigger key={t} value={t} className="flex-none px-3">{t}</TabsTrigger>)}
+          {TABS.map((k) => <TabsTrigger key={k} value={k} className="flex-none px-3">{t(`tab.${k}`)}</TabsTrigger>)}
         </TabsList>
       </Tabs>
       <div key={tab} className="motion-rise">
-      {tab === TABS[0] && <UsersAdmin />}
-      {tab === TABS[1] && <DepartmentsAdmin />}
-      {tab === TABS[2] && <DocumentTypesAdmin />}
-      {tab === TABS[3] && <TypesAdmin />}
-      {tab === TABS[4] && <TemplatesAdmin />}
-      {tab === TABS[5] && <SettingsAdmin />}
-      {tab === TABS[6] && <WorkingDaysAdmin />}
-      {tab === TABS[7] && <RulesAdmin />}
-      {tab === TABS[8] && <InsightRulesAdmin />}
-      {tab === TABS[9] && <KpiSettingsAdmin />}
+      {tab === 'users' && <UsersAdmin />}
+      {tab === 'departments' && <DepartmentsAdmin />}
+      {tab === 'documentTypes' && <DocumentTypesAdmin />}
+      {tab === 'projectTypes' && <TypesAdmin />}
+      {tab === 'templates' && <TemplatesAdmin />}
+      {tab === 'projectCode' && <SettingsAdmin />}
+      {tab === 'workingDays' && <WorkingDaysAdmin />}
+      {tab === 'notificationRules' && <RulesAdmin />}
+      {tab === 'insightRules' && <InsightRulesAdmin />}
+      {tab === 'kpi' && <KpiSettingsAdmin />}
       </div>
     </>
   );
 }
 
 function UsersAdmin() {
+  const t = useTranslations('admin.users');
+  const tc = useTranslations('common');
+  const { label: optLabel, options: optOptions } = useOptions();
   const db = dbClient();
   const { profiles, refreshProfiles, notify } = useApp();
   const [edit, setEdit] = useState<(Partial<Profile> & { password?: string }) | null>(null);
@@ -90,7 +96,7 @@ function UsersAdmin() {
     if (!edit) return;
     const call = async (method: 'POST' | 'PATCH', body: unknown) => {
       const res = await fetch('/api/admin/users', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      return res.ok ? null : ((await res.json().catch(() => null))?.error?.message ?? 'Failed');
+      return res.ok ? null : ((await res.json().catch(() => null))?.error?.message ?? t('failed'));
     };
     if (!edit.id) {
       const err = await call('POST', edit);
@@ -107,7 +113,7 @@ function UsersAdmin() {
         if (err) return notify(err, 'error');
       }
     }
-    notify('User saved');
+    notify(t('saved'));
     setEdit(null);
     refreshProfiles();
   };
@@ -116,10 +122,10 @@ function UsersAdmin() {
 
   return (
     <>
-      <BoardGroup title="Users" color="#579bfc" count={profiles.length}
-        actions={<Button size="sm" onClick={() => setEdit({ roles: ['requestor'], is_active: true })}><Plus /> Add User</Button>}>
+      <BoardGroup title={t('title')} color="#579bfc" count={profiles.length}
+        actions={<Button size="sm" onClick={() => setEdit({ roles: ['requestor'], is_active: true })}><Plus /> {t('add')}</Button>}>
         <Table className="board-table">
-          <TableHeader><TableRow><TableHead className="text-left">Name</TableHead><TableHead>Emp. ID</TableHead><TableHead>Username</TableHead><TableHead>Email</TableHead><TableHead>Department</TableHead><TableHead>Position</TableHead><TableHead>Roles</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead className="text-left">{t('col.name')}</TableHead><TableHead>{t('col.empId')}</TableHead><TableHead>{t('col.username')}</TableHead><TableHead>{t('col.email')}</TableHead><TableHead>{t('col.department')}</TableHead><TableHead>{t('col.position')}</TableHead><TableHead>{t('col.roles')}</TableHead><TableHead>{t('col.active')}</TableHead></TableRow></TableHeader>
           <TableBody>
             {profiles.map((p) => (
               <TableRow key={p.id} className={cn('cursor-pointer', !p.is_active && 'opacity-50')} onClick={() => setEdit({ ...p })}>
@@ -130,9 +136,9 @@ function UsersAdmin() {
                 <TableCell className="text-center">{p.department}</TableCell>
                 <TableCell className="text-center">{p.position}</TableCell>
                 <TableCell className="whitespace-normal">
-                  <div className="flex flex-wrap gap-1">{p.roles.map((r) => <span key={r} className="rounded bg-secondary px-1.5 py-0.5 text-xs">{ROLE_LABELS[r]}</span>)}</div>
+                  <div className="flex flex-wrap gap-1">{p.roles.map((r) => <span key={r} className="rounded bg-secondary px-1.5 py-0.5 text-xs">{optLabel(ROLES, r)}</span>)}</div>
                 </TableCell>
-                <TableCell className="text-center">{p.is_active ? 'Yes' : 'No'}</TableCell>
+                <TableCell className="text-center">{p.is_active ? t('yes') : t('no')}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -141,27 +147,27 @@ function UsersAdmin() {
       {edit && (
         <Dialog open onOpenChange={(o) => !o && setEdit(null)}>
           <DialogContent className="sm:max-w-lg">
-            <DialogHeader><DialogTitle>{edit.id ? 'Edit User' : 'Add User'}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{edit.id ? t('edit') : t('add')}</DialogTitle></DialogHeader>
             <div className="grid grid-cols-12 gap-3">
-              <TextField className="col-span-8" label="Full Name" required value={edit.full_name} onChange={(v) => set({ full_name: v })} />
-              <TextField className="col-span-4" label="Employee ID" value={edit.employee_id} onChange={(v) => set({ employee_id: v })} />
-              <TextField className="col-span-6" label="Username (AD)" value={edit.username} onChange={(v) => set({ username: v })} helperText="Company login name" />
-              <TextField className="col-span-6" label="Email" value={edit.email} onChange={(v) => set({ email: v })} />
-              <TextField className="col-span-12" label={edit.id ? 'Set local password' : 'Local password (optional)'} type="password" value={edit.password} onChange={(v) => set({ password: v })}
-                helperText="Leave empty for AD login. Min 8 characters — only for accounts without AD (e.g. break-glass admin)." />
-              <SelectField className="col-span-6" label="Department" allowEmpty value={edit.department_id?.toString()} options={deptOpts}
+              <TextField className="col-span-8" label={t('field.fullName')} required value={edit.full_name} onChange={(v) => set({ full_name: v })} />
+              <TextField className="col-span-4" label={t('field.employeeId')} value={edit.employee_id} onChange={(v) => set({ employee_id: v })} />
+              <TextField className="col-span-6" label={t('field.username')} value={edit.username} onChange={(v) => set({ username: v })} helperText={t('field.usernameHelp')} />
+              <TextField className="col-span-6" label={t('field.email')} value={edit.email} onChange={(v) => set({ email: v })} />
+              <TextField className="col-span-12" label={edit.id ? t('field.setPassword') : t('field.password')} type="password" value={edit.password} onChange={(v) => set({ password: v })}
+                helperText={t('field.passwordHelp')} />
+              <SelectField className="col-span-6" label={t('field.department')} allowEmpty value={edit.department_id?.toString()} options={deptOpts}
                 onChange={(v) => set({ department_id: idOrNull(v), section_id: idOrNull(v) === edit.department_id ? edit.section_id : null })} />
-              <SelectField className="col-span-6" label="Section" allowEmpty value={edit.section_id?.toString()} options={sectionOpts}
+              <SelectField className="col-span-6" label={t('field.section')} allowEmpty value={edit.section_id?.toString()} options={sectionOpts}
                 disabled={!edit.department_id} onChange={(v) => set({ section_id: idOrNull(v) })} />
-              <SelectField className="col-span-12" label="Position" allowEmpty value={edit.position_id?.toString()} options={positionOpts}
+              <SelectField className="col-span-12" label={t('field.position')} allowEmpty value={edit.position_id?.toString()} options={positionOpts}
                 onChange={(v) => set({ position_id: idOrNull(v) })}
-                helperText={`Synced from AD at each login. Approval: ${POSITION_LEVELS.filter((l) => l.value !== 'staff').map((l) => l.position).join(', ')}`} />
-              <TextField className="col-span-8" label="Telephone" value={edit.telephone} onChange={(v) => set({ telephone: v })} />
-              <TextField className="col-span-4" label="Ext." value={edit.extension} onChange={(v) => set({ extension: v })} />
-              <MultiSelect className="col-span-12" label="Roles" value={edit.roles ?? []} onChange={(v) => set({ roles: v as Role[] })} options={ROLE_OPTS} />
-              <label className="col-span-12 flex items-center gap-2 text-sm"><Switch checked={!!edit.is_active} onCheckedChange={(c) => set({ is_active: c })} /> Active</label>
+                helperText={t('field.positionHelp', { positions: POSITION_LEVELS.filter((l) => l.value !== 'staff').map((l) => l.position).join(', ') })} />
+              <TextField className="col-span-8" label={t('field.telephone')} value={edit.telephone} onChange={(v) => set({ telephone: v })} />
+              <TextField className="col-span-4" label={t('field.ext')} value={edit.extension} onChange={(v) => set({ extension: v })} />
+              <MultiSelect className="col-span-12" label={t('col.roles')} value={edit.roles ?? []} onChange={(v) => set({ roles: v as Role[] })} options={optOptions(ROLES)} />
+              <label className="col-span-12 flex items-center gap-2 text-sm"><Switch checked={!!edit.is_active} onCheckedChange={(c) => set({ is_active: c })} /> {t('col.active')}</label>
             </div>
-            <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button onClick={save}>Save</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>{tc('cancel')}</Button><Button onClick={save}>{tc('save')}</Button></DialogFooter>
           </DialogContent>
         </Dialog>
       )}
@@ -193,6 +199,8 @@ function useDepartments() {
 const normCode = (v: string) => v.trim().toUpperCase() || null;
 
 function DepartmentsAdmin() {
+  const t = useTranslations('admin.departments');
+  const tc = useTranslations('common');
   const db = dbClient();
   const { notify, refreshProfiles } = useApp();
   const { departments, sections, load } = useDepartments();
@@ -217,12 +225,12 @@ function DepartmentsAdmin() {
 
   return (
     <>
-      <p className="mb-3 text-sm text-muted-foreground">Code is a short unique key (e.g. SYS, PRD), saved in upper case. Used for each user&apos;s Department / Section in Users &amp; Roles. Renaming updates the users that have it; inactive entries are hidden from the list.</p>
+      <p className="mb-3 text-sm text-muted-foreground">{t('intro')}</p>
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-12 lg:col-span-6">
-          <BoardGroup title="Departments" color="#00c875" count={departments.length}>
+          <BoardGroup title={t('title')} color="#00c875" count={departments.length}>
             <Table className="board-table">
-              <TableHeader><TableRow><TableHead className="w-24 text-left">Code</TableHead><TableHead className="min-w-36 text-left">Name</TableHead><TableHead className="w-20">Sections</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead className="w-24 text-left">{t('col.code')}</TableHead><TableHead className="min-w-36 text-left">{t('col.name')}</TableHead><TableHead className="w-20">{t('col.sections')}</TableHead><TableHead>{t('col.active')}</TableHead></TableRow></TableHeader>
               <TableBody>
                 {departments.map((d) => (
                   <TableRow key={d.id} className={cn('cursor-pointer', d.id === current?.id && 'bg-accent')} onClick={() => setSelected(d.id)}>
@@ -233,12 +241,12 @@ function DepartmentsAdmin() {
                   </TableRow>
                 ))}
                 <TableRow>
-                  <TableCell><Input placeholder="Code" className="h-8 min-w-20 font-mono uppercase" value={newDept.code} onChange={(e) => setNewDept({ ...newDept, code: e.target.value })} /></TableCell>
-                  <TableCell><Input placeholder="New department" className="h-8" value={newDept.name} onChange={(e) => setNewDept({ ...newDept, name: e.target.value })} /></TableCell>
+                  <TableCell><Input placeholder={t('col.code')} className="h-8 min-w-20 font-mono uppercase" value={newDept.code} onChange={(e) => setNewDept({ ...newDept, code: e.target.value })} /></TableCell>
+                  <TableCell><Input placeholder={t('newDepartment')} className="h-8" value={newDept.name} onChange={(e) => setNewDept({ ...newDept, name: e.target.value })} /></TableCell>
                   <TableCell />
                   <TableCell className="text-center"><Button size="sm" disabled={!newDept.name.trim()} onClick={async () => {
                     if (await run(db.from('departments').insert({ code: normCode(newDept.code), name: newDept.name.trim() }))) setNewDept({ code: '', name: '' });
-                  }}>Add</Button></TableCell>
+                  }}>{tc('add')}</Button></TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -246,9 +254,9 @@ function DepartmentsAdmin() {
         </div>
         <div className="col-span-12 lg:col-span-6">
           {current && (
-            <BoardGroup title={`Sections — ${current.name}`} color="#579bfc" count={deptSections.length}>
+            <BoardGroup title={t('sectionsOf', { name: current.name })} color="#579bfc" count={deptSections.length}>
               <Table className="board-table">
-                <TableHeader><TableRow><TableHead className="w-24 text-left">Code</TableHead><TableHead className="min-w-36 text-left">Name</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead className="w-24 text-left">{t('col.code')}</TableHead><TableHead className="min-w-36 text-left">{t('col.name')}</TableHead><TableHead>{t('col.active')}</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {deptSections.map((s) => (
                     <TableRow key={s.id}>
@@ -258,11 +266,11 @@ function DepartmentsAdmin() {
                     </TableRow>
                   ))}
                   <TableRow>
-                    <TableCell><Input placeholder="Code" className="h-8 min-w-20 font-mono uppercase" value={newSection.code} onChange={(e) => setNewSection({ ...newSection, code: e.target.value })} /></TableCell>
-                    <TableCell><Input placeholder="New section" className="h-8" value={newSection.name} onChange={(e) => setNewSection({ ...newSection, name: e.target.value })} /></TableCell>
+                    <TableCell><Input placeholder={t('col.code')} className="h-8 min-w-20 font-mono uppercase" value={newSection.code} onChange={(e) => setNewSection({ ...newSection, code: e.target.value })} /></TableCell>
+                    <TableCell><Input placeholder={t('newSection')} className="h-8" value={newSection.name} onChange={(e) => setNewSection({ ...newSection, name: e.target.value })} /></TableCell>
                     <TableCell className="text-center"><Button size="sm" disabled={!newSection.name.trim()} onClick={async () => {
                       if (await run(db.from('sections').insert({ department_id: current.id, code: normCode(newSection.code), name: newSection.name.trim() }))) setNewSection({ code: '', name: '' });
-                    }}>Add</Button></TableCell>
+                    }}>{tc('add')}</Button></TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -275,6 +283,8 @@ function DepartmentsAdmin() {
 }
 
 function TypesAdmin() {
+  const t = useTranslations('admin.types');
+  const tc = useTranslations('common');
   const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<ProjectType[]>([]);
@@ -291,26 +301,26 @@ function TypesAdmin() {
   };
   return (
     <>
-      <p className="mb-3 text-sm text-muted-foreground">The code is used in the Project Code ({'{TYPE}'} token), e.g. SYS-WEB-2026-001.</p>
-      <BoardGroup title="Project Types" color="#a25ddc" count={rows.length}>
+      <p className="mb-3 text-sm text-muted-foreground">{t('intro', { token: '{TYPE}' })}</p>
+      <BoardGroup title={t('title')} color="#a25ddc" count={rows.length}>
         <Table className="board-table">
-          <TableHeader><TableRow><TableHead>Code</TableHead><TableHead className="text-left">Name</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>{t('col.code')}</TableHead><TableHead className="text-left">{t('col.name')}</TableHead><TableHead>{t('col.active')}</TableHead></TableRow></TableHeader>
           <TableBody>
-            {rows.map((t) => (
-              <TableRow key={t.id}>
-                <TableCell className="w-28 text-center font-semibold">{t.code}</TableCell>
-                <TableCell><Input defaultValue={t.name} className="h-8" onBlur={(e) => e.target.value !== t.name && upd(t.id, { name: e.target.value })} /></TableCell>
-                <TableCell className="w-24 text-center"><Switch checked={t.is_active} onCheckedChange={(c) => upd(t.id, { is_active: c })} /></TableCell>
+            {rows.map((x) => (
+              <TableRow key={x.id}>
+                <TableCell className="w-28 text-center font-semibold">{x.code}</TableCell>
+                <TableCell><Input defaultValue={x.name} className="h-8" onBlur={(e) => e.target.value !== x.name && upd(x.id, { name: e.target.value })} /></TableCell>
+                <TableCell className="w-24 text-center"><Switch checked={x.is_active} onCheckedChange={(c) => upd(x.id, { is_active: c })} /></TableCell>
               </TableRow>
             ))}
             <TableRow>
-              <TableCell><Input placeholder="CODE" className="h-8" value={n.code} onChange={(e) => setN({ ...n, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} /></TableCell>
-              <TableCell><Input placeholder="Name" className="h-8" value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></TableCell>
+              <TableCell><Input placeholder={t('codePlaceholder')} className="h-8" value={n.code} onChange={(e) => setN({ ...n, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} /></TableCell>
+              <TableCell><Input placeholder={t('col.name')} className="h-8" value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></TableCell>
               <TableCell className="text-center"><Button size="sm" disabled={!n.code || !n.name} onClick={async () => {
                 const { error } = await db.from('project_types').insert(n);
                 if (error) return notify(errMsg(error), 'error');
                 setN({ code: '', name: '' }); load();
-              }}>Add</Button></TableCell>
+              }}>{tc('add')}</Button></TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -320,6 +330,9 @@ function TypesAdmin() {
 }
 
 function TemplatesAdmin() {
+  const t = useTranslations('admin.templates');
+  const tt = useTranslations('template');
+  const tc = useTranslations('common');
   const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<ProjectTemplate[]>([]);
@@ -334,43 +347,43 @@ function TemplatesAdmin() {
     load();
   }, [load]);
 
-  const problems = edit ? draftProblems(edit) : [];
+  const problems = edit ? draftProblems(edit, tt) : [];
   const save = async () => {
     if (!edit) return;
     if (problems.length) return notify(problems[0], 'error');
     const payload = fromDraft(edit);
     const res = edit.id ? await db.from('project_templates').update(payload).eq('id', edit.id) : await db.from('project_templates').insert(payload);
     if (res.error) return notify(errMsg(res.error), 'error');
-    notify('Template saved');
+    notify(t('saved'));
     setEdit(null);
     load();
   };
 
-  const open = (t?: ProjectTemplate) => setEdit(toDraft(t));
-  const duplicate = () => edit && setEdit({ ...edit, id: undefined, code: `${edit.code ?? ''}-COPY`, name: `${edit.name ?? ''} (copy)` });
-  const totalDays = (t: ProjectTemplate) => t.default_activities.reduce((s, a) => s + Math.max(1, a.duration_days ?? 1), 0);
+  const open = (x?: ProjectTemplate) => setEdit(toDraft(x));
+  const duplicate = () => edit && setEdit({ ...edit, id: undefined, code: `${edit.code ?? ''}-COPY`, name: tt('copyName', { name: edit.name ?? '' }) });
+  const totalDays = (x: ProjectTemplate) => x.default_activities.reduce((s, a) => s + Math.max(1, a.duration_days ?? 1), 0);
 
   return (
     <>
-      <p className="mb-3 text-sm text-muted-foreground">Templates define the default activities (User Control Plan), default internal tasks and milestones created when a request is converted.</p>
-      <BoardGroup title="Project Templates" color="#00c875" count={rows.length} actions={<Button size="sm" onClick={() => open()}><Plus /> Add Template</Button>}>
+      <p className="mb-3 text-sm text-muted-foreground">{t('intro')}</p>
+      <BoardGroup title={t('title')} color="#00c875" count={rows.length} actions={<Button size="sm" onClick={() => open()}><Plus /> {t('add')}</Button>}>
         <Table className="board-table">
-          <TableHeader><TableRow><TableHead>Code</TableHead><TableHead className="text-left">Name</TableHead><TableHead>Type</TableHead><TableHead className="text-left">Activities</TableHead><TableHead>Duration</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>{t('col.code')}</TableHead><TableHead className="text-left">{t('col.name')}</TableHead><TableHead>{t('col.type')}</TableHead><TableHead className="text-left">{t('col.activities')}</TableHead><TableHead>{t('col.duration')}</TableHead><TableHead>{t('col.active')}</TableHead></TableRow></TableHeader>
           <TableBody>
-            {rows.map((t) => (
-              <TableRow key={t.id} className={cn('cursor-pointer', !t.is_active && 'opacity-50')} onClick={() => open(t)}>
-                <TableCell className="font-semibold">{t.code}</TableCell>
-                <TableCell>{t.name}</TableCell>
-                <TableCell className="text-center">{types.find((x) => x.id === t.project_type_id)?.name}</TableCell>
+            {rows.map((r) => (
+              <TableRow key={r.id} className={cn('cursor-pointer', !r.is_active && 'opacity-50')} onClick={() => open(r)}>
+                <TableCell className="font-semibold">{r.code}</TableCell>
+                <TableCell>{r.name}</TableCell>
+                <TableCell className="text-center">{types.find((x) => x.id === r.project_type_id)?.name}</TableCell>
                 <TableCell className="whitespace-normal">
                   <div className="flex flex-wrap items-center gap-1">
-                    {t.default_activities.map((a, i) => (
+                    {r.default_activities.map((a, i) => (
                       <span key={i} className={cn('rounded px-1.5 py-0.5 text-xs', a.is_milestone ? 'bg-amber-100 text-amber-900' : 'bg-secondary')}>{a.name}</span>
                     ))}
                   </div>
                 </TableCell>
-                <TableCell className="text-center text-muted-foreground">{totalDays(t)} days</TableCell>
-                <TableCell className="text-center">{t.is_active ? 'Yes' : 'No'}</TableCell>
+                <TableCell className="text-center text-muted-foreground">{t('days', { count: totalDays(r) })}</TableCell>
+                <TableCell className="text-center">{r.is_active ? t('yes') : t('no')}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -379,14 +392,14 @@ function TemplatesAdmin() {
       {edit && (
         <Dialog open onOpenChange={(o) => !o && setEdit(null)}>
           <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
-            <DialogHeader><DialogTitle>{edit.id ? `Edit Template — ${edit.code}` : 'Add Template'}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{edit.id ? t('edit', { code: edit.code ?? '' }) : t('add')}</DialogTitle></DialogHeader>
             <TemplateEditor draft={edit} onChange={setEdit} types={types} />
             <DialogFooter className="items-center sm:justify-between">
-              {edit.id ? <Button variant="ghost" onClick={duplicate}><Copy /> Duplicate as new</Button> : <span />}
+              {edit.id ? <Button variant="ghost" onClick={duplicate}><Copy /> {t('duplicate')}</Button> : <span />}
               <div className="flex items-center gap-2">
                 {problems.length > 0 && <span className="text-xs text-destructive">{problems[0]}</span>}
-                <Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button>
-                <Button onClick={save} disabled={problems.length > 0}>Save</Button>
+                <Button variant="outline" onClick={() => setEdit(null)}>{tc('cancel')}</Button>
+                <Button onClick={save} disabled={problems.length > 0}>{tc('save')}</Button>
               </div>
             </DialogFooter>
           </DialogContent>
@@ -396,8 +409,9 @@ function TemplatesAdmin() {
   );
 }
 
-const TOKENS: [string, string][] = [['{TYPE}', 'Project type code'], ['{YYYY}', 'Year, 4 digits'], ['{YY}', 'Year, 2 digits'], ['{SEQ:n}', 'Running number, n digits — restarts for each new prefix']];
-const DOC_TOKENS: [string, string][] = [['{DOC}', 'Document type code'], ...TOKENS.slice(1)];
+/** [token, description key: admin.tokens.<key>] */
+const TOKENS: [string, string][] = [['{TYPE}', 'type'], ['{YYYY}', 'yyyy'], ['{YY}', 'yy'], ['{SEQ:n}', 'seq']];
+const DOC_TOKENS: [string, string][] = [['{DOC}', 'doc'], ...TOKENS.slice(1)];
 
 /** Same substitution as generateCode() on the server, with the first sequence number */
 function previewCode(format: string | undefined, type: string | null, doc: string | null = null) {
@@ -409,20 +423,23 @@ function previewCode(format: string | undefined, type: string | null, doc: strin
 }
 
 function TokenHints({ tokens }: { tokens: [string, string][] }) {
+  const t = useTranslations('admin.tokens');
   return (
     <div className="flex flex-wrap gap-1.5">
-      {tokens.map(([t, d]) => (
-        <Tooltip key={t}>
-          <TooltipTrigger asChild><Badge variant="outline" className="cursor-help font-mono">{t}</Badge></TooltipTrigger>
-          <TooltipContent>{d}</TooltipContent>
+      {tokens.map(([token, d]) => (
+        <Tooltip key={token}>
+          <TooltipTrigger asChild><Badge variant="outline" className="cursor-help font-mono">{token}</Badge></TooltipTrigger>
+          <TooltipContent>{t(d as 'type')}</TooltipContent>
         </Tooltip>
       ))}
-      <span className="self-center text-xs text-muted-foreground">Hover a token to see what it does</span>
+      <span className="self-center text-xs text-muted-foreground">{t('hover')}</span>
     </div>
   );
 }
 
 function SettingsAdmin() {
+  const t = useTranslations('admin.projectCode');
+  const tc = useTranslations('common');
   const db = dbClient();
   const { notify } = useApp();
   const [vals, setVals] = useState<Record<string, string>>({});
@@ -436,30 +453,30 @@ function SettingsAdmin() {
       setSaved(v);
     });
     db.from('project_types').select('*').eq('is_active', true).order('code').then(({ data }) => {
-      const t = (data as ProjectType[] | null)?.[0];
-      if (t) setTypeCode(t.code);
+      const first = (data as ProjectType[] | null)?.[0];
+      if (first) setTypeCode(first.code);
     });
   }, [db]);
   const save = async () => {
     const { error } = await db.from('app_settings').update({ value: vals[key], updated_at: new Date().toISOString() }).eq('key', key);
     if (!error) setSaved({ ...saved, [key]: vals[key] });
-    notify(error ? errMsg(error) : 'Saved', error ? 'error' : 'success');
+    notify(error ? errMsg(error) : t('saved'), error ? 'error' : 'success');
   };
 
   return (
     <Card className="max-w-xl">
       <CardHeader>
-        <CardTitle>Project Code</CardTitle>
-        <CardDescription>How new project codes are generated. Request numbers are set per document type in Admin → Document Types.</CardDescription>
+        <CardTitle>{t('title')}</CardTitle>
+        <CardDescription>{t('description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div>
           <div className="flex items-end gap-2">
-            <TextField className="flex-1" label="Project Code" mono value={vals[key]} onChange={(v) => setVals({ ...vals, [key]: v })} />
-            <Button variant={vals[key] !== saved[key] ? 'default' : 'outline'} className="h-9" disabled={vals[key] === saved[key]} onClick={save}>Save</Button>
+            <TextField className="flex-1" label={t('title')} mono value={vals[key]} onChange={(v) => setVals({ ...vals, [key]: v })} />
+            <Button variant={vals[key] !== saved[key] ? 'default' : 'outline'} className="h-9" disabled={vals[key] === saved[key]} onClick={save}>{tc('save')}</Button>
           </div>
           <div className="mt-1.5 text-xs text-muted-foreground">
-            Next looks like <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">{previewCode(vals[key], typeCode) || '—'}</span>
+            {t('preview')} <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">{previewCode(vals[key], typeCode) || '—'}</span>
           </div>
         </div>
         <div className="border-t pt-4"><TokenHints tokens={TOKENS} /></div>
@@ -474,6 +491,9 @@ const newDoc = (sort: number): DocDraft => ({
 });
 
 function DocumentTypesAdmin() {
+  const t = useTranslations('admin.docTypes');
+  const tc = useTranslations('common');
+  const { text: enumText } = useOptions();
   const db = dbClient();
   const { notify, profiles } = useApp();
   const [rows, setRows] = useState<DocumentType[]>([]);
@@ -496,20 +516,20 @@ function DocumentTypesAdmin() {
 
   const problems = (d: DocDraft) => {
     const out: string[] = [];
-    if (!d.code.trim()) out.push('code is required');
-    if (!d.name.trim()) out.push('name is required');
-    if (!/\{SEQ:\d+\}/.test(d.request_no_format)) out.push('the request number format needs a {SEQ:n} running number');
+    if (!d.code.trim()) out.push(t('problem.code'));
+    if (!d.name.trim()) out.push(t('problem.name'));
+    if (!/\{SEQ:\d+\}/.test(d.request_no_format)) out.push(t('problem.seq', { token: '{SEQ:n}' }));
     const year = String(new Date().getFullYear());
     const clash = rows.find((o) => o.id !== d.id && formatPrefix(o.request_no_format, o.code, year) === formatPrefix(d.request_no_format, d.code, year));
-    if (clash) out.push(`the request number format gives the same numbers as ${clash.name} — use {DOC} or another prefix`);
-    if ((d.clarify_criteria ?? []).some((c) => !c.label.trim())) out.push('every AI criterion needs a name');
-    return [...out, ...routeProblems(d.approval_route)];
+    if (clash) out.push(t('problem.clash', { name: clash.name, token: '{DOC}' }));
+    if ((d.clarify_criteria ?? []).some((c) => !c.label.trim())) out.push(t('problem.criterion'));
+    return [...out, ...routeProblems(d.approval_route).map((c) => enumText('routeProblem', c))];
   };
 
   const save = async () => {
     if (!edit) return;
     const p = problems(edit);
-    if (p.length) return notify(`Cannot save: ${p.join('; ')}`, 'error');
+    if (p.length) return notify(t('cannotSave', { problems: p.join('; ') }), 'error');
     const { id, code, name, form_no, request_no_format, approval_route, sort_order, is_active } = edit;
     const clarify_criteria = (edit.clarify_criteria ?? []).map((c) => ({ ...c, label: c.label.trim(), hint: c.hint.trim() }));
     const payload = { code: code.trim(), name: name.trim(), form_no: form_no?.trim() || null, request_no_format: request_no_format.trim(), approval_route, clarify_criteria, sort_order, is_active };
@@ -517,7 +537,7 @@ function DocumentTypesAdmin() {
       ? await db.from('document_types').update(payload).eq('id', id).select().single()
       : await db.from('document_types').insert(payload).select().single();
     if (res.error) return notify(errMsg(res.error), 'error');
-    notify(`${payload.name} saved`);
+    notify(t('saved', { name: payload.name }));
     await load();
     open(res.data as DocumentType);
   };
@@ -563,10 +583,10 @@ function DocumentTypesAdmin() {
     return (
       <div>
         <div className="mb-2 flex items-center gap-2">
-          <span className="flex-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{ROUTE_STAGES.find((x) => x.value === stage)!.label}</span>
-          {!fixed && <Button size="sm" variant="ghost" className="h-7" onClick={() => addStep(stage)}><Plus /> Add step</Button>}
+          <span className="flex-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{enumText('routeStage', stage)}</span>
+          {!fixed && <Button size="sm" variant="ghost" className="h-7" onClick={() => addStep(stage)}><Plus /> {t('addStep')}</Button>}
         </div>
-        {items.length === 0 && <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">No steps</p>}
+        {items.length === 0 && <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">{t('noSteps')}</p>}
         <ol className="space-y-1.5">
           {items.map(({ s, i }) => (
             <li key={s.step_code} className="flex items-start gap-2 rounded-lg border px-3 py-2">
@@ -574,9 +594,9 @@ function DocumentTypesAdmin() {
               <Input className="h-9 w-44 shrink-0" value={s.step_name} onChange={(e) => patchStep(i, { step_name: e.target.value })} />
               {stage === 'requestor' ? (
                 <SelectField className="flex-1" value={s.levels?.[0] ?? ''} onChange={(v) => patchStep(i, { levels: andUp(v as PositionLevel) })}
-                  options={POSITION_LEVELS.map((l) => ({ value: l.value, label: `${l.label} up` }))} />
+                  options={POSITION_LEVELS.map((l) => ({ value: l.value, label: t('levelUp', { level: enumText('positionLevel', l.value) }) }))} />
               ) : (
-                <MultiSelect className="flex-1" placeholder="Select people…" value={routeApprovers(s).map(String)}
+                <MultiSelect className="flex-1" placeholder={t('selectPeople')} value={routeApprovers(s).map(String)}
                   options={personOpts(routeApprovers(s))} onChange={(v) => patchStep(i, { approvers: v.map(Number) })} />
               )}
               {!fixed && (
@@ -596,18 +616,18 @@ function DocumentTypesAdmin() {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start">
-      <BoardGroup title="Document Types" color="#579bfc" count={rows.length}
-        actions={<Button size="sm" onClick={() => open(newDoc((rows.at(-1)?.sort_order ?? 0) + 1))}><Plus /> Add</Button>}>
+      <BoardGroup title={t('title')} color="#579bfc" count={rows.length}
+        actions={<Button size="sm" onClick={() => open(newDoc((rows.at(-1)?.sort_order ?? 0) + 1))}><Plus /> {tc('add')}</Button>}>
         <ul className="divide-y">
-          {rows.map((t) => (
-            <li key={t.id}>
-              <button type="button" onClick={() => open(t)}
-                className={cn('flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/60', edit?.id === t.id && 'bg-primary/5')}>
+          {rows.map((d) => (
+            <li key={d.id}>
+              <button type="button" onClick={() => open(d)}
+                className={cn('flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/60', edit?.id === d.id && 'bg-primary/5')}>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{t.name}</span>
-                  <span className="block font-mono text-xs text-muted-foreground">{previewCode(t.request_no_format, null, t.code)}</span>
+                  <span className="block truncate font-medium">{d.name}</span>
+                  <span className="block font-mono text-xs text-muted-foreground">{previewCode(d.request_no_format, null, d.code)}</span>
                 </span>
-                {!t.is_active && <Badge variant="secondary">Inactive</Badge>}
+                {!d.is_active && <Badge variant="secondary">{t('inactive')}</Badge>}
               </button>
             </li>
           ))}
@@ -618,62 +638,59 @@ function DocumentTypesAdmin() {
         <div className="space-y-5">
           <Card>
             <CardHeader>
-              <CardTitle>{edit.id ? edit.name || 'Document type' : 'New document type'}</CardTitle>
-              <CardDescription>Each document type has its own request number (running number) and approval route</CardDescription>
+              <CardTitle>{edit.id ? edit.name || t('documentType') : t('new')}</CardTitle>
+              <CardDescription>{t('description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-12 gap-3">
-                <TextField className="col-span-3" label="Code" required value={edit.code} disabled={!!edit.id}
+                <TextField className="col-span-3" label={t('field.code')} required value={edit.code} disabled={!!edit.id}
                   onChange={(v) => setEdit({ ...edit, code: v.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
-                  helperText={edit.id ? 'Fixed once created' : '{DOC} in the number'} />
-                <TextField className="col-span-6" label="Name" required value={edit.name} onChange={(v) => setEdit({ ...edit, name: v })} />
-                <TextField className="col-span-3" label="Form No." value={edit.form_no} placeholder="FM-SYS-004" onChange={(v) => setEdit({ ...edit, form_no: v })} />
+                  helperText={edit.id ? t('field.codeFixed') : t('field.codeHelp', { token: '{DOC}' })} />
+                <TextField className="col-span-6" label={t('field.name')} required value={edit.name} onChange={(v) => setEdit({ ...edit, name: v })} />
+                <TextField className="col-span-3" label={t('field.formNo')} value={edit.form_no} placeholder="FM-SYS-004" onChange={(v) => setEdit({ ...edit, form_no: v })} />
                 <div className="col-span-9">
-                  <TextField label="Request Number" required mono value={edit.request_no_format} onChange={(v) => setEdit({ ...edit, request_no_format: v })} />
+                  <TextField label={t('field.requestNo')} required mono value={edit.request_no_format} onChange={(v) => setEdit({ ...edit, request_no_format: v })} />
                   <div className="mt-1.5 text-xs text-muted-foreground">
-                    Next looks like <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">{previewCode(edit.request_no_format, null, edit.code) || '—'}</span>
-                    {' '}· numbering continues where it left off for the same prefix
+                    {t('preview')} <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">{previewCode(edit.request_no_format, null, edit.code) || '—'}</span>
+                    {' '}· {t('field.continues')}
                   </div>
                 </div>
-                <TextField className="col-span-3" label="Order" type="number" value={edit.sort_order} onChange={(v) => setEdit({ ...edit, sort_order: Number(v) || 0 })} />
+                <TextField className="col-span-3" label={t('field.order')} type="number" value={edit.sort_order} onChange={(v) => setEdit({ ...edit, sort_order: Number(v) || 0 })} />
               </div>
               <TokenHints tokens={DOC_TOKENS} />
               <label className="flex items-center gap-2 text-sm">
-                <Switch checked={edit.is_active} onCheckedChange={(c) => setEdit({ ...edit, is_active: c })} /> Open for new requests
+                <Switch checked={edit.is_active} onCheckedChange={(c) => setEdit({ ...edit, is_active: c })} /> {t('field.open')}
               </label>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Approval Route</CardTitle>
-              <CardDescription>The steps every {edit.name || 'request'} goes through, in order. Changes apply to requests submitted from now on.</CardDescription>
+              <CardTitle>{t('route.title')}</CardTitle>
+              <CardDescription>{t('route.description', { name: edit.name || t('route.request') })}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              {stageBlock('requestor', "Anyone at that position or higher in the requestor's own department (positions come from AD).")}
-              {stageBlock('receive', 'Receives the request and fills in Project Type / Template / Project Leader.')}
-              {stageBlock('authority', 'Pick one or more people per step — whoever acts first completes it.')}
+              {stageBlock('requestor', t('route.hint.requestor'))}
+              {stageBlock('receive', t('route.hint.receive'))}
+              {stageBlock('authority', t('route.hint.authority'))}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> AI Clarification Criteria</CardTitle>
-              <CardDescription>
-                What the team needs to know about a project at request time. When the requestor submits, the AI chats with them about what the form
-                does not cover yet — required ones first, optional ones only when they apply — then the requestor confirms a summary per criterion. No criteria = no AI chat.
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /> {t('criteria.title')}</CardTitle>
+              <CardDescription>{t('criteria.description')}</CardDescription>
             </CardHeader>
             <CardContent>
-              {criteria.length === 0 && <p className="mb-2 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">No criteria — requests are submitted without AI questions</p>}
+              {criteria.length === 0 && <p className="mb-2 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">{t('criteria.none')}</p>}
               <ol className="space-y-1.5">
                 {criteria.map((c, i) => (
                   <li key={c.key} className="flex items-center gap-2 rounded-lg border px-3 py-2">
                     {stepNo(i)}
-                    <Input className="h-9 w-48 shrink-0" placeholder="Name" value={c.label} onChange={(e) => patchCriterion(i, { label: e.target.value })} />
-                    <Input className="h-9 flex-1" placeholder="What to find out — guides the AI's question" value={c.hint} onChange={(e) => patchCriterion(i, { hint: e.target.value })} />
+                    <Input className="h-9 w-48 shrink-0" placeholder={t('criteria.name')} value={c.label} onChange={(e) => patchCriterion(i, { label: e.target.value })} />
+                    <Input className="h-9 flex-1" placeholder={t('criteria.hint')} value={c.hint} onChange={(e) => patchCriterion(i, { hint: e.target.value })} />
                     <label className="flex shrink-0 items-center gap-1.5 text-xs">
-                      <Switch checked={c.required} onCheckedChange={(v) => patchCriterion(i, { required: v })} /> Required
+                      <Switch checked={c.required} onCheckedChange={(v) => patchCriterion(i, { required: v })} /> {t('criteria.required')}
                     </label>
                     <div className="flex shrink-0">
                       <Button size="icon" variant="ghost" className="size-9" disabled={i === 0} onClick={() => moveCriterion(i, -1)}><ArrowUp /></Button>
@@ -684,8 +701,8 @@ function DocumentTypesAdmin() {
                 ))}
               </ol>
               <div className="mt-2 flex gap-2">
-                <Button size="sm" variant="ghost" className="h-7" onClick={addCriterion}><Plus /> Add criterion</Button>
-                <Button size="sm" variant="ghost" className="h-7" onClick={() => setCriteria(DEFAULT_CRITERIA)}><RotateCcw /> Reset to defaults</Button>
+                <Button size="sm" variant="ghost" className="h-7" onClick={addCriterion}><Plus /> {t('criteria.add')}</Button>
+                <Button size="sm" variant="ghost" className="h-7" onClick={() => setCriteria(DEFAULT_CRITERIA)}><RotateCcw /> {t('criteria.reset')}</Button>
               </div>
             </CardContent>
           </Card>
@@ -693,9 +710,9 @@ function DocumentTypesAdmin() {
           <div className="flex items-center justify-end gap-3">
             {problems(edit).length > 0 && <span className="text-xs text-destructive">{problems(edit)[0]}</span>}
             {route.some((s) => s.stage !== 'requestor' && !routeApprovers(s).length) && !problems(edit).length && (
-              <span className="text-xs text-destructive">Requests can&apos;t be submitted until every step has an approver</span>
+              <span className="text-xs text-destructive">{t('needApprovers')}</span>
             )}
-            <Button variant={dirty ? 'default' : 'outline'} disabled={!dirty} onClick={save}>Save</Button>
+            <Button variant={dirty ? 'default' : 'outline'} disabled={!dirty} onClick={save}>{tc('save')}</Button>
           </div>
         </div>
       )}
@@ -706,6 +723,8 @@ function DocumentTypesAdmin() {
 type Holiday = { id: number; holiday_date: string; name: string };
 
 function WorkingDaysAdmin() {
+  const t = useTranslations('admin.workingDays');
+  const tc = useTranslations('common');
   const db = dbClient();
   const { notify } = useApp();
   const [week, setWeek] = useState<number[] | null>(null);
@@ -726,7 +745,7 @@ function WorkingDaysAdmin() {
     const { error } = await db.from('app_settings').upsert({ key: WORK_WEEK_KEY, value: days, updated_at: new Date().toISOString() });
     if (error) return notify(errMsg(error), 'error');
     setWeek(days);
-    notify('Work week saved');
+    notify(t('saved'));
   };
   const addHoliday = async () => {
     const { error } = await db.from('company_holidays').insert({ holiday_date: n.holiday_date, name: n.name.trim() });
@@ -736,7 +755,7 @@ function WorkingDaysAdmin() {
     load();
   };
   const removeHoliday = async (h: Holiday) => {
-    if (!(await confirmDialog({ title: `Remove ${h.name}?`, description: 'This holiday will be removed from the company calendar.', confirmText: 'Remove', destructive: true }))) return;
+    if (!(await confirmDialog({ title: t('remove.title', { name: h.name }), description: t('remove.text'), confirmText: t('remove.confirm'), destructive: true }))) return;
     const { error } = await db.from('company_holidays').delete().eq('id', h.id);
     if (error) return notify(errMsg(error), 'error');
     load();
@@ -753,8 +772,8 @@ function WorkingDaysAdmin() {
     <div className="grid max-w-5xl gap-5 lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start">
       <Card>
         <CardHeader>
-          <CardTitle>Work Week</CardTitle>
-          <CardDescription>Days the company works. Template activities at Convert and delay / schedule variance count only working days.</CardDescription>
+          <CardTitle>{t('weekTitle')}</CardTitle>
+          <CardDescription>{t('weekDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {WORK_WEEKS.map((w) => (
@@ -764,27 +783,27 @@ function WorkingDaysAdmin() {
               <span className={cn('flex size-4 items-center justify-center rounded-full border', current?.value === w.value && 'border-primary')}>
                 {current?.value === w.value && <span className="size-2 rounded-full bg-primary" />}
               </span>
-              <span className="flex-1 font-medium">{w.label}</span>
-              <span className="text-xs text-muted-foreground">{w.days.length} days / week</span>
+              <span className="flex-1 font-medium">{t(`week.${w.value}`)}</span>
+              <span className="text-xs text-muted-foreground">{t('perWeek', { count: w.days.length })}</span>
             </button>
           ))}
-          {week && !current && <p className="text-xs text-muted-foreground">Custom work week set in the database — pick one to replace it.</p>}
+          {week && !current && <p className="text-xs text-muted-foreground">{t('custom')}</p>}
         </CardContent>
       </Card>
 
-      <BoardGroup title="Company Holidays" color="#e2445c" count={inYear.length}
+      <BoardGroup title={t('holidays')} color="#e2445c" count={inYear.length}
         actions={
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{workdays} working days in {year}</span>
+            <span className="text-xs text-muted-foreground">{t('workdaysIn', { count: workdays, year })}</span>
             <SelectField className="w-28" value={String(year)} onChange={(v) => setYear(Number(v))} options={years.map((y) => ({ value: String(y), label: String(y) }))} />
           </div>
         }>
         <Table className="board-table">
-          <TableHeader><TableRow><TableHead className="w-44">Date</TableHead><TableHead className="text-left">Holiday</TableHead><TableHead className="w-16" /></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead className="w-44">{t('col.date')}</TableHead><TableHead className="text-left">{t('col.holiday')}</TableHead><TableHead className="w-16" /></TableRow></TableHeader>
           <TableBody>
             {inYear.map((h) => (
               <TableRow key={h.id}>
-                <TableCell className="text-center">{fmtDate(h.holiday_date)} <span className="text-xs text-muted-foreground">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(`${h.holiday_date}T00:00:00Z`).getUTCDay()]}</span></TableCell>
+                <TableCell className="text-center">{fmtDate(h.holiday_date)} <span className="text-xs text-muted-foreground">{day(h.holiday_date).format('ddd')}</span></TableCell>
                 <TableCell>{h.name}</TableCell>
                 <TableCell className="text-center">
                   <Button size="icon" variant="ghost" className="size-8 text-destructive" onClick={() => removeHoliday(h)}><Trash2 /></Button>
@@ -792,12 +811,12 @@ function WorkingDaysAdmin() {
               </TableRow>
             ))}
             {inYear.length === 0 && (
-              <TableRow><TableCell colSpan={3} className="text-center text-sm text-muted-foreground">No holidays in {year}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={3} className="text-center text-sm text-muted-foreground">{t('noHolidays', { year })}</TableCell></TableRow>
             )}
             <TableRow>
               <TableCell><DateField value={n.holiday_date} onChange={(v) => setN({ ...n, holiday_date: v })} /></TableCell>
-              <TableCell><Input placeholder="e.g. Songkran Festival" className="h-9" value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></TableCell>
-              <TableCell className="text-center"><Button size="sm" disabled={!n.holiday_date || !n.name.trim()} onClick={addHoliday}>Add</Button></TableCell>
+              <TableCell><Input placeholder={t('holidayPlaceholder')} className="h-9" value={n.name} onChange={(e) => setN({ ...n, name: e.target.value })} /></TableCell>
+              <TableCell className="text-center"><Button size="sm" disabled={!n.holiday_date || !n.name.trim()} onClick={addHoliday}>{tc('add')}</Button></TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -807,6 +826,8 @@ function WorkingDaysAdmin() {
 }
 
 function RulesAdmin() {
+  const t = useTranslations('admin.notificationRules');
+  const { options } = useOptions();
   const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<NotificationRule[]>([]);
@@ -820,15 +841,15 @@ function RulesAdmin() {
     if (error) notify(errMsg(error), 'error');
     load();
   };
-  const recipientOpts = [{ value: 'explicit', label: 'Directly involved person' }, ...MEMBER_ROLES];
+  const recipientOpts = [{ value: 'explicit', label: t('explicit') }, ...options(MEMBER_ROLES)];
   return (
     <>
       <p className="mb-3 text-sm text-muted-foreground">
-        Recipients are resolved per event from the Project Team roles. “Directly involved person” = task owner, approver, requestor, activity PIC. Overdue reminders repeat every N days and escalate to more roles (e.g. Manager) after N days overdue.
+        {t('intro')}
       </p>
-      <BoardGroup title="Notification Rules" color="#fdab3d" count={rows.length}>
+      <BoardGroup title={t('title')} color="#fdab3d" count={rows.length}>
         <Table className="board-table">
-          <TableHeader><TableRow><TableHead className="text-left">Event</TableHead><TableHead className="min-w-80">Recipients</TableHead><TableHead>In-app</TableHead><TableHead>E-mail</TableHead><TableHead>Repeat every (days)</TableHead><TableHead>Escalate after (days)</TableHead><TableHead className="min-w-56">Escalate to</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead className="text-left">{t('col.event')}</TableHead><TableHead className="min-w-80">{t('col.recipients')}</TableHead><TableHead>{t('col.inApp')}</TableHead><TableHead>{t('col.email')}</TableHead><TableHead>{t('col.repeat')}</TableHead><TableHead>{t('col.escalateAfter')}</TableHead><TableHead className="min-w-56">{t('col.escalateTo')}</TableHead><TableHead>{t('col.active')}</TableHead></TableRow></TableHeader>
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.event_code}>
@@ -842,8 +863,8 @@ function RulesAdmin() {
                 {['task_overdue', 'fix_overdue'].includes(r.event_code) ? (
                   <>
                     <TableCell className="text-center"><Input type="number" defaultValue={r.escalation_days ?? 1} className="mx-auto h-8 w-20" onBlur={(e) => upd(r.event_code, { escalation_days: Math.max(1, Number(e.target.value)) })} /></TableCell>
-                    <TableCell className="text-center"><Input type="number" defaultValue={r.escalate_after_days ?? ''} placeholder="never" className="mx-auto h-8 w-20" onBlur={(e) => upd(r.event_code, { escalate_after_days: e.target.value ? Math.max(1, Number(e.target.value)) : null })} /></TableCell>
-                    <TableCell className="whitespace-normal"><MultiSelect value={r.escalate_roles ?? []} onChange={(v) => upd(r.event_code, { escalate_roles: v })} options={MEMBER_ROLES} placeholder="—" /></TableCell>
+                    <TableCell className="text-center"><Input type="number" defaultValue={r.escalate_after_days ?? ''} placeholder={t('never')} className="mx-auto h-8 w-20" onBlur={(e) => upd(r.event_code, { escalate_after_days: e.target.value ? Math.max(1, Number(e.target.value)) : null })} /></TableCell>
+                    <TableCell className="whitespace-normal"><MultiSelect value={r.escalate_roles ?? []} onChange={(v) => upd(r.event_code, { escalate_roles: v })} options={options(MEMBER_ROLES)} placeholder="—" /></TableCell>
                   </>
                 ) : <><TableCell className="text-center">-</TableCell><TableCell className="text-center">-</TableCell><TableCell className="text-center">-</TableCell></>}
                 <TableCell className="text-center"><Switch checked={r.is_active} onCheckedChange={(c) => upd(r.event_code, { is_active: c })} /></TableCell>
@@ -857,6 +878,8 @@ function RulesAdmin() {
 }
 
 function InsightRulesAdmin() {
+  const t = useTranslations('admin.insightRules');
+  const { options } = useOptions();
   const db = dbClient();
   const { notify } = useApp();
   const [rows, setRows] = useState<InsightRule[]>([]);
@@ -872,10 +895,10 @@ function InsightRulesAdmin() {
   };
   return (
     <>
-      <p className="mb-3 text-sm text-muted-foreground">Smart Insight rules (PRD §22). Set the X thresholds, severity and on/off. Internal rules are only shown to the System Service team.</p>
-      <BoardGroup title="Insight Rules" color="#784bd1" count={rows.length}>
+      <p className="mb-3 text-sm text-muted-foreground">{t('intro')}</p>
+      <BoardGroup title={t('title')} color="#784bd1" count={rows.length}>
         <Table className="board-table">
-          <TableHeader><TableRow><TableHead className="text-left">Rule</TableHead><TableHead>Threshold (X)</TableHead><TableHead>Severity</TableHead><TableHead>Visibility</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead className="text-left">{t('col.rule')}</TableHead><TableHead>{t('col.threshold')}</TableHead><TableHead>{t('col.severity')}</TableHead><TableHead>{t('col.visibility')}</TableHead><TableHead>{t('col.active')}</TableHead></TableRow></TableHeader>
           <TableBody>
             {rows.map((r) => (
               <TableRow key={r.code}>
@@ -883,8 +906,8 @@ function InsightRulesAdmin() {
                 <TableCell className="text-center">{r.threshold_label
                   ? <div className="flex items-center justify-center gap-1"><Input type="number" defaultValue={r.threshold ?? ''} className="h-8 w-20" onBlur={(e) => upd(r.code, { threshold: e.target.value === '' ? null : Number(e.target.value) })} /><span className="text-xs text-muted-foreground">{r.threshold_label}</span></div>
                   : '-'}</TableCell>
-                <TableCell className="w-36"><SelectField value={r.severity} onChange={(v) => upd(r.code, { severity: v })} options={INSIGHT_SEVERITIES} /></TableCell>
-                <TableCell className="text-center text-xs">{r.internal ? 'Internal team' : 'Everyone'}</TableCell>
+                <TableCell className="w-36"><SelectField value={r.severity} onChange={(v) => upd(r.code, { severity: v })} options={options(INSIGHT_SEVERITIES)} /></TableCell>
+                <TableCell className="text-center text-xs">{r.internal ? t('internal') : t('everyone')}</TableCell>
                 <TableCell className="text-center"><Switch checked={r.is_active} onCheckedChange={(c) => upd(r.code, { is_active: c })} /></TableCell>
               </TableRow>
             ))}
@@ -896,6 +919,9 @@ function InsightRulesAdmin() {
 }
 
 function KpiSettingsAdmin() {
+  const t = useTranslations('admin.kpi');
+  const tc = useTranslations('common');
+  const { options } = useOptions();
   const db = dbClient();
   const { notify } = useApp();
   const [cats, setCats] = useState<string[]>([]);
@@ -904,16 +930,15 @@ function KpiSettingsAdmin() {
   }, [db]);
   return (
     <div className="max-w-2xl">
-      <h3 className="mb-1 font-semibold">Fair individual KPI</h3>
+      <h3 className="mb-1 font-semibold">{t('title')}</h3>
       <p className="mb-3 text-sm text-muted-foreground">
-        Late tasks whose Delay Category is in this list are <b>excused</b> — they are not counted against the owner&apos;s on-time rate, overdue count or average delay
-        (e.g. waiting for the user or an external vendor). PRD §23.
+        {t.rich('intro', { b: (c) => <b>{c}</b> })}
       </p>
-      <MultiSelect label="Excused delay categories" value={cats} onChange={setCats} options={DELAY_CATEGORIES.map((c) => ({ value: c, label: c }))} />
+      <MultiSelect label={t('excused')} value={cats} onChange={setCats} options={options(DELAY_CATEGORIES)} />
       <Button className="mt-3" onClick={async () => {
         const { error } = await db.from('app_settings').upsert({ key: 'kpi_excluded_delay_categories', value: cats, updated_at: new Date().toISOString() });
-        notify(error ? errMsg(error) : 'KPI settings saved', error ? 'error' : 'success');
-      }}>Save</Button>
+        notify(error ? errMsg(error) : t('saved'), error ? 'error' : 'success');
+      }}>{tc('save')}</Button>
     </div>
   );
 }

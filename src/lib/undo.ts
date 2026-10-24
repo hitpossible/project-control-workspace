@@ -10,8 +10,10 @@ const pending = new Map<number, () => void>();
 let seq = 0;
 let bound = false;
 
-export function deleteWithUndo({ message, commit, undo, ms = 5000 }: {
+export function deleteWithUndo({ message, undoLabel, commit, undo, ms = 5000 }: {
   message: string;
+  /** text of the toast button (UI language) */
+  undoLabel: string;
   /** the real delete (handles its own errors / reload) */
   commit: () => Promise<unknown>;
   /** put the hidden item back */
@@ -35,7 +37,7 @@ export function deleteWithUndo({ message, commit, undo, ms = 5000 }: {
   toast(message, {
     duration: ms,
     action: {
-      label: 'Undo',
+      label: undoLabel,
       onClick: () => {
         if (settled) return;
         settled = true;

@@ -2,6 +2,7 @@
 
 import dayjs from 'dayjs';
 import { Download, TriangleAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { PROJECT_STATUSES } from '@/lib/constants';
@@ -18,6 +19,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 
 /** Management / User View — project-level data only (no internal technical detail) */
 export default function ManagementDashboard() {
+  const t = useTranslations('management');
+  const tf = useTranslations('fields');
+  const tc = useTranslations('common');
   const db = dbClient();
   const router = useRouter();
   const [rows, setRows] = useState<ProjectView[] | null>(null);
@@ -40,12 +44,12 @@ export default function ManagementDashboard() {
   return (
     <>
       <PageHeader
-        title="Management Dashboard"
-        subtitle="Project status overview — high-level information for Management / User"
+        title={t('title')}
+        subtitle={t('subtitle')}
         actions={<>
-          <SelectField className="w-56" value={dept} allowEmpty placeholder="All departments" onChange={setDept}
+          <SelectField className="w-56" value={dept} allowEmpty placeholder={t('allDepartments')} onChange={setDept}
             options={depts.map((d) => ({ value: d, label: d }))} />
-          <Button variant="outline" className="h-9" onClick={() => exportProjectListExcel(list, `Management_Report_${dayjs().format('YYYYMMDD')}.xlsx`)}><Download /> Export</Button>
+          <Button variant="outline" className="h-9" onClick={() => exportProjectListExcel(list, `Management_Report_${dayjs().format('YYYYMMDD')}.xlsx`)}><Download /> {tc('export')}</Button>
         </>}
       />
       {!rows ? (
@@ -55,40 +59,40 @@ export default function ManagementDashboard() {
         </>
       ) : <>
       <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-6">
-        <StatCard label="Total Projects" value={list.length} />
-        <StatCard label="Working on it" value={count('in_progress')} color="#fdab3d" />
-        <StatCard label="Planning / Waiting" value={count('planning') + count('waiting') + count('on_hold')} color="#a25ddc" />
-        <StatCard label="Delayed / At Risk" value={count('delayed') + count('at_risk')} color="#e2445c" />
-        <StatCard label="Done" value={count('completed')} color="#00c875" />
-        <StatCard label="Need Attention" value={attention.length} color="#ff642e" />
+        <StatCard label={t('stat.total')} value={list.length} />
+        <StatCard label={t('stat.inProgress')} value={count('in_progress')} color="#fdab3d" />
+        <StatCard label={t('stat.planningWaiting')} value={count('planning') + count('waiting') + count('on_hold')} color="#a25ddc" />
+        <StatCard label={t('stat.delayedAtRisk')} value={count('delayed') + count('at_risk')} color="#e2445c" />
+        <StatCard label={t('stat.done')} value={count('completed')} color="#00c875" />
+        <StatCard label={t('stat.needAttention')} value={attention.length} color="#ff642e" />
       </div>
 
       {attention.length > 0 && (
-        <BoardGroup title={<span className="inline-flex items-center gap-1.5"><TriangleAlert className="size-4" /> Projects Need Attention</span>} color="#e2445c" count={attention.length}>
+        <BoardGroup title={<span className="inline-flex items-center gap-1.5"><TriangleAlert className="size-4" /> {t('attention')}</span>} color="#e2445c" count={attention.length}>
           <div className="divide-y divide-grid">
             {attention.map((p) => (
               <button key={p.id} type="button" onClick={() => router.push(`/projects/${p.id}`)} className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-muted active:bg-selected/60">
                 <HealthDot value={p.health} />
                 <span className="text-sm font-semibold">{p.project_code}</span>
                 <span className="text-sm">{p.project_name}</span>
-                <span className="ml-auto text-xs text-destructive">{p.attention.join(' · ') || 'Health RED'}</span>
+                <span className="ml-auto text-xs text-destructive">{p.attention.join(' · ') || t('healthRed')}</span>
               </button>
             ))}
           </div>
         </BoardGroup>
       )}
 
-      <BoardGroup title="Smart Insights" color="#784bd1">
+      <BoardGroup title={t('insights')} color="#784bd1">
         <InsightList limit={8} />
       </BoardGroup>
 
-      <BoardGroup title="All Projects" color="#579bfc" count={list.length}>
+      <BoardGroup title={t('allProjects')} color="#579bfc" count={list.length}>
         <Table className="board-table">
           <TableHeader>
             <TableRow>
-              <TableHead className="text-left">Project</TableHead><TableHead>Project Leader</TableHead><TableHead>Status</TableHead>
-              <TableHead>Requestor Dept.</TableHead><TableHead>Target Date</TableHead><TableHead>Forecast Date</TableHead>
-              <TableHead>Progress</TableHead><TableHead>Next Action</TableHead>
+              <TableHead className="text-left">{tf('project')}</TableHead><TableHead>{tf('projectLeader')}</TableHead><TableHead>{tf('status')}</TableHead>
+              <TableHead>{tf('requestorDept')}</TableHead><TableHead>{tf('targetDate')}</TableHead><TableHead>{tf('forecastDate')}</TableHead>
+              <TableHead>{tf('progress')}</TableHead><TableHead>{tf('nextAction')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -117,7 +121,7 @@ export default function ManagementDashboard() {
             })}
           </TableBody>
         </Table>
-        {list.length === 0 && <EmptyState text="No projects" />}
+        {list.length === 0 && <EmptyState text={t('empty')} />}
       </BoardGroup>
       </>}
     </>

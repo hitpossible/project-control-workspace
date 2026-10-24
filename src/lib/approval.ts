@@ -1,17 +1,19 @@
+import enEnums from '@/i18n/messages/en/enums.json';
 import type { Opt } from './constants';
 import type { ApprovalStep, PositionLevel, Profile, ProjectRequest } from './types';
 
 /**
  * Approval levels, lowest → highest ("X up" = X and every level after it).
  * A user's level comes from their position (positions.name, synced from AD); other positions cannot approve.
+ * Labels: enums.positionLevel.<value>
  */
 export const POSITION_LEVELS: (Opt & { position: string })[] = [
-  { value: 'staff', label: 'Staff', position: 'STAFF' },
-  { value: 'supervisor', label: 'Supervisor', position: 'SUPERVISOR' },
-  { value: 'manager', label: 'Manager', position: 'MANAGER' },
-  { value: 'gm', label: 'GM', position: 'GENERAL MANAGER' },
-  { value: 'factory_manager', label: 'Factory Manager', position: 'FACTORY MANAGER' },
-  { value: 'president', label: 'President', position: 'PRESIDENT' },
+  { value: 'staff', position: 'STAFF' },
+  { value: 'supervisor', position: 'SUPERVISOR' },
+  { value: 'manager', position: 'MANAGER' },
+  { value: 'gm', position: 'GENERAL MANAGER' },
+  { value: 'factory_manager', position: 'FACTORY MANAGER' },
+  { value: 'president', position: 'PRESIDENT' },
 ];
 
 /** Approval level of a position name, or null */
@@ -32,10 +34,11 @@ export const andUp = (level: PositionLevel) =>
  * receive / authority steps go to the people picked in Admin → Document Types.
  */
 export type RouteStage = 'requestor' | 'receive' | 'authority';
-export const ROUTE_STAGES: { value: RouteStage; label: string; group: string; status: string }[] = [
-  { value: 'requestor', label: 'Requestor side', group: 'Requestor Approval', status: 'waiting_requestor_approval' },
-  { value: 'receive', label: 'Receive', group: 'System Service Approval', status: 'waiting_system_review' },
-  { value: 'authority', label: 'System Service side', group: 'System Service Approval', status: 'waiting_authority_approval' },
+/** Labels: enums.routeStage / enums.routeGroup; `group` is the stored approver_role of the step */
+export const ROUTE_STAGES: { value: RouteStage; group: string; status: string }[] = [
+  { value: 'requestor', group: 'Requestor Approval', status: 'waiting_requestor_approval' },
+  { value: 'receive', group: 'System Service Approval', status: 'waiting_system_review' },
+  { value: 'authority', group: 'System Service Approval', status: 'waiting_authority_approval' },
 ];
 
 /** One step of a document type's approval route (document_types.approval_route) */
@@ -61,18 +64,23 @@ export const defaultRoute = (): RouteStep[] => [
   { step_code: 'final_approve', step_name: 'Final Approved By', stage: 'authority', approvers: [] },
 ];
 
-/** Problems that make a route unusable (empty = ok); the same check runs on save in Admin and on submit */
-export function routeProblems(route: RouteStep[]): string[] {
-  const out: string[] = [];
-  if (!route.length) out.push('the route has no steps');
-  if (route.filter((s) => s.stage === 'receive').length !== 1) out.push('the route needs exactly one Receive step');
+export type RouteProblem = keyof typeof enEnums.routeProblem;
+
+/** Problems that make a route unusable (empty = ok); the same check runs on save in Admin and on submit. Text: enums.routeProblem.<code> */
+export function routeProblems(route: RouteStep[]): RouteProblem[] {
+  const out: RouteProblem[] = [];
+  if (!route.length) out.push('noSteps');
+  if (route.filter((s) => s.stage === 'receive').length !== 1) out.push('oneReceive');
   const order = route.map((s) => ROUTE_STAGES.findIndex((x) => x.value === s.stage));
-  if (order.some((o, i) => o < 0 || (i > 0 && o < order[i - 1]))) out.push('steps must go Requestor side → Receive → System Service side');
-  if (route.some((s) => !s.step_name?.trim())) out.push('every step needs a name');
-  if (new Set(route.map((s) => s.step_code)).size !== route.length) out.push('step codes must be unique');
-  if (route.some((s) => s.stage === 'requestor' && !s.levels?.length)) out.push('every Requestor side step needs a position level');
+  if (order.some((o, i) => o < 0 || (i > 0 && o < order[i - 1]))) out.push('stageOrder');
+  if (route.some((s) => !s.step_name?.trim())) out.push('stepName');
+  if (new Set(route.map((s) => s.step_code)).size !== route.length) out.push('uniqueCodes');
+  if (route.some((s) => s.stage === 'requestor' && !s.levels?.length)) out.push('requestorLevel');
   return out;
 }
+
+/** English text of route problems (server errors) */
+export const routeProblemsEn = (codes: RouteProblem[]) => codes.map((c) => enEnums.routeProblem[c]);
 
 /** Stage of a saved step (steps created before stages existed are mapped by code) */
 export function stepStage(s: Pick<ApprovalStep, 'stage' | 'step_code'>): RouteStage {
@@ -85,21 +93,21 @@ export function stepStage(s: Pick<ApprovalStep, 'stage' | 'step_code'>): RouteSt
 /** Request status while this step waits */
 export const statusForStep = (s: Pick<ApprovalStep, 'stage' | 'step_code'>) => ROUTE_STAGES.find((x) => x.value === stepStage(s))!.status;
 
-/** Heading the step is grouped under in the approval timeline */
-export const stepGroup = (s: Pick<ApprovalStep, 'stage' | 'step_code'>) => ROUTE_STAGES.find((x) => x.value === stepStage(s))!.group;
+/** Heading the step is grouped under in the approval timeline (label: enums.routeGroup.<key>) */
+export const stepGroup = (s: Pick<ApprovalStep, 'stage' | 'step_code'>): Exclude<RouteStage, 'authority'> => {
+  const stage = stepStage(s);
+  return stage === 'authority' ? 'receive' : stage; // receive + authority share the "System Service Approval" heading
+};
 
 /** Request number format tokens: {DOC} = document type code */
 export function formatPrefix(format: string, doc: string, year: string) {
   return format.replaceAll('{DOC}', doc).replaceAll('{YYYY}', year).replaceAll('{YY}', year.slice(2)).replace(/\{SEQ:\d+\}/g, '#');
 }
 
-export const levelLabel = (v: string | null | undefined) => POSITION_LEVELS.find((l) => l.value === v)?.label ?? v ?? '-';
-
-/** "Manager up · Production" style description of who may act on a step */
+/** Who may act on a step: the lowest level, whether higher levels may too, and the department */
 export function stepAudience(s: Pick<ApprovalStep, 'approver_levels' | 'approver_department'>) {
   const levels = s.approver_levels ?? [];
-  const who = levels.length === 1 ? levelLabel(levels[0]) : `${levelLabel(levels[0])} up`;
-  return s.approver_department ? `${who} · ${s.approver_department}` : who;
+  return { level: levels[0] ?? null, andUp: levels.length > 1, department: s.approver_department ?? null };
 }
 
 /** Same rule as the server (convertRequestToProject): may `me` convert this approved request to a Controlled Project? */

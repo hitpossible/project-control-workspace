@@ -1,0 +1,352 @@
+{
+  "notFound": "Project not found or you do not have access.",
+  "tab": {
+    "overview": "Overview",
+    "plan": "User Control Plan",
+    "internal": "Internal Execution Plan",
+    "qa": "QA & Bugs",
+    "team": "Team",
+    "baseline": "Baseline",
+    "evidence": "Evidence",
+    "history": "History"
+  },
+  "round": "Round {no}",
+  "leader": "Leader {name}",
+  "request": "Request",
+  "exportUserPlan": "User Plan (Excel)",
+  "exportFull": "Full Export (Excel)",
+  "close": {
+    "more": "+{count} more",
+    "check": {
+      "activities": "All activities done",
+      "stillOpen": "Still open: {items}",
+      "evidence": "Mandatory evidence attached",
+      "missing": "Missing: {items}",
+      "criticalBugs": "No open critical bugs",
+      "criticalOpen": "{count} critical bug(s) open",
+      "tasks": "All internal tasks closed",
+      "tasksOpen": "{count} task(s) still open",
+      "otherBugs": "No other open bugs",
+      "bugsOpen": "{count} bug(s) still open"
+    },
+    "title": "Close project",
+    "description": "{code} will be marked Done and stop being tracked for delays and alerts.",
+    "blocked": "Fix the red items before closing.",
+    "warnings": "The yellow items do not block closing, but check them first.",
+    "notYet": "Not yet",
+    "closed": "Project closed",
+    "button": "Close Project",
+    "bannerTitle": "All activities are done",
+    "bannerText": "Check the closing list and mark the project Done."
+  },
+  "status": {
+    "change": "Change status",
+    "reopened": "Project reopened",
+    "reopen": "Reopen project",
+    "set": "Set status",
+    "changed": "Status: {status}",
+    "closeDone": "Close project (Done)…",
+    "cancelEllipsis": "Cancel project…",
+    "autoNote": "Delayed / At Risk are set automatically from the plan.",
+    "cancel": "Cancel project",
+    "cancelDescription": "{code} will stop and be closed as Cancelled. The reason is added to the project remark.",
+    "cancelRemark": "Cancelled: {reason}",
+    "cancelled": "Project cancelled"
+  },
+  "overview": {
+    "kpi": {
+      "progress": "Progress",
+      "activitiesDone": "{done}/{total} activities done",
+      "targetForecast": "Target / Forecast",
+      "forecast": "Forecast {date}",
+      "baseline": "Baseline V{version} · {date}",
+      "noBaseline": "Baseline not set",
+      "overdue": "Overdue",
+      "activities": "activities",
+      "tasks": "tasks",
+      "withoutRecovery": "{count} without recovery plan",
+      "openTasks": "{count} open tasks",
+      "allRecovery": "All have recovery plan",
+      "bugs": "Bugs",
+      "open": "open",
+      "critical": "critical",
+      "waitingRetest": "{count} waiting retest",
+      "evidenceMissing": "Evidence Missing",
+      "checklistItems": "{count} checklist items"
+    },
+    "days": "{n}d",
+    "attention": "Project Need Attention",
+    "focus": "Current Focus",
+    "edit": "Edit",
+    "nextAction": "Next Action",
+    "notSet": "Not set",
+    "remark": "High-level Remark",
+    "remarkVisible": "visible to User / Management",
+    "lastUpdated": "Last updated {at} by {by}",
+    "system": "System",
+    "activityStatus": "Activity Status",
+    "doneCount": "{done} / {total} done",
+    "noActivities": "No activities",
+    "details": "Project Details",
+    "row": {
+      "type": "Project Type",
+      "leader": "Leader",
+      "sponsor": "Sponsor",
+      "department": "Department",
+      "priority": "Priority",
+      "health": "Health",
+      "startTarget": "Start → Target"
+    },
+    "insights": "Smart Insights",
+    "team": "Project Team",
+    "upcoming": "Upcoming / Overdue Tasks",
+    "openCount": "{count} open",
+    "noOpenTasks": "No open tasks"
+  },
+  "edit": {
+    "title": "Edit Project",
+    "leader": "Project Leader",
+    "sponsor": "Sponsor",
+    "priority": "Priority",
+    "targetDate": "Target Date",
+    "targetHelp": "Changes are kept in history. Use Baseline revision for re-plan.",
+    "nextAction": "Next Action",
+    "remark": "High-level Remark",
+    "saved": "Project updated"
+  },
+  "plan": {
+    "view": {
+      "gantt": "Gantt",
+      "table": "Table"
+    },
+    "pic": "PIC",
+    "status": "Status",
+    "from": "From",
+    "to": "To",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "addActivity": "Add Activity",
+    "empty": "No activities",
+    "title": "User Control Plan",
+    "col": {
+      "no": "#",
+      "activity": "Activity",
+      "pic": "PIC",
+      "status": "Status",
+      "planStart": "Plan Start",
+      "planFinish": "Plan Finish",
+      "actualStart": "Actual Start",
+      "actualFinish": "Actual Finish",
+      "progress": "Progress",
+      "statusNote": "Status Note",
+      "nextAction": "Next Action",
+      "recoveryPlan": "Recovery Plan",
+      "remark": "Remark"
+    },
+    "forecast": "Forecast {date}"
+  },
+  "team": {
+    "added": "Member added",
+    "intro": "Project Team & Notification Group — notification recipients are resolved from team roles and the Notification Rules for each event.",
+    "member": "Member",
+    "roleInProject": "Role in project",
+    "add": "Add Member",
+    "title": "Project Team",
+    "col": {
+      "name": "Name",
+      "role": "Role in Project",
+      "department": "Department",
+      "email": "Email",
+      "notify": "Receive Notifications"
+    },
+    "remove": {
+      "title": "Remove {name}?",
+      "description": "They will be removed from the project team ({role}).",
+      "confirm": "Remove"
+    }
+  },
+  "evidence": {
+    "checklist": "Evidence Checklist",
+    "checklistNote": "Mandatory items must have evidence before the Activity / Task / Project can be completed. Attach evidence from each item's Evidence tab.",
+    "entity": {
+      "project": "Project (closure)",
+      "activity": "Activity: {name}",
+      "task": "Task: {name}"
+    },
+    "projectLevel": "Project-level Evidence",
+    "boundNote": "Evidence is bound directly to the Request, Activity or Task it proves. Add evidence from the item itself.",
+    "all": "All Evidence in this Project",
+    "empty": "No evidence yet",
+    "col": {
+      "boundTo": "Bound to",
+      "file": "File / Link",
+      "type": "Type",
+      "uploaded": "Uploaded",
+      "visibility": "Visibility",
+      "verification": "Verification"
+    },
+    "internal": "Internal",
+    "shared": "Shared"
+  },
+  "internal": {
+    "delay": "Delay: {reason}",
+    "addSubTask": "Add sub-task",
+    "notice": "Internal Execution Plan — visible to the System Service team only. Technical notes and internal comments are never shown in User / Management views.",
+    "view": {
+      "table": "Task List",
+      "kanban": "Kanban",
+      "gantt": "Gantt"
+    },
+    "owner": "Owner",
+    "assignedToMe": "Assigned to me",
+    "status": "Status",
+    "open": "Open",
+    "count": "{count} task(s)",
+    "addTask": "Add Task",
+    "addTaskInline": "Add task",
+    "col": {
+      "task": "Task",
+      "owner": "Owner",
+      "reviewer": "Reviewer",
+      "type": "Type",
+      "status": "Status",
+      "priority": "Priority",
+      "due": "Due Date",
+      "progress": "Progress"
+    },
+    "noActivities": "Add activities in the User Control Plan first"
+  },
+  "baseline": {
+    "v1Set": "Baseline V1 set — project started",
+    "created": "New baseline version created",
+    "intro": "A baseline freezes the approved User Control Plan. Re-plans need a reason and Manager approval; old versions are never overwritten. Schedule Variance = Forecast Finish − Baseline Finish.",
+    "setV1Start": "Set Baseline V1 & Start Project",
+    "requestRevision": "Request Baseline Revision",
+    "pending": {
+      "title": "Baseline revision V{from} → V{to} waiting for approval",
+      "requestedBy": "Requested by",
+      "targetDate": "Target date",
+      "baselineFinish": "Baseline V{version} Finish",
+      "proposedFinish": "Proposed Finish",
+      "change": "Change",
+      "approve": "Approve → create V{version}",
+      "reject": "Reject",
+      "cancelled": "Request cancelled",
+      "cancel": "Cancel request",
+      "waiting": "Waiting for Manager / Supervisor approval."
+    },
+    "reason": "Reason",
+    "impact": "Impact",
+    "impactValue": "Impact: {impact}",
+    "new": "new",
+    "notSet": "Baseline V1 has not been set. Finalise the User Control Plan (all activities need Plan Start / Plan Finish), then set Baseline V1 to start the project.",
+    "version": "Baseline V{version}",
+    "info": {
+      "version": "Version",
+      "planned": "Planned Start → Finish",
+      "forecast": "Current Forecast",
+      "variance": "Variance",
+      "created": "Created",
+      "approvedBy": "Approved by"
+    },
+    "vsCurrent": "Baseline V{version} vs current plan",
+    "col": {
+      "activity": "Activity",
+      "pic": "PIC (baseline)",
+      "start": "Baseline Start",
+      "finish": "Baseline Finish",
+      "currentFinish": "Current Plan Finish",
+      "actualForecast": "Actual / Forecast Finish"
+    },
+    "removed": "removed",
+    "actual": "(actual)",
+    "empty": "No baseline yet",
+    "history": {
+      "title": "Baseline Revision History",
+      "from": "From",
+      "targetChange": "Target change",
+      "requested": "Requested",
+      "decision": "Decision",
+      "status": "Status"
+    },
+    "revision": {
+      "title": "Request Baseline Revision (V{from} → V{to})",
+      "description": "Update the plan dates in the User Control Plan first. The current plan is captured as the proposal and must be approved by a Manager / Supervisor. Baseline V{version} is kept.",
+      "reason": "Reason (required)",
+      "impactPlaceholder": "e.g. Go-live +1 week; no cost impact",
+      "newTarget": "New Target Date",
+      "sent": "Revision request sent for approval",
+      "submit": "Submit for Approval"
+    },
+    "decide": {
+      "approveTitle": "Approve baseline V{version}",
+      "rejectTitle": "Reject baseline revision",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approved": "Baseline V{version} created",
+      "rejected": "Revision rejected"
+    },
+    "setV1": "Set Baseline V1",
+    "setV1Description": "Freezes the current User Control Plan as Baseline V1 and moves the project to In Progress."
+  },
+  "qa": {
+    "group": {
+      "new": "New — not assigned",
+      "assigned": "Assigned / Reopened",
+      "fixing": "Developer fixing",
+      "retest": "Waiting retest",
+      "closed": "Closed",
+      "cancelled": "Cancelled"
+    },
+    "dueOn": "due {date}",
+    "stat": {
+      "open": "Open Bugs",
+      "total": "{count} total",
+      "critical": "Critical Open",
+      "blocksGoLive": "Blocks Go-live",
+      "waitingRetest": "Waiting Retest",
+      "fixOverdue": "Fix Overdue",
+      "passRate": "Retest Pass Rate",
+      "reopenRate": "Reopen rate {rate}%",
+      "rounds": "Test Rounds",
+      "completed": "{count} completed"
+    },
+    "view": {
+      "bugs": "Bug Board",
+      "kanban": "Kanban",
+      "rounds": "Test Rounds"
+    },
+    "severity": "Severity",
+    "developer": "Developer",
+    "assignedToMe": "Assigned to me",
+    "newRound": "New Test Round",
+    "reportBug": "Report Bug",
+    "kanbanNote": "View only — bug status changes through the workflow (Assign → Start Fix → Fix Ready → Retest). Open a card to act on it.",
+    "noBugs": "No bugs",
+    "reopened": "Reopened",
+    "retestBy": "Retest: {name} · due {date}",
+    "col": {
+      "bug": "Bug",
+      "severity": "Severity",
+      "status": "Status",
+      "developer": "Developer",
+      "reporter": "Reporter",
+      "fixDue": "Fix Due",
+      "retest": "Retest"
+    },
+    "noRounds": "No test round yet",
+    "round": "Round {no}",
+    "open": "Open",
+    "info": {
+      "type": "Type",
+      "tester": "Tester",
+      "plannedDue": "Planned / Due",
+      "actual": "Actual",
+      "cases": "Cases",
+      "casesValue": "<ok>{passed}</ok> / <bad>{failed}</bad> of {total}",
+      "activity": "Activity"
+    },
+    "noBugsInRound": "No bugs in this round",
+    "reportInRound": "Report bug in this round"
+  }
+}

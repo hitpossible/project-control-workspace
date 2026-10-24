@@ -1,7 +1,7 @@
 // PDF reports (PRD §25.2) — generated client-side from Workspace data
 import { Document, Font, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer';
 import dayjs from 'dayjs';
-import { ACTIVITY_STATUSES, HEALTH_COLORS, INSIGHT_SEVERITIES, MEMBER_ROLES, PROJECT_STATUSES, optColor, optLabel } from '../constants';
+import { ACTIVITY_STATUSES, HEALTH_COLORS, INSIGHT_SEVERITIES, MEMBER_ROLES, PROJECT_STATUSES, optColor, optLabelEn, type OptList } from '../constants';
 import type { Activity, ProjectView } from '../types';
 import type { ManagementReportData, ProjectReportData, ReportMeta, ReportType } from './data';
 
@@ -52,9 +52,9 @@ const textOn = (hex: string) => {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.75 ? C.text : '#fff';
 };
 
-function Chip({ list, value, width }: { list: { value: string; label: string; color?: string }[]; value: string; width?: number }) {
+function Chip({ list, value, width }: { list: OptList; value: string; width?: number }) {
   const c = optColor(list, value);
-  return <Text style={[s.chip, { backgroundColor: c, color: textOn(c), width }]}>{optLabel(list, value)}</Text>;
+  return <Text style={[s.chip, { backgroundColor: c, color: textOn(c), width }]}>{optLabelEn(list, value)}</Text>;
 }
 
 function Header({ title, subtitle, meta }: { title: string; subtitle: string; meta: ReportMeta }) {
@@ -255,13 +255,13 @@ function MeetingReport({ d, meta }: { d: ProjectReportData; meta: ReportMeta }) 
           <Field label="Meeting date">{dayjs().format('DD MMM YYYY')}</Field>
           <Field label="Project Leader">{p.leader_name}</Field>
           <Field label="Target / Forecast">{`${fd(p.target_date)} / ${fd(p.forecast_date)}`}</Field>
-          <Field label="Overall">{`${optLabel(PROJECT_STATUSES, p.status)} · ${Math.round(p.progress)}%`}</Field>
+          <Field label="Overall">{`${optLabelEn(PROJECT_STATUSES, p.status)} · ${Math.round(p.progress)}%`}</Field>
         </View>
         <Text style={s.h2} minPresenceAhead={70}>1. Progress overview</Text>
         <PlanTable acts={d.activities} name={meta.name} withBars={false} />
         <Text style={s.h2} minPresenceAhead={70}>2. Items requiring User action</Text>
         {userItems.length ? userItems.map((a) => (
-          <Text key={a.id} style={{ marginBottom: 2 }}>{`• ${a.name} (${fs(a.plan_start)} – ${fs(a.plan_finish)}) — ${a.next_action ?? a.status_note ?? optLabel(ACTIVITY_STATUSES, a.status)}`}</Text>
+          <Text key={a.id} style={{ marginBottom: 2 }}>{`• ${a.name} (${fs(a.plan_start)} – ${fs(a.plan_finish)}) — ${a.next_action ?? a.status_note ?? optLabelEn(ACTIVITY_STATUSES, a.status)}`}</Text>
         )) : <Text style={s.muted}>None</Text>}
         <Text style={s.h2} minPresenceAhead={70}>3. Upcoming milestones / due within 30 days</Text>
         {upcoming.length ? upcoming.map((a) => <Text key={a.id} style={{ marginBottom: 2 }}>{`• ${a.is_milestone ? '(M) ' : ''}${a.name} — ${fd(a.plan_finish)} (${a.pic_user_id ? meta.name(a.pic_user_id) : a.pic_label ?? '-'})`}</Text>) : <Text style={s.muted}>None</Text>}
@@ -273,7 +273,7 @@ function MeetingReport({ d, meta }: { d: ProjectReportData; meta: ReportMeta }) 
         {d.members.map((m) => (
           <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
             <View style={{ width: 8, height: 8, borderWidth: 1, borderColor: C.muted, marginRight: 5 }} />
-            <Text>{`${meta.name(m.user_id)} — ${optLabel(MEMBER_ROLES, m.member_role)}`}</Text>
+            <Text>{`${meta.name(m.user_id)} — ${optLabelEn(MEMBER_ROLES, m.member_role)}`}</Text>
           </View>
         ))}
       </Page>
@@ -295,7 +295,7 @@ function ClosureReport({ d, meta }: { d: ProjectReportData; meta: ReportMeta }) 
       <Page size="A4" style={s.page}>
         <Header title={`Project Closure Report — ${p.project_code}`} subtitle={p.project_name} meta={meta} />
         <View style={s.tiles}>
-          <Tile label="Status" value={optLabel(PROJECT_STATUSES, p.status)} color={optColor(PROJECT_STATUSES, p.status)} />
+          <Tile label="Status" value={optLabelEn(PROJECT_STATUSES, p.status)} color={optColor(PROJECT_STATUSES, p.status)} />
           <Tile label="Actual finish" value={finish ? fd(finish) : 'In progress'} />
           <Tile label="Baseline V1 finish" value={fd(v1?.planned_finish)} />
           <Tile label="Final variance vs V1" value={finish && v1?.planned_finish ? `${dayjs(finish).diff(v1.planned_finish, 'day')}d` : '-'} />

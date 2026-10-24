@@ -2,10 +2,13 @@
 
 import { CalendarIcon, Check, CheckCheck, ChevronDown, ChevronsUpDown, Search, X } from 'lucide-react';
 import dayjs from 'dayjs';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { fmtDate } from '@/lib/format';
+import { th as thDays } from 'react-day-picker/locale';
+import { useOptions } from '@/i18n/useOptions';
+import { day, fmtDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { GROUP_COLORS, HEALTH_COLORS, PRIORITIES, optColor, optLabel } from '@/lib/constants';
+import { GROUP_COLORS, HEALTH_COLORS, PRIORITIES, optColor, type OptList } from '@/lib/constants';
 import type { Profile, Role } from '@/lib/types';
 import { Button } from './ui/button';
 import { Calendar } from './ui/calendar';
@@ -21,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { useApp } from './AppProvider';
 import { AnimatedValue } from './motion';
 
+/** Option with a ready-to-show label (lists from constants.ts get theirs from useOptions().options) */
 export type Opt = { value: string; label: string; color?: string };
 
 // ---------------------------------------------------------------------------
@@ -46,14 +50,15 @@ export function labelText(hex: string) {
 // ---------------------------------------------------------------------------
 // monday-style labels / columns
 // ---------------------------------------------------------------------------
-export function StatusChip({ list, value, fullWidth, className }: { list: Opt[]; value: string | null | undefined; fullWidth?: boolean; className?: string }) {
+export function StatusChip({ list, value, fullWidth, className }: { list: OptList; value: string | null | undefined; fullWidth?: boolean; className?: string }) {
+  const { label } = useOptions();
   const color = optColor(list, value);
   return (
     <span
       className={cn('inline-flex h-7 items-center justify-center whitespace-nowrap rounded px-2.5 text-[13px] font-medium select-none', fullWidth ? 'w-full' : 'min-w-28', className)}
       style={{ background: color, color: labelText(color) }}
     >
-      {optLabel(list, value)}
+      {label(list, value)}
     </span>
   );
 }
@@ -63,11 +68,13 @@ export function PriorityChip({ value, fullWidth }: { value: string; fullWidth?: 
 }
 
 export function HealthDot({ value, label = false }: { value: string; label?: boolean }) {
+  const t = useTranslations('common.health');
+  const name = t.has(value as 'green') ? t(value as 'green') : value;
   return (
-    <Tip title={`Health: ${value}`}>
+    <Tip title={t('tip', { value: name })}>
       <span className="inline-flex items-center gap-1.5">
         <span className="size-3 shrink-0 rounded-full" style={{ background: HEALTH_COLORS[value] ?? '#999' }} />
-        {label && <span className="text-sm font-semibold capitalize">{value}</span>}
+        {label && <span className="text-sm font-semibold capitalize">{name}</span>}
       </span>
     </Tip>
   );
@@ -112,6 +119,7 @@ export function Person({ name, showName = true, size = 28 }: { name: string | nu
 export function BoardGroup({ title, color, count, children, actions, defaultOpen = true }: {
   title: React.ReactNode; color: string; count?: number; children: React.ReactNode; actions?: React.ReactNode; defaultOpen?: boolean;
 }) {
+  const t = useTranslations('common');
   const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="mb-7">
@@ -120,7 +128,7 @@ export function BoardGroup({ title, color, count, children, actions, defaultOpen
           <ChevronDown className={cn('size-4 transition-transform duration-200', !open && '-rotate-90')} />
         </button>
         <h3 className="text-[17px] font-semibold" style={{ color }}>{title}</h3>
-        {count !== undefined && <span className="text-sm text-muted-foreground">{count} {count === 1 ? 'item' : 'items'}</span>}
+        {count !== undefined && <span className="text-sm text-muted-foreground">{t('items', { count })}</span>}
         <div className="flex-1" />
         {actions}
       </div>
@@ -139,11 +147,10 @@ export function TimelinePill({ start, end, color = '#579bfc', late }: { start: s
   const s = new Date(start).getTime();
   const e = new Date(end).getTime();
   const pct = Math.max(0, Math.min(100, ((now - s) / Math.max(e - s, 1)) * 100));
-  const fmt = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   return (
     <div className="relative h-6 min-w-32 overflow-hidden rounded-full bg-[#333]">
       <div className="absolute inset-y-0 left-0" style={{ width: `${pct}%`, background: late ? '#e2445c' : color }} />
-      <div className="relative text-center text-xs leading-6 font-medium text-white">{fmt(start)} – {fmt(end)}</div>
+      <div className="relative text-center text-xs leading-6 font-medium text-white">{day(start).format('D MMM')} – {day(end).format('D MMM')}</div>
     </div>
   );
 }
@@ -188,11 +195,12 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
-export function SearchBox({ value, onChange, className, placeholder = 'Search' }: { value: string; onChange: (v: string) => void; className?: string; placeholder?: string }) {
+export function SearchBox({ value, onChange, className, placeholder }: { value: string; onChange: (v: string) => void; className?: string; placeholder?: string }) {
+  const t = useTranslations('common');
   return (
     <div className={cn('relative', className)}>
       <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-      <Input placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} className="h-9 bg-white pl-8" />
+      <Input placeholder={placeholder ?? t('search')} value={value} onChange={(e) => onChange(e.target.value)} className="h-9 bg-white pl-8" />
     </div>
   );
 }
@@ -269,10 +277,11 @@ export function SelectField({ label, value, onChange, options, disabled, require
   label?: string; value: string | null | undefined; onChange: (v: string) => void; options: Opt[];
   disabled?: boolean; required?: boolean; allowEmpty?: boolean; helperText?: string; placeholder?: string; className?: string;
 }) {
+  const t = useTranslations('common');
   return (
     <FormField label={label} required={required} helperText={helperText} className={className}>
       <Select value={value || ''} onValueChange={(v) => onChange(v === NONE ? '' : v)} disabled={disabled}>
-        <SelectTrigger className="h-9 w-full bg-white"><SelectValue placeholder={placeholder ?? (allowEmpty ? '—' : 'Select…')} /></SelectTrigger>
+        <SelectTrigger className="h-9 w-full bg-white"><SelectValue placeholder={placeholder ?? (allowEmpty ? '—' : t('select'))} /></SelectTrigger>
         <SelectContent>
           {allowEmpty && <SelectItem value={NONE}><span className="text-muted-foreground">{placeholder ?? '—'}</span></SelectItem>}
           {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -293,9 +302,11 @@ export function DateField({ label, value, onChange, disabled, required, helperTe
 }
 
 /** shadcn date picker (Popover + Calendar); value is a 'YYYY-MM-DD' string, '' when cleared */
-export function DatePicker({ value, onChange, disabled, clearable, placeholder = 'Select date', className }: {
+export function DatePicker({ value, onChange, disabled, clearable, placeholder, className }: {
   value: string | null | undefined; onChange: (v: string) => void; disabled?: boolean; clearable?: boolean; placeholder?: string; className?: string;
 }) {
+  const t = useTranslations('common');
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const selected = value ? dayjs(value).toDate() : undefined;
   return (
@@ -305,18 +316,18 @@ export function DatePicker({ value, onChange, disabled, clearable, placeholder =
           <Button type="button" variant="outline" disabled={disabled}
             className={cn('h-9 w-full justify-start bg-white px-3 font-normal', !value && 'text-muted-foreground', clearable && value && 'pr-8')}>
             <CalendarIcon className="text-muted-foreground" />
-            <span className="truncate">{value ? fmtDate(value) : placeholder}</span>
+            <span className="truncate">{value ? fmtDate(value) : placeholder ?? t('selectDate')}</span>
           </Button>
         </PopoverTrigger>
         {clearable && value && !disabled && (
-          <button type="button" aria-label="Clear date" onClick={() => onChange('')}
+          <button type="button" aria-label={t('clearDate')} onClick={() => onChange('')}
             className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground">
             <X className="size-3.5" />
           </button>
         )}
       </div>
       <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="single" selected={selected} defaultMonth={selected} captionLayout="dropdown" startMonth={new Date(2015, 0)} endMonth={new Date(2040, 11)}
+        <Calendar locale={locale === 'th' ? thDays : undefined} mode="single" selected={selected} defaultMonth={selected} captionLayout="dropdown" startMonth={new Date(2015, 0)} endMonth={new Date(2040, 11)}
           onSelect={(d) => {
             if (d) onChange(dayjs(d).format('YYYY-MM-DD'));
             setOpen(false);
@@ -337,6 +348,7 @@ export function UserSelect({ label, value, onChange, roles, disabled, required, 
   label?: string; value: number | null | undefined; onChange: (id: number | null) => void;
   roles?: Role[]; disabled?: boolean; required?: boolean; helperText?: string; users?: Profile[]; className?: string;
 }) {
+  const t = useTranslations('common');
   const { profiles } = useApp();
   const [open, setOpen] = useState(false);
   const list = (users ?? profiles).filter((p) => p.is_active && (!roles || roles.some((r) => p.roles.includes(r)) || p.id === value));
@@ -346,7 +358,7 @@ export function UserSelect({ label, value, onChange, roles, disabled, required, 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild disabled={disabled}>
           <Button variant="outline" role="combobox" className="h-9 w-full justify-between bg-white px-2.5 font-normal">
-            {selected ? <Person name={selected.full_name} size={22} /> : <span className="text-muted-foreground">Select person…</span>}
+            {selected ? <Person name={selected.full_name} size={22} /> : <span className="text-muted-foreground">{t('selectPerson')}</span>}
             <span className="flex items-center gap-1">
               {selected && !disabled && !required && (
                 <X className="size-3.5 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onChange(null); }} />
@@ -357,9 +369,9 @@ export function UserSelect({ label, value, onChange, roles, disabled, required, 
         </PopoverTrigger>
         <PopoverContent className="w-(--radix-popover-trigger-width) min-w-64 p-0" align="start">
           <Command>
-            <CommandInput placeholder="Search name…" />
+            <CommandInput placeholder={t('searchName')} />
             <CommandList>
-              <CommandEmpty>No person found.</CommandEmpty>
+              <CommandEmpty>{t('noPerson')}</CommandEmpty>
               <CommandGroup>
                 {list.map((p) => (
                   <CommandItem key={p.id} value={`${p.full_name} ${p.department ?? ''} ${p.id}`} onSelect={() => { onChange(p.id); setOpen(false); }}>
@@ -384,6 +396,7 @@ export function UserSelect({ label, value, onChange, roles, disabled, required, 
 export function MultiSelect({ label, value, onChange, options, disabled, placeholder, className }: {
   label?: string; value: string[]; onChange: (v: string[]) => void; options: Opt[]; disabled?: boolean; placeholder?: string; className?: string;
 }) {
+  const t = useTranslations('common');
   const [open, setOpen] = useState(false);
   const toggle = (v: string) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
   return (
@@ -392,7 +405,7 @@ export function MultiSelect({ label, value, onChange, options, disabled, placeho
         <PopoverTrigger asChild disabled={disabled}>
           <Button variant="outline" className="h-auto min-h-9 w-full justify-between bg-white px-2 py-1 font-normal">
             <span className="flex flex-wrap gap-1">
-              {value.length === 0 && <span className="px-0.5 text-muted-foreground">{placeholder ?? 'Select…'}</span>}
+              {value.length === 0 && <span className="px-0.5 text-muted-foreground">{placeholder ?? t('select')}</span>}
               {value.map((v) => (
                 <span key={v} className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-xs">
                   {options.find((o) => o.value === v)?.label ?? v}
@@ -405,9 +418,9 @@ export function MultiSelect({ label, value, onChange, options, disabled, placeho
         </PopoverTrigger>
         <PopoverContent className="w-(--radix-popover-trigger-width) min-w-64 p-0" align="start">
           <Command>
-            <CommandInput placeholder="Search…" />
+            <CommandInput placeholder={t('searchEllipsis')} />
             <CommandList>
-              <CommandEmpty>Nothing found.</CommandEmpty>
+              <CommandEmpty>{t('nothingFound')}</CommandEmpty>
               <CommandGroup>
                 {options.map((o) => (
                   <CommandItem key={o.value} value={`${o.label} ${o.value}`} onSelect={() => toggle(o.value)}>
@@ -430,6 +443,7 @@ export function CommentDialog({ open, title, description, confirmLabel, required
   variant?: 'default' | 'destructive' | 'success' | 'warning' | 'secondary';
   onClose: () => void; onConfirm: (comment: string) => Promise<void> | void; children?: React.ReactNode;
 }) {
+  const t = useTranslations('common');
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
   return (
@@ -440,9 +454,9 @@ export function CommentDialog({ open, title, description, confirmLabel, required
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         {children}
-        <TextField label={required ? 'Comment (required)' : 'Comment'} multiline rows={3} value={comment} onChange={setComment} />
+        <TextField label={required ? t('commentRequired') : t('comment')} multiline rows={3} value={comment} onChange={setComment} />
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button variant="outline" onClick={onClose}>{t('close')}</Button>
           <ActionButton
             tone={variant}
             disabled={busy || (required && !comment.trim())}
@@ -505,16 +519,16 @@ export function periodFor(preset: string): Period {
   }
 }
 
+const PERIOD_PRESETS = ['month', 'last_month', 'quarter', 'last_90', 'year', 'custom'] as const;
+
 export function PeriodPicker({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
+  const t = useTranslations('common.period');
   return (
     <div className="flex flex-wrap items-end gap-2">
-      <SelectField className="w-40" label="Period" value={value.preset} onChange={(v) => onChange(v === 'custom' ? { ...value, preset: 'custom' } : periodFor(v))}
-        options={[
-          { value: 'month', label: 'This month' }, { value: 'last_month', label: 'Last month' }, { value: 'quarter', label: 'This quarter' },
-          { value: 'last_90', label: 'Last 90 days' }, { value: 'year', label: 'This year' }, { value: 'custom', label: 'Custom…' },
-        ]} />
-      <DateField className="w-40" label="From" value={value.from} onChange={(v) => onChange({ ...value, from: v, preset: 'custom' })} />
-      <DateField className="w-40" label="To" value={value.to} onChange={(v) => onChange({ ...value, to: v, preset: 'custom' })} />
+      <SelectField className="w-40" label={t('label')} value={value.preset} onChange={(v) => onChange(v === 'custom' ? { ...value, preset: 'custom' } : periodFor(v))}
+        options={PERIOD_PRESETS.map((p) => ({ value: p, label: t(p) }))} />
+      <DateField className="w-40" label={t('from')} value={value.from} onChange={(v) => onChange({ ...value, from: v, preset: 'custom' })} />
+      <DateField className="w-40" label={t('to')} value={value.to} onChange={(v) => onChange({ ...value, to: v, preset: 'custom' })} />
     </div>
   );
 }

@@ -1,0 +1,14 @@
+{
+  "team": "Team",
+  "analysing": "Analysing…",
+  "none": "No insights — everything looks on track",
+  "more": "+ {count} more insight(s)",
+  "title": "Smart Insights",
+  "subtitle": "Rule-based analysis of every active project (PRD §22). Thresholds are configurable in Administration → Insight Rules.",
+  "exportExcel": "Export Excel",
+  "severity": "Severity",
+  "all": "All",
+  "rule": "Rule",
+  "allRules": "All rules",
+  "teamResources": "Team / Resources"
+}
