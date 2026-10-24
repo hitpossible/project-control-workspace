@@ -9,7 +9,8 @@
     "team": "ทีม",
     "baseline": "Baseline",
     "evidence": "หลักฐาน",
-    "history": "ประวัติ"
+    "history": "ประวัติ",
+    "srs": "SRS"
   },
   "round": "รอบที่ {no}",
   "leader": "หัวหน้า {name}",

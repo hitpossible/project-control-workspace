@@ -33,6 +33,14 @@ async function evidenceRecompute(ctx: Ctx, r: Row) {
   if (r.project_id && ctx.depth <= 8) await recomputeProject(ctx, Number(r.project_id));
 }
 
+/** A checklist item an SRS is signed for is satisfied only by the signed SRS, never by an uploaded file */
+async function srsOnlyRequirement(ctx: Ctx, n: Row, o: Row | null) {
+  if (ctx.bypass || !n.requirement_id || (o && o.requirement_id === n.requirement_id)) return;
+  if (await ctx.val(`SELECT 1 FROM srs_documents WHERE requirement_id = ? AND status <> 'cancelled' LIMIT 1`, [n.requirement_id])) {
+    throw new AppError('This checklist item is completed by signing the SRS in the system (SRS tab)', 409);
+  }
+}
+
 /** Requestor Information always comes from the signed-in user's profile (only the requestor writes a draft) */
 const requestorInfo = (ctx: Ctx): Row => ({
   req_employee_id: ctx.me?.employee_id ?? null,
@@ -137,6 +145,8 @@ export const HOOKS: Record<string, Hooks> = {
   },
 
   evidence: {
+    beforeInsert: (ctx, r) => srsOnlyRequirement(ctx, r, null),
+    beforeUpdate: (ctx, n, o) => srsOnlyRequirement(ctx, n, o),
     afterInsert: evidenceRecompute,
     async afterUpdate(ctx, r, o) {
       if (changed(r, o, 'verification_status', 'requirement_id')) await evidenceRecompute(ctx, r);

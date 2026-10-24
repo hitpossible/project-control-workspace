@@ -30,6 +30,7 @@ const JSON_DEFAULTS: Record<string, Row> = {
   baseline_revisions: { plan_snapshot: [] },
   notification_rules: { recipient_roles: ['explicit'], channels: ['in_app', 'email'], escalate_roles: [] },
   comments: { mentions: [] },
+  srs_documents: { pages: [] },
 };
 
 /** updated_at / updated_by maintained on update (was touch_updated) */
@@ -54,6 +55,8 @@ const AUDIT: Record<string, { ops: ('insert' | 'update' | 'delete')[]; fields: s
   baseline_revisions: { ops: ['insert', 'update'], fields: ['status', 'decided_by', 'decision_comment'] },
   workforce_plans: { ops: ['insert', 'update', 'delete'], fields: ['work_type', 'work_date', 'project_id', 'start_time', 'end_time'] },
   comments: { ops: ['update', 'delete'], fields: ['body'] },
+  srs_documents: { ops: ['insert', 'update'], fields: ['status'] },
+  srs_signers: { ops: ['update'], fields: ['status', 'comment'] },
 };
 
 const str = (v: unknown) => (v === null || v === undefined ? null : typeof v === 'object' ? JSON.stringify(v) : String(v));

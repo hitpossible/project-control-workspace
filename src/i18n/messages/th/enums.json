@@ -260,5 +260,18 @@
     "System": "System",
     "User": "ผู้ใช้",
     "Vendor": "Vendor"
+  },
+  "srsStatus": {
+    "draft": "ร่าง",
+    "signing": "รอลงนาม",
+    "signed": "ลงนามครบแล้ว",
+    "rejected": "ถูกส่งกลับแก้ไข",
+    "cancelled": "ยกเลิก",
+    "superseded": "ถูกแทนที่"
+  },
+  "srsSignerStatus": {
+    "pending": "รอลงนาม",
+    "signed": "ลงนามแล้ว",
+    "rejected": "ส่งกลับแก้ไข"
   }
 }

@@ -17,6 +17,7 @@ import OverviewTab from '@/components/project/OverviewTab';
 import PlanTab from '@/components/project/PlanTab';
 import { CloseProjectButton, ProjectStatusMenu } from '@/components/project/ProjectStatus';
 import QaTab from '@/components/project/QaTab';
+import SrsTab from '@/components/project/SrsTab';
 import TeamTab from '@/components/project/TeamTab';
 import type { ProjectData } from '@/components/project/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -110,6 +111,7 @@ function Workspace() {
     ...(perm.internal ? [{ v: 'internal', l: tp('tab.internal') }] : []),
     ...(perm.internal ? [{ v: 'qa', l: `${tp('tab.qa')}${p.open_bugs ? ` (${p.open_bugs})` : ''}` }] : []),
     ...(perm.internal ? [{ v: 'design', l: tp('tab.design') }] : []),
+    { v: 'srs', l: tp('tab.srs') },
     { v: 'team', l: tp('tab.team') },
     { v: 'baseline', l: `${tp('tab.baseline')}${p.baseline_version ? ` (V${p.baseline_version})` : ''}` },
     { v: 'evidence', l: tp('tab.evidence') },
@@ -166,6 +168,7 @@ function Workspace() {
       {tab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={toId(params.get('task'))} focusPanel={params.get('panel')} />}
       {tab === 'qa' && perm.internal && <QaTab {...ctx} focusBug={toId(params.get('bug'))} focusPanel={params.get('panel')} />}
       {tab === 'design' && perm.internal && <DesignTab {...ctx} />}
+      {tab === 'srs' && <SrsTab {...ctx} />}
       {tab === 'team' && <TeamTab {...ctx} />}
       {tab === 'baseline' && <BaselineTab {...ctx} />}
       {tab === 'evidence' && <EvidenceTab {...ctx} names={names} />}

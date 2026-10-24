@@ -207,3 +207,18 @@ export const REDUCTION_ROWS = [
   { key: 'man', from: 'reduction_man_from', to: 'reduction_man_to' },
   { key: 'cost', from: 'reduction_cost_from', to: 'reduction_cost_to' },
 ] as const satisfies readonly { key: keyof EnumMessages['reduction']; from: keyof ProjectRequest; to: keyof ProjectRequest }[];
+
+export const SRS_STATUSES = opts('srsStatus', [
+  { value: 'draft', color: '#c4c4c4' },
+  { value: 'signing', color: '#fdab3d' },
+  { value: 'signed', color: '#00c875' },
+  { value: 'rejected', color: '#e2445c' },
+  { value: 'cancelled', color: '#757575' },
+  { value: 'superseded', color: '#a1a1a1' },
+]);
+
+export const SRS_SIGNER_STATUSES = opts('srsSignerStatus', [
+  { value: 'pending', color: '#fdab3d' },
+  { value: 'signed', color: '#00c875' },
+  { value: 'rejected', color: '#e2445c' },
+]);

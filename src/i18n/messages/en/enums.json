@@ -260,5 +260,18 @@
     "System": "System",
     "User": "User",
     "Vendor": "Vendor"
+  },
+  "srsStatus": {
+    "draft": "Draft",
+    "signing": "Waiting Signatures",
+    "signed": "Signed",
+    "rejected": "Sent Back",
+    "cancelled": "Cancelled",
+    "superseded": "Superseded"
+  },
+  "srsSignerStatus": {
+    "pending": "Waiting",
+    "signed": "Signed",
+    "rejected": "Sent Back"
   }
 }

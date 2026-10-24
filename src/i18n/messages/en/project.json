@@ -9,7 +9,8 @@
     "team": "Team",
     "baseline": "Baseline",
     "evidence": "Evidence",
-    "history": "History"
+    "history": "History",
+    "srs": "SRS"
   },
   "round": "Round {no}",
   "leader": "Leader {name}",

@@ -1,0 +1,116 @@
+{
+  "notFound": "SRS not found, or you do not have access to it.",
+  "pdfError": "The PDF could not be shown. Try downloading it instead.",
+  "pages": "{count, plural, one {# page} other {# pages}}",
+  "download": "Download PDF",
+  "downloadSigned": "Download signed PDF",
+  "cancel": "Cancel SRS",
+  "cancelTitle": "Cancel this SRS?",
+  "cancelDescription": "Signing stops and the signatures collected so far are kept only in its history. Upload a new version to start again.",
+  "signedBanner": "Everyone has signed ({date}). The signed PDF was added to the evidence checklist.",
+  "supersededBanner": "A newer version of this SRS exists. This version is kept for history.",
+  "kind": {
+    "signature": "Signature",
+    "name": "Name",
+    "date": "Date"
+  },
+  "live": {
+    "signed": "{name} just signed",
+    "rejected": "{name} sent the SRS back",
+    "cancelled": "The SRS was cancelled or replaced"
+  },
+  "tab": {
+    "title": "SRS sign-off",
+    "note": "Upload the SRS as PDF, place a signature box for each person who must acknowledge it, and send it. Each signer's signature appears in their boxes the moment they approve. When everyone has signed, the signed PDF completes the checklist item so the Requirement activity can be closed.",
+    "upload": "Upload SRS",
+    "uploadNew": "Upload new version",
+    "open": "Open",
+    "progress": "{signed} of {total} signed",
+    "versions": "Versions",
+    "empty": "No SRS uploaded yet"
+  },
+  "col": {
+    "version": "Version",
+    "title": "Title",
+    "status": "Status",
+    "signers": "Signers",
+    "uploaded": "Uploaded",
+    "completed": "Fully signed"
+  },
+  "upload": {
+    "title": "Upload SRS",
+    "titleNew": "Upload SRS version {version}",
+    "description": "PDF only. Export the document from Word as PDF first.",
+    "descriptionNew": "The signers and boxes of the previous version are copied — check them before sending. An unsigned earlier version is replaced.",
+    "docTitle": "Document title",
+    "file": "PDF file",
+    "requirement": "Completes checklist item",
+    "requirementHelp": "When everyone has signed, the signed PDF is attached here as verified evidence.",
+    "projectLevel": "Project",
+    "submit": "Upload"
+  },
+  "editor": {
+    "title": "Signers and boxes",
+    "help": "Add the signers, pick one, choose Signature / Name / Date and click on the page to drop the box. Drag to move, use the corner to resize.",
+    "addSigner": "Add signer",
+    "alreadySigner": "This person is already a signer",
+    "removeSigner": "Remove signer",
+    "rolePlaceholder": "Role, e.g. Approved by",
+    "noSignatureBox": "Needs at least one signature box",
+    "placing": "Click on the page to place the {kind} box for {name}",
+    "stopPlacing": "Stop",
+    "save": "Save boxes",
+    "saved": "Saved",
+    "send": "Send for signing",
+    "sendTitle": "Send the SRS for signing?",
+    "sendDescription": "{count, plural, one {# signer} other {# signers}} will be notified. Boxes cannot be moved after sending.",
+    "sent": "Sent for signing",
+    "needSigner": "Add at least one signer",
+    "needSignatureBox": "Place a signature box for: {names}"
+  },
+  "signers": {
+    "title": "Signers",
+    "you": "you",
+    "draft": "The team is still preparing the signature boxes."
+  },
+  "sign": {
+    "yourTurn": "Your signature is needed — {count, plural, one {# box is} other {# boxes are}} highlighted",
+    "showMine": "Show my boxes",
+    "button": "Approve and sign",
+    "confirmTitle": "Sign this SRS",
+    "confirmDescription": "{title} V{version} — your signature goes into {count, plural, one {# box} other {# boxes}}.",
+    "ack": "I have read SRS version {version} and acknowledge its content.",
+    "change": "Use a different signature",
+    "back": "Back",
+    "confirm": "Sign",
+    "done": "Signed — your signature is on the document",
+    "completed": "Signed — everyone has now signed the SRS"
+  },
+  "reject": {
+    "button": "Send back",
+    "title": "Send the SRS back",
+    "description": "Tell the team what needs to change. They will upload a corrected version for signing.",
+    "done": "Sent back to the team",
+    "by": "Sent back by {name}:",
+    "next": "Correct the document and upload a new version from the project's SRS tab."
+  },
+  "integrity": {
+    "title": "Document fingerprint (SHA-256)",
+    "original": "Uploaded file",
+    "stamped": "With signatures",
+    "downloadOriginal": "Download the uploaded file"
+  },
+  "signature": {
+    "title": "My signature",
+    "description": "Draw your signature once. It is stamped into an SRS only when you approve it, and only you can see it here.",
+    "drawHere": "Sign here with your finger, pen or mouse",
+    "clear": "Clear",
+    "upload": "Use a picture",
+    "save": "Save signature",
+    "saved": "Signature saved",
+    "removed": "Signature removed",
+    "remove": "Remove",
+    "redraw": "Draw a new one",
+    "close": "Close"
+  }
+}

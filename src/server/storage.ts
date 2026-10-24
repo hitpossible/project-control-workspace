@@ -46,6 +46,13 @@ export async function getObject(key: string): Promise<{ stream: Readable; size: 
   return { stream, size: stat.size, contentType: stat.metaData?.['content-type'] };
 }
 
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  const { stream } = await getObject(key);
+  const chunks: Buffer[] = [];
+  for await (const c of stream) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c));
+  return Buffer.concat(chunks);
+}
+
 export async function removeObject(key: string) {
   await ensureBucket();
   await client().removeObject(bucket(), key);

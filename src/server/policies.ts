@@ -33,6 +33,11 @@ const visibleProject = async (ctx: Ctx, col = 'project_id') => idFilter(col, awa
 const internalProject = async (ctx: Ctx, col = 'project_id') => idFilter(col, await internalProjectIds(ctx));
 const manage = (ctx: Ctx, r: Row) => canManageProject(ctx, pid(r));
 
+async function srsVisible(ctx: Ctx, col: string): Promise<Where> {
+  const [w, p] = await visibleProject(ctx, 'project_id');
+  return [`${col} IN (SELECT id FROM srs_documents WHERE ${w} UNION SELECT srs_id FROM srs_signers WHERE signer_id = ?)`, [...p, ctx.uid]];
+}
+
 function or(...parts: Where[]): Where {
   return [`(${parts.map((p) => `(${p[0]})`).join(' OR ')})`, parts.flatMap((p) => p[1])];
 }
@@ -43,8 +48,8 @@ export const POLICIES: Record<string, Policy> = {
     read: () => all,
     update: (ctx, o) => o.id === ctx.uid || isAdmin(ctx),
     check: (ctx, n) => n.id === ctx.uid || isAdmin(ctx),
-    hidden: ['password_hash'],
-    readonly: ['password_hash', 'last_login_at', 'created_at'],
+    hidden: ['password_hash', 'signature_path'],
+    readonly: ['password_hash', 'last_login_at', 'created_at', 'signature_path', 'signature_updated_at'],
   },
 
   // Master data: read for all, write for admin
@@ -181,6 +186,11 @@ export const POLICIES: Record<string, Policy> = {
     },
     readonly: ['created_by', 'created_at', 'updated_at'],
   },
+
+  // SRS sign-off: with the project, plus the signers (who may be outside it); all writes go through src/server/srs.ts
+  srs_documents: { read: (ctx) => srsVisible(ctx, 'id'), hidden: ['original_path', 'stamped_path'] },
+  srs_signers: { read: (ctx) => srsVisible(ctx, 'srs_id'), hidden: ['signature_path', 'name_image_path'] },
+  srs_fields: { read: (ctx) => srsVisible(ctx, 'srs_id') },
 
   // Checklist names are visible with the project; managed by the leader
   evidence_requirements: { read: (ctx) => visibleProject(ctx), insert: manage, update: manage, check: manage, delete: manage },

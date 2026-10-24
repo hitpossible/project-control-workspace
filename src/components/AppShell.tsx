@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, CalendarDays, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck } from 'lucide-react';
+import { Bell, CalendarDays, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck, Signature } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -16,6 +16,7 @@ import { Person, Tip } from './common';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
+import MySignatureDialog from './srs/MySignatureDialog';
 
 /** Product logo (public/brand/logo.png, 841 × 530 — keep this ratio) */
 export function BrandMark({ size = 26 }: { size?: number }) {
@@ -43,6 +44,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [signature, setSignature] = useState(false);
   const [animate, setAnimate] = useState(false); // only animate user toggles, not the restore on load
 
   // remember the sidebar state per browser
@@ -179,10 +181,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <LanguageSwitcher className="mx-2 my-1 w-fit sm:hidden" />
+            <DropdownMenuItem onClick={() => setSignature(true)}><Signature /> {t('mySignature')}</DropdownMenuItem>
             <DropdownMenuItem onClick={signOut}><LogOut /> {t('logout')}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
+
+      <MySignatureDialog open={signature} onClose={() => setSignature(false)} />
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-64 bg-white pt-12">

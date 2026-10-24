@@ -570,3 +570,55 @@ export interface Comment {
   id: number; project_id: number; entity_type: 'task' | 'bug'; entity_id: number; body: string;
   mentions: number[]; created_by: number; created_at: string; edited_at: string | null;
 }
+
+// SRS sign-off (db/migrations/015_srs_signing.sql)
+export type SrsStatus = 'draft' | 'signing' | 'signed' | 'rejected' | 'cancelled' | 'superseded';
+export type SrsFieldKind = 'signature' | 'name' | 'date';
+
+export interface SrsDocument {
+  id: number;
+  project_id: number;
+  version_no: number;
+  title: string;
+  file_name: string;
+  original_sha256: string;
+  page_count: number;
+  /** page size as displayed (points, rotation applied) */
+  pages: { w: number; h: number }[];
+  stamped_sha256: string | null;
+  requirement_id: number | null;
+  evidence_id: number | null;
+  status: SrsStatus;
+  sent_at: string | null;
+  completed_at: string | null;
+  created_by: number | null;
+  created_at: string;
+}
+
+export interface SrsSigner {
+  id: number;
+  srs_id: number;
+  project_id: number;
+  signer_id: number;
+  seq: number;
+  role_label: string | null;
+  status: 'pending' | 'signed' | 'rejected';
+  signed_at: string | null;
+  doc_sha256: string | null;
+  comment: string | null;
+  ip: string | null;
+  user_agent: string | null;
+}
+
+/** box as fractions of the displayed page, origin top-left */
+export interface SrsField {
+  id: number;
+  srs_id: number;
+  signer_row_id: number;
+  kind: SrsFieldKind;
+  page_no: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}

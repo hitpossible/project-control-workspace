@@ -16,5 +16,6 @@
   "expandSidebar": "ขยายแถบด้านข้าง",
   "collapseSidebar": "ย่อแถบด้านข้าง",
   "navigation": "เมนูนำทาง",
-  "logout": "ออกจากระบบ"
+  "logout": "ออกจากระบบ",
+  "mySignature": "ลายเซ็นของฉัน"
 }

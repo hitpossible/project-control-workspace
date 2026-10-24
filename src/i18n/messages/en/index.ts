@@ -28,10 +28,11 @@ import requestDetail from './requestDetail.json';
 import requestForm from './requestForm.json';
 import requests from './requests.json';
 import search from './search.json';
+import srs from './srs.json';
 import template from './template.json';
 import workforce from './workforce.json';
 
 /** One file per feature (namespace); en is the reference every other language must match */
-const messages = { admin, ai, audit, chart, comments, common, design, enums, evidence, fields, gantt, home, insights, kanban, kpi, login, management, meta, myWork, nav, notifications, plan, project, projects, qa, reports, requestDetail, requestForm, requests, search, template, workforce };
+const messages = { admin, ai, audit, chart, comments, common, design, enums, evidence, fields, gantt, home, insights, kanban, kpi, login, management, meta, myWork, nav, notifications, plan, project, projects, qa, reports, requestDetail, requestForm, requests, search, srs, template, workforce };
 
 export default messages;
