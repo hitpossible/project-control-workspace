@@ -1,0 +1,48 @@
+{
+  "intro": "A working summary of what the system must do — what the team plans, estimates and staffs from. The AI drafts it from the request, the clarification interview and the initial analysis; the team checks and edits it. The SRS stays the formal signed document.",
+  "section": {
+    "objective": "Objective",
+    "users": "Users",
+    "features": "Features (functional requirements)",
+    "out_of_scope": "Out of scope",
+    "integrations": "Integrations",
+    "data_reports": "Data & reports",
+    "environment": "Devices & environment",
+    "constraints": "Rules & constraints",
+    "open_questions": "Open questions"
+  },
+  "hint": {
+    "objective": "The business problem and what the system must achieve",
+    "users": "Roles, departments, how many people, shifts",
+    "features": "One capability per line, most important first",
+    "out_of_scope": "One item per line",
+    "integrations": "One system / file / machine per line — direction and data",
+    "data_reports": "One item per line",
+    "environment": "PC, tablet on the shop floor, mobile…",
+    "constraints": "Permissions, approvals, IATF / ISO, PDPA, performance — one per line",
+    "open_questions": "What is still missing or undecided — one per line"
+  },
+  "empty": "No requirement summary yet.",
+  "emptyPlan": "No requirement summary yet. Let the AI draft one from the request, then check and save it.",
+  "generate": "Draft with AI",
+  "regenerate": "Update with AI",
+  "edit": "Edit",
+  "save": "Save",
+  "cancel": "Cancel",
+  "saved": "Requirement summary saved",
+  "aiDraft": "AI draft — not saved yet. Check every section, edit what is wrong, then save.",
+  "aiUnedited": "Drafted by AI and saved without edits — worth a check.",
+  "updated": "Last saved by {name} on {date}",
+  "notes": "Extra information for the AI (optional)",
+  "notesPlaceholder": "Paste meeting notes, e-mails or decisions made after the request — the AI treats them as newer than the request.",
+  "updateHelp": "The AI keeps your edits and adds what is new.",
+  "generating": "The AI is reading the request… this can take a minute.",
+  "off": "AI is not set up on this server.",
+  "failed": "Could not reach the AI — please try again.",
+  "discard": {
+    "title": "Discard the AI draft?",
+    "description": "The draft has not been saved.",
+    "confirm": "Discard"
+  },
+  "noRequest": "Created without a request — paste the requirements in the box above for the AI to work from."
+}

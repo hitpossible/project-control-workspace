@@ -1,6 +1,6 @@
 import type { Ctx, Row } from './db';
 import {
-  canManageProject, canQa, canViewAllSkills, canViewInternal, canViewProject, canViewRequest, hasRole, idFilter, internalProjectIds, isAdmin, isProjectMember,
+  canManageProject, canPlanProject, canQa, canViewAllSkills, canViewInternal, canViewProject, canViewRequest, hasRole, idFilter, internalProjectIds, isAdmin, isProjectMember,
   isSkillAssessor, isStaff, requestFilter, visibleProjectIds,
 } from './perms';
 
@@ -32,6 +32,7 @@ const masterData: Policy = { read: () => all, insert: admin, update: admin, chec
 const visibleProject = async (ctx: Ctx, col = 'project_id') => idFilter(col, await visibleProjectIds(ctx));
 const internalProject = async (ctx: Ctx, col = 'project_id') => idFilter(col, await internalProjectIds(ctx));
 const manage = (ctx: Ctx, r: Row) => canManageProject(ctx, pid(r));
+const plan = (ctx: Ctx, r: Row) => canPlanProject(ctx, pid(r));
 
 async function srsVisible(ctx: Ctx, col: string): Promise<Where> {
   const [w, p] = await visibleProject(ctx, 'project_id');
@@ -214,7 +215,13 @@ export const POLICIES: Record<string, Policy> = {
     delete: (ctx, o) => isSkillAssessor(ctx) || (o.user_id === ctx.uid && o.verified_level === null),
     readonly: ['verified_by', 'verified_at', 'updated_at'],
   },
-  project_skill_requirements: { read: (ctx) => internalProject(ctx), insert: manage, update: manage, check: manage, delete: manage },
+  // the leader, or a Supervisor / Manager staffing the project
+  project_skill_requirements: { read: (ctx) => internalProject(ctx), insert: plan, update: plan, check: plan, delete: plan },
+  // working requirement summary (internal); content is normalised and the editor stamped in hooks.ts
+  project_requirement_summaries: {
+    read: (ctx) => internalProject(ctx), insert: plan, update: plan, check: plan, delete: plan,
+    readonly: ['created_by', 'created_at', 'updated_by', 'updated_at'],
+  },
 
   project_kpi_snapshots: { read: (ctx) => visibleProject(ctx) },
 

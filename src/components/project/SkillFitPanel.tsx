@@ -1,6 +1,7 @@
 'use client';
 
-import { ChevronDown, RefreshCw, Trash2, UserPlus } from 'lucide-react';
+import { ChevronDown, RefreshCw, Sparkles, Trash2, UserPlus } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { dispatchEmails, useApp } from '@/components/AppProvider';
@@ -8,9 +9,11 @@ import { BoardGroup, EmptyState, Person, SelectField, Tip } from '@/components/c
 import { LevelBadge } from '@/components/skills';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { dbClient } from '@/lib/db/client';
 import { errMsg, fmtDate } from '@/lib/format';
+import type { SkillSuggestion, SkillSuggestions } from '@/lib/requirements';
 import { type MemberRecommendations, SCORE_WEIGHTS, SKILL_LEVELS } from '@/lib/skills';
 import type { ProjectSkillRequirement, Skill } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -23,6 +26,7 @@ const scoreColor = (v: number) => (v >= 75 ? '#00c875' : v >= 50 ? '#fdab3d' : '
 export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'data' | 'perm' | 'reload'>) {
   const t = useTranslations('skills.fit');
   const ts = useTranslations('skills');
+  const tr = useTranslations('requirements');
   const db = dbClient();
   const { profileName, hasRole, notify } = useApp();
   const pid = data.project.id;
@@ -33,16 +37,18 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
   const [draft, setDraft] = useState({ skill: '', level: '3', weight: '3', mandatory: false });
   const [showAll, setShowAll] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
-  const canRank = perm.manage || hasRole('supervisor', 'manager');
+  /** AI skill suggestions: null = dialog closed */
+  const [suggest, setSuggest] = useState<AiState | null>(null);
+  const canPlan = perm.manage || hasRole('supervisor', 'manager');
 
   const recommend = useCallback(async () => {
-    if (!canRank) return;
+    if (!canPlan) return;
     setBusy(true);
     const { data: r, error } = await db.rpc<MemberRecommendations>('recommend_members', { p_project_id: pid });
     setBusy(false);
     if (error) return notify(errMsg(error), 'error');
     setRec(r);
-  }, [db, pid, canRank, notify]);
+  }, [db, pid, canPlan, notify]);
 
   const load = useCallback(async () => {
     const [s, r] = await Promise.all([
@@ -65,6 +71,20 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
     if (error) return notify(errMsg(error), 'error');
     await load();
   };
+  // one request per click — the dialog only shows the result
+  const askAi = async () => {
+    setSuggest({ state: 'loading' });
+    try {
+      const j = await fetch(`/api/projects/${pid}/skill-suggestions`, { method: 'POST' }).then((r) => r.json());
+      if (j.error) { notify(j.error.message, 'error'); return setSuggest({ state: 'failed' }); }
+      if (j.data?.off) { notify(tr('off'), 'warning'); return setSuggest(null); }
+      setSuggest(j.data?.no_summary ? { state: 'no_summary' } : { state: 'ready', result: j.data as SkillSuggestions });
+    } catch {
+      notify(tr('failed'), 'error');
+      setSuggest({ state: 'failed' });
+    }
+  };
+
   const addReq = async () => {
     if (!draft.skill) return;
     await run(db.from('project_skill_requirements').insert({
@@ -87,10 +107,15 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
 
   return (
     <>
-      <BoardGroup title={t('requirements')} color="#579bfc" count={reqs.length}>
+      <BoardGroup
+        title={t('requirements')}
+        color="#579bfc"
+        count={reqs.length}
+        actions={canPlan && <Button variant="outline" size="sm" disabled={suggest?.state === 'loading'} onClick={askAi}><Sparkles className="text-[#a25ddc]" /> {t('aiSuggest')}</Button>}
+      >
         <div className="p-3">
         <p className="text-sm text-muted-foreground">{t('requirementsIntro')}</p>
-        {perm.manage && (
+        {canPlan && (
           <div className="no-print mt-3 grid grid-cols-12 items-end gap-3">
             <SelectField className="col-span-12 sm:col-span-4" label={t('skill')} value={draft.skill} onChange={(v) => setDraft({ ...draft, skill: v })}
               options={free.map((s) => ({ value: String(s.id), label: s.name }))} />
@@ -108,7 +133,7 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
             <TableHeader>
               <TableRow>
                 <TableHead className="text-left">{t('skill')}</TableHead><TableHead>{t('requiredLevel')}</TableHead>
-                <TableHead><Tip title={t('weightHelp')}><span>{t('weight')}</span></Tip></TableHead><TableHead>{t('mandatory')}</TableHead>{perm.manage && <TableHead />}
+                <TableHead><Tip title={t('weightHelp')}><span>{t('weight')}</span></Tip></TableHead><TableHead>{t('mandatory')}</TableHead>{canPlan && <TableHead />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -116,19 +141,19 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
                 <TableRow key={r.id}>
                   <TableCell>{skillName(r.skill_id)}</TableCell>
                   <TableCell className="w-36 text-center">
-                    {perm.manage
+                    {canPlan
                       ? <SelectField value={String(r.required_level)} options={levelOpts} onChange={(v) => run(db.from('project_skill_requirements').update({ required_level: Number(v) }).eq('id', r.id))} />
                       : <LevelBadge level={r.required_level} />}
                   </TableCell>
                   <TableCell className="w-36 text-center">
-                    {perm.manage
+                    {canPlan
                       ? <SelectField value={String(r.weight)} options={levelOpts} onChange={(v) => run(db.from('project_skill_requirements').update({ weight: Number(v) }).eq('id', r.id))} />
                       : r.weight}
                   </TableCell>
                   <TableCell className="w-28 text-center">
-                    <Checkbox checked={r.is_mandatory} disabled={!perm.manage} onCheckedChange={(c) => run(db.from('project_skill_requirements').update({ is_mandatory: !!c }).eq('id', r.id))} />
+                    <Checkbox checked={r.is_mandatory} disabled={!canPlan} onCheckedChange={(c) => run(db.from('project_skill_requirements').update({ is_mandatory: !!c }).eq('id', r.id))} />
                   </TableCell>
-                  {perm.manage && (
+                  {canPlan && (
                     <TableCell className="w-11 text-center">
                       <Button variant="ghost" size="icon-sm" aria-label={t('removeRequirement')} onClick={() => run(db.from('project_skill_requirements').delete().eq('id', r.id))}><Trash2 /></Button>
                     </TableCell>
@@ -137,10 +162,10 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
               ))}
             </TableBody>
           </Table>
-        ) : <EmptyState text={perm.manage ? t('noRequirementsManage') : t('noRequirements')} />}
+        ) : <EmptyState text={canPlan ? t('noRequirementsManage') : t('noRequirements')} />}
       </BoardGroup>
 
-      {canRank && (
+      {canPlan && (
         <BoardGroup
           title={t('recommended')}
           color="#00c875"
@@ -214,6 +239,99 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
           )}
         </BoardGroup>
       )}
+      {canPlan && suggest && <SuggestDialog key={suggest.state} ai={suggest} projectId={pid} skills={skills} onClose={() => setSuggest(null)} onAdded={load} />}
     </>
+  );
+}
+
+type Choice = SkillSuggestion & { on: boolean };
+type AiState = { state: 'loading' | 'no_summary' | 'failed' } | { state: 'ready'; result: SkillSuggestions };
+
+/** AI skill suggestions from the requirement summary — the planner ticks and adjusts, then adds them */
+function SuggestDialog({ ai, projectId, skills, onClose, onAdded }: {
+  ai: AiState; projectId: number; skills: Skill[]; onClose: () => void; onAdded: () => Promise<void>;
+}) {
+  const t = useTranslations('skills.fit');
+  const tc = useTranslations('common');
+  const tr = useTranslations('requirements');
+  const db = dbClient();
+  const { notify } = useApp();
+  const state = ai.state;
+  // keyed by state, so a new result starts from fresh picks
+  const [picks, setPicks] = useState<Choice[]>(() => (ai.state === 'ready' ? ai.result.suggestions.map((x) => ({ ...x, on: true })) : []));
+  const missing = ai.state === 'ready' ? ai.result.missing : [];
+  const [saving, setSaving] = useState(false);
+
+  const set = (i: number, patch: Partial<Choice>) => setPicks(picks.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  const chosen = picks.filter((p) => p.on);
+  const add = async () => {
+    setSaving(true);
+    const { error } = await db.from('project_skill_requirements').insert(chosen.map((p) => ({
+      project_id: projectId, skill_id: p.skill_id, required_level: p.required_level, weight: p.weight, is_mandatory: p.is_mandatory,
+    })));
+    setSaving(false);
+    if (error) return notify(errMsg(error), 'error');
+    notify(t('aiAdded', { count: chosen.length }));
+    await onAdded();
+    onClose();
+  };
+  const name = (id: number) => skills.find((s) => s.id === id)?.name ?? '?';
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && !saving && onClose()}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Sparkles className="size-4 text-[#a25ddc]" /> {t('aiTitle')}</DialogTitle>
+          {state === 'ready' && <DialogDescription>{t('aiIntro')}</DialogDescription>}
+        </DialogHeader>
+        {state === 'loading' && <p className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><RefreshCw className="size-4 animate-spin" /> {t('aiThinking')}</p>}
+        {state === 'failed' && <EmptyState text={tr('failed')} />}
+        {state === 'no_summary' && (
+          <div className="flex flex-col items-center gap-3 py-6 text-sm text-muted-foreground">
+            <p>{t('aiNoSummary')}</p>
+            <Button asChild variant="outline"><Link href={`/projects/${projectId}?tab=requirements`} onClick={onClose}>{t('aiOpenSummary')}</Link></Button>
+          </div>
+        )}
+        {state === 'ready' && (
+          <div className="max-h-[60vh] overflow-y-auto">
+            {!picks.length ? <EmptyState text={t('aiNone')} /> : (
+              <div className="flex flex-col gap-2">
+                {picks.map((p, i) => (
+                  <div key={p.skill_id} className={cn('flex flex-wrap items-start gap-3 rounded-md border border-grid p-3', !p.on && 'opacity-50')}>
+                    <Checkbox className="mt-0.5" checked={p.on} onCheckedChange={(c) => set(i, { on: !!c })} aria-label={name(p.skill_id)} />
+                    <div className="min-w-48 flex-1">
+                      <div className="text-sm font-medium">{name(p.skill_id)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {p.reason}{p.refs.length > 0 && <span className="ml-1 text-[#7a3db0]">({t('from')} {p.refs.join(', ')})</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <SelectField className="w-24" label={t('requiredLevel')} value={String(p.required_level)} options={levelOpts} onChange={(v) => set(i, { required_level: Number(v) })} />
+                      <SelectField className="w-24" label={t('weight')} value={String(p.weight)} options={levelOpts} onChange={(v) => set(i, { weight: Number(v) })} />
+                      <label className="flex h-9 items-center gap-1.5 text-xs">
+                        <Checkbox checked={p.is_mandatory} onCheckedChange={(c) => set(i, { is_mandatory: !!c })} /> {t('mandatory')}
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {missing.length > 0 && (
+              <div className="mt-4 rounded-md border border-[#fdab3d]/60 bg-[#fdab3d]/5 p-3 text-sm">
+                <div className="font-medium">{t('aiMissing')}</div>
+                <ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground">
+                  {missing.map((m) => <li key={m.name}><b className="text-foreground">{m.name}</b>{m.reason && ` — ${m.reason}`}</li>)}
+                </ul>
+                <p className="mt-1 text-xs text-muted-foreground">{t('aiMissingHelp')}</p>
+              </div>
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" disabled={saving} onClick={onClose}>{tc('close')}</Button>
+          {state === 'ready' && picks.length > 0 && <Button disabled={!chosen.length || saving} onClick={add}>{t('aiAdd', { count: chosen.length })}</Button>}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

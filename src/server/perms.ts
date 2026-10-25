@@ -52,6 +52,11 @@ async function ledProjects(ctx: Ctx): Promise<Set<number>> {
     'SELECT id FROM projects WHERE leader_id = ?', [ctx.uid])).map((r) => r.id)));
 }
 
+/** plan the project's people and scope: requirement summary, skill requirements, member recommendations */
+export async function canPlanProject(ctx: Ctx, projectId: number) {
+  return isSkillAssessor(ctx) || canManageProject(ctx, projectId);
+}
+
 export async function isProjectMember(ctx: Ctx, projectId: number, roles?: string[]) {
   const mine = (await memberships(ctx)).get(projectId) ?? [];
   return roles ? mine.some((r) => roles.includes(r)) : mine.length > 0;

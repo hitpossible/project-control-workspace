@@ -157,6 +157,15 @@ describe('skill matrix', () => {
     expect(() => h.beforeInsert!(fakeCtx(dev), ps({ self_level: 6 }))).toThrow(/1–5/);
   });
 
+  it('skill requirements and the requirement summary: the leader or a Supervisor / Manager, not a developer', async () => {
+    for (const table of ['project_skill_requirements', 'project_requirement_summaries']) {
+      expect(await POLICIES[table].insert!(fakeCtx(leader, world), { project_id: 1 }), table).toBe(true);
+      expect(await POLICIES[table].insert!(fakeCtx(sup, world), { project_id: 1 }), table).toBe(true);
+      expect(await POLICIES[table].insert!(fakeCtx(dev, world), { project_id: 1 }), table).toBe(false);
+      expect(await POLICIES[table].insert!(fakeCtx(leader, world), { project_id: 2 }), table).toBe(false);
+    }
+  });
+
   it('only a verified-free row can be removed by its owner', async () => {
     expect(await POLICIES.profile_skills.delete!(fakeCtx(dev), ps({ verified_level: null }))).toBe(true);
     expect(await POLICIES.profile_skills.delete!(fakeCtx(dev), ps({ verified_level: 3 }))).toBe(false);

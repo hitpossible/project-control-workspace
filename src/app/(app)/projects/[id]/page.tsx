@@ -17,6 +17,7 @@ import OverviewTab from '@/components/project/OverviewTab';
 import PlanTab from '@/components/project/PlanTab';
 import { CloseProjectButton, ProjectStatusMenu } from '@/components/project/ProjectStatus';
 import QaTab from '@/components/project/QaTab';
+import RequirementsTab from '@/components/project/RequirementsTab';
 import SrsTab from '@/components/project/SrsTab';
 import TeamTab from '@/components/project/TeamTab';
 import type { ProjectData } from '@/components/project/types';
@@ -108,6 +109,7 @@ function Workspace() {
   const tabs = [
     { v: 'overview', l: tp('tab.overview') },
     { v: 'plan', l: tp('tab.plan') },
+    ...(perm.internal ? [{ v: 'requirements', l: tp('tab.requirements') }] : []),
     ...(perm.internal ? [{ v: 'internal', l: tp('tab.internal') }] : []),
     ...(perm.internal ? [{ v: 'qa', l: `${tp('tab.qa')}${p.open_bugs ? ` (${p.open_bugs})` : ''}` }] : []),
     ...(perm.internal ? [{ v: 'design', l: tp('tab.design') }] : []),
@@ -165,6 +167,7 @@ function Workspace() {
       <div key={tab} className="motion-rise">
       {tab === 'overview' && <OverviewTab {...ctx} />}
       {tab === 'plan' && <PlanTab {...ctx} />}
+      {tab === 'requirements' && perm.internal && <RequirementsTab {...ctx} />}
       {tab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={toId(params.get('task'))} focusPanel={params.get('panel')} />}
       {tab === 'qa' && perm.internal && <QaTab {...ctx} focusBug={toId(params.get('bug'))} focusPanel={params.get('panel')} />}
       {tab === 'design' && perm.internal && <DesignTab {...ctx} />}

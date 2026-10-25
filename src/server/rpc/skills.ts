@@ -1,7 +1,7 @@
 import { type CandidateFacts, type HeldSkill, type MemberRecommendations, rankCandidates, type SkillRequirement } from '@/lib/skills';
 import { AppError, addDays, type Ctx, inList } from '../db';
 import { workCalendar } from '../logic/common';
-import { canManageProject, isSkillAssessor } from '../perms';
+import { canPlanProject } from '../perms';
 
 /** projects that still take people's time */
 const ACTIVE = ['planning', 'in_progress', 'waiting', 'at_risk', 'delayed'];
@@ -12,7 +12,7 @@ const DEFAULT_WINDOW_DAYS = 30;
 export async function recommendMembers(ctx: Ctx, a: { p_project_id?: unknown }): Promise<MemberRecommendations> {
   const pid = Number(a?.p_project_id);
   if (!pid) throw new AppError('p_project_id is required');
-  if (!(isSkillAssessor(ctx) || (await canManageProject(ctx, pid)))) throw new AppError('Not allowed', 403);
+  if (!(await canPlanProject(ctx, pid))) throw new AppError('Not allowed', 403);
 
   const p = await ctx.one<{ project_type_id: number | null; start_date: string | null; target_date: string | null }>(
     'SELECT project_type_id, start_date, target_date FROM projects WHERE id = ?', [pid]);

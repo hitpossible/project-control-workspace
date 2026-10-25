@@ -96,6 +96,18 @@
     },
     "showAll": "Show all {count}",
     "showTop": "Show top 5",
-    "disclaimer": "A recommendation to support the decision, not an assignment — check workload and development goals with the people involved."
+    "disclaimer": "A recommendation to support the decision, not an assignment — check workload and development goals with the people involved.",
+    "aiSuggest": "Suggest with AI",
+    "aiTitle": "AI skill suggestions",
+    "aiIntro": "From the requirement summary. Tick the ones to add — you can change level, importance and must-have first.",
+    "aiNone": "The AI found nothing to add beyond the current requirements.",
+    "aiNoSummary": "Write the requirement summary first — the AI suggests skills from it.",
+    "aiOpenSummary": "Open requirement summary",
+    "aiAdd": "Add {count} selected",
+    "aiAdded": "{count} skill requirements added",
+    "aiMissing": "Needed but not in the skill list",
+    "aiMissingHelp": "A Supervisor or Manager can add these on the Skill matrix page.",
+    "aiThinking": "The AI is reading the requirement summary…",
+    "from": "from"
   }
 }

@@ -386,3 +386,110 @@ export async function draftDiagram(kind: DiagramKind, prompt: string, ctx: Diagr
     return null;
   }
 }
+
+const SUMMARY = `You are a senior business analyst in the IT System Service team of a manufacturing company.
+Write the REQUIREMENT SUMMARY of a project: the working summary the development team plans, estimates and staffs from (it is not the formal SRS).
+Use only what the sources say — never invent features, numbers, users or systems. Anything important that is unknown, vague or undecided goes under open_questions instead of being guessed.
+Sections:
+- "objective": 1–3 sentences — the business problem and what the system must achieve (with measurable targets when stated).
+- "users": 1–3 sentences — who uses it: roles, departments, how many, shifts.
+- "features": the functional requirements, one concrete capability per item starting with a verb (e.g. "Record scrap per line and shift with reason code"). 5–25 items, most important first, no duplicates.
+- "out_of_scope": what was explicitly excluded; [] when nothing was said.
+- "integrations": systems, files, machines or e-mail it connects to — with the direction and the data (e.g. "Read item master from SAP daily").
+- "data_reports": the main data kept and the reports, documents or dashboards it must produce; volumes when known.
+- "environment": 1–2 sentences — devices and places of use (office PC, tablet on the shop floor, mobile), languages.
+- "constraints": permissions, approval rules, standards (IATF, ISO), personal data (PDPA), performance, what drives the deadline.
+- "open_questions": points still missing or undecided that could change scope or effort.
+Each list item at most about 25 words. Write in the OUTPUT LANGUAGE given.
+Reply with JSON only, exactly in this shape:
+{"objective": "...", "users": "...", "features": ["..."], "out_of_scope": ["..."], "integrations": ["..."], "data_reports": ["..."], "environment": "...", "constraints": ["..."], "open_questions": ["..."]}`;
+
+export interface SummaryContext {
+  project: { code: string; name: string };
+  request: ProjectRequest | null;
+  analysis: AiAnalysis | null;
+  activities: string[];
+  /** the saved summary, to be updated rather than rewritten */
+  current: string | null;
+  /** extra material from the team: meeting notes, e-mails, decisions */
+  notes: string;
+}
+
+/** Draft the requirement summary from everything known about the project; untrusted (see normalizeSummary) or null when the AI failed */
+export async function draftRequirementSummary(c: SummaryContext): Promise<unknown | null> {
+  const r = c.request;
+  const lines = [`PROJECT ${c.project.code}: ${c.project.name}`];
+  if (r) {
+    lines.push('', ...formLines(r, null));
+    const legacy = r.ai_clarifications ?? [];
+    if (legacy.length) {
+      lines.push('', 'EARLIER QUESTIONS AND ANSWERS');
+      for (const q of legacy) lines.push(`Q: ${q.question}`, `A: ${q.answer ?? '(skipped)'}`);
+    }
+    const known = (r.ai_coverage?.criteria ?? []).filter((x) => x.status !== 'not_applicable');
+    if (known.length) {
+      lines.push('', 'CLARIFICATION SUMMARY (confirmed by the requestor)');
+      for (const x of known) lines.push(`- ${x.label}: ${x.status === 'covered' ? x.summary || x.note || 'covered' : `MISSING${x.note ? ` — ${x.note}` : ''}`}`);
+    }
+    const chat = r.ai_chat ?? [];
+    if (chat.length) {
+      lines.push('', 'INTERVIEW WITH THE REQUESTOR');
+      for (const m of chat) lines.push(`${m.role === 'assistant' ? 'AI' : 'Requestor'}: ${m.content}`);
+    }
+  } else lines.push('', '(no request form — the project was created directly)');
+  const a = c.analysis;
+  if (a?.status === 'done') {
+    lines.push('', 'INITIAL ANALYSIS', `Complexity: ${a.complexity ?? '-'}; modules: ${(a.modules ?? []).join(', ') || '-'}`);
+    if (a.risks?.length) lines.push(`Risks: ${a.risks.join('; ')}`);
+  }
+  if (c.activities.length) lines.push('', `PLANNED ACTIVITIES: ${c.activities.join(', ')}`);
+  if (c.notes) lines.push('', 'NOTES FROM THE TEAM (newer than the request — they win where they differ)', c.notes);
+  if (c.current) lines.push('', 'CURRENT SUMMARY — update it with the information above: keep what is still valid (the team may have edited it), add what is new, fix what changed. Reply with the whole summary.', c.current);
+  const thai = /[\u0E00-\u0E7F]/.test([c.project.name, r?.description, r?.reason, c.notes, c.current].join(' '));
+  lines.push('', `OUTPUT LANGUAGE: ${thai ? 'Thai (keep system, product and technical names in English)' : 'English'}.`);
+  try {
+    const text = await chat(SUMMARY, lines.join('\n'));
+    const out = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1) || '{}') as Record<string, unknown>;
+    if (!Array.isArray(out.features)) throw new Error('no features in the reply');
+    return out;
+  } catch (e) {
+    console.warn('[ai] requirement summary failed:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+const SKILLS = `You are the technical lead of the IT System Service team of a manufacturing company, staffing a new project.
+From the REQUIREMENT SUMMARY, choose the skills from the SKILL LIST the developers on this project need.
+For each skill:
+- "skill_id": an id from the SKILL LIST only.
+- "required_level": 1–5 (1 aware, 2 basic, 3 independent, 4 advanced, 5 expert) — the level someone needs to build that part on their own.
+  Most work needs 3; complex or critical parts (core framework of a large system, a tricky integration) 4; 5 only for something unusually hard.
+- "weight": 1–5 — how much of the project depends on it (5 = the core of the project).
+- "is_mandatory": true only when the project cannot be delivered without it — usually the main language / framework and a critical integration. At most 3.
+- "reason": one short sentence saying which requirement needs it.
+- "refs": the features it comes from, as their numbers (e.g. ["F2", "F5"]); [] when it comes from another section.
+Where the summary names no technology, use the team's usual stack — the skills most developers hold in the SKILL LIST — rather than introducing a new one.
+Add a business-domain skill when the features clearly sit in that domain. Prefer 3–8 skills; leave out skills the summary gives no reason for.
+"missing": skills the project clearly needs that are NOT in the SKILL LIST (e.g. a specific machine protocol), each {"name": "...", "category": "frontend|backend|database|mobile|devops|integration|domain|other", "reason": "..."}; [] when none.
+Write reasons in the OUTPUT LANGUAGE given.
+Reply with JSON only, exactly in this shape:
+{"skills": [{"skill_id": 1, "required_level": 3, "weight": 4, "is_mandatory": true, "reason": "...", "refs": ["F1"]}], "missing": [{"name": "...", "category": "integration", "reason": "..."}]}`;
+
+export interface SkillCatalogItem { id: number; name: string; category: string; description: string | null; holders: number }
+
+/** Skills a project needs, from its requirement summary text; untrusted (validated by the caller) or null when the AI failed */
+export async function suggestProjectSkills(project: { code: string; name: string }, summary: string, catalog: SkillCatalogItem[]): Promise<unknown | null> {
+  const lines = [`PROJECT ${project.code}: ${project.name}`, '', 'REQUIREMENT SUMMARY', summary, '', 'SKILL LIST (developers at level 3 or above)'];
+  for (const s of catalog) lines.push(`- id ${s.id}: ${s.name} [${s.category}]${s.description ? ` — ${s.description}` : ''} | ${s.holders} developers`);
+  const thai = /[\u0E00-\u0E7F]/.test(summary);
+  lines.push('', `OUTPUT LANGUAGE: ${thai ? 'Thai' : 'English'}.`);
+  try {
+    const text = await chat(SKILLS, lines.join('\n'));
+    const out = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1) || '{}') as Record<string, unknown>;
+    if (!Array.isArray(out.skills)) throw new Error('no skills in the reply');
+    return out;
+  } catch (e) {
+    console.warn('[ai] skill suggestion failed:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}

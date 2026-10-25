@@ -4,6 +4,7 @@ import { notifyEvent, fmtD, nextSequence } from './logic/common';
 import {
   activityBeforeWrite, applyTemplateChecklist, missingEvidence, openCriticalBugs, recomputeProject, rollupFromActivity, rollupFromTask, taskBeforeWrite,
 } from './logic/project';
+import { normalizeSummary } from '@/lib/requirements';
 import { isAdmin, isSkillAssessor } from './perms';
 import { removeObject } from './storage';
 
@@ -201,6 +202,18 @@ export const HOOKS: Record<string, Hooks> = {
   profile_skills: {
     beforeInsert: (ctx, r) => skillLevelRules(ctx, r, null),
     beforeUpdate: (ctx, n, o) => skillLevelRules(ctx, n, o),
+  },
+  project_requirement_summaries: {
+    beforeInsert(ctx, r) {
+      r.content = normalizeSummary(r.content);
+      r.created_by = ctx.uid;
+      r.updated_by = ctx.uid;
+    },
+    beforeUpdate(ctx, n, o) {
+      if (changed(n, o, 'project_id')) throw new AppError('A requirement summary cannot be moved to another project', 400);
+      n.content = normalizeSummary(n.content);
+      n.updated_by = ctx.uid;
+    },
   },
   project_skill_requirements: {
     beforeInsert: (_ctx, r) => oneToFive({ required_level: 3, weight: 3, ...r }, ['required_level', 'weight']),

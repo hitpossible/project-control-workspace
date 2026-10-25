@@ -10,7 +10,8 @@
     "baseline": "Baseline",
     "evidence": "หลักฐาน",
     "history": "ประวัติ",
-    "srs": "SRS"
+    "srs": "SRS",
+    "requirements": "สรุปความต้องการ"
   },
   "round": "รอบที่ {no}",
   "leader": "หัวหน้า {name}",
