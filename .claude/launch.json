@@ -4,8 +4,20 @@
     {
       "name": "realtime",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "realtime"],
+      "runtimeArgs": [
+        "run",
+        "realtime"
+      ],
       "port": 3001
+    },
+    {
+      "name": "app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000
     }
   ]
 }
