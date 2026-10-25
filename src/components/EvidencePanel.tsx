@@ -170,9 +170,13 @@ export default function EvidencePanel({
                     <span className="truncate">{ev.file_name ?? ev.url}</span>
                     <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
                   </button>
-                  {ev.requirement_id && <span className="mr-1 rounded bg-[#cce5ff] px-1.5 text-[10px] text-[#0060b9]">✓ {requirements.find((r) => r.id === ev.requirement_id)?.name ?? t('checklist')}</span>}
-                  {!ev.is_internal && <span className="mr-1 rounded bg-secondary px-1.5 text-[10px]">{t('shared')}</span>}
-                  {ev.description && <span className="text-xs text-muted-foreground">{ev.description}</span>}
+                  {(ev.requirement_id || !ev.is_internal || ev.description) && (
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1 whitespace-normal">
+                      {ev.requirement_id && <span className="rounded bg-[#cce5ff] px-1.5 text-[10px] text-[#0060b9]">✓ {requirements.find((r) => r.id === ev.requirement_id)?.name ?? t('checklist')}</span>}
+                      {!ev.is_internal && <span className="rounded bg-secondary px-1.5 text-[10px]">{t('shared')}</span>}
+                      {ev.description && <span className="break-words text-xs text-muted-foreground">{ev.description}</span>}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="text-center">{optLabel(EVIDENCE_TYPES, ev.evidence_type)}</TableCell>
                 <TableCell className="text-center">

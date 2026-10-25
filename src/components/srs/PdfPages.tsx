@@ -57,7 +57,10 @@ export default function PdfPages({ url, overlay, onLoaded }: {
       {error && <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">{t('pdfError')}</div>}
       {!doc && !error && <div className="h-[70vh] animate-pulse rounded-md bg-muted" />}
       {doc && width > 0 && Array.from({ length: doc.numPages }, (_, i) => (
-        <PdfPage key={`${url}:${i}`} doc={doc} pageNo={i + 1} width={width} overlay={overlay} />
+        <div key={`${url}:${i}`}>
+          <PdfPage doc={doc} pageNo={i + 1} width={width} overlay={overlay} />
+          <div className="mb-4 text-center text-xs text-muted-foreground">{t('pageOf', { page: i + 1, total: doc.numPages })}</div>
+        </div>
       ))}
     </div>
   );
@@ -93,7 +96,7 @@ function PdfPage({ doc, pageNo, width, overlay }: {
   }, [doc, pageNo, width]);
 
   return (
-    <div className="relative mx-auto mb-4 bg-white shadow-sm ring-1 ring-black/10" style={{ width, height: size?.h }} data-page={pageNo}>
+    <div className="relative mx-auto mb-1.5 bg-white shadow-sm ring-1 ring-black/10" style={{ width, height: size?.h }} data-page={pageNo}>
       <canvas ref={canvas} className="block" style={{ width, height: size?.h }} />
       {size && overlay && <div className="absolute inset-0">{overlay(pageNo, size)}</div>}
     </div>

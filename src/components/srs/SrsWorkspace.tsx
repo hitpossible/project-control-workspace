@@ -1,11 +1,11 @@
 'use client';
 
-import { CalendarDays, Check, Download, FileText, PenLine, Save, Send, Signature, Trash2, Type, Undo2, X } from 'lucide-react';
+import { Check, Download, FileText, PenLine, Undo2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
-import { ActionButton, CommentDialog, PageHeader, Section, StatusChip, TextField, UserSelect } from '@/components/common';
+import { ActionButton, CommentDialog, PageHeader, Section, StatusChip } from '@/components/common';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -14,23 +14,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { SRS_SIGNER_STATUSES, SRS_STATUSES } from '@/lib/constants';
 import { dbClient } from '@/lib/db/client';
 import { errMsg, fmtDateTime } from '@/lib/format';
-import type { SrsDocument, SrsField, SrsFieldKind, SrsSigner } from '@/lib/types';
+import type { SrsDocument, SrsField, SrsSigner } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { nameImage } from './ink';
 import MySignatureDialog from './MySignatureDialog';
 import PdfPages from './PdfPages';
-
-type Box = { key: string; kind: SrsFieldKind; page_no: number; x: number; y: number; w: number; h: number };
-type LayoutSigner = { signer_id: number; role_label: string; fields: Box[] };
-
-const COLORS = ['#0073ea', '#e2445c', '#00a35c', '#a25ddc', '#d97706', '#037f8c', '#ff642e', '#5559df'];
-/** default box size in PDF points */
-const DEFAULT_PT: Record<SrsFieldKind, [number, number]> = { signature: [150, 50], name: [170, 32], date: [100, 18] };
-const KIND_ICON = { signature: Signature, name: Type, date: CalendarDays } as const;
-const KINDS: SrsFieldKind[] = ['signature', 'name', 'date'];
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-let seq = 0;
-const newKey = () => `n${++seq}`;
+import SrsEditor, { FieldLabel, SIGNER_COLORS } from './SrsEditor';
 
 /** One SRS: place each signer's boxes (draft), then sign / send back (signing) — signatures appear as they come in */
 export default function SrsWorkspace({ id }: { id: number }) {
@@ -43,12 +32,6 @@ export default function SrsWorkspace({ id }: { id: number }) {
   const [fields, setFields] = useState<SrsField[]>([]);
   const [project, setProject] = useState<{ id: number; project_code: string; project_name: string } | null>(null);
   const [canEdit, setCanEdit] = useState(false);
-  const [layout, setLayout] = useState<LayoutSigner[]>([]);
-  const [dirty, setDirty] = useState(false);
-  const dirtyRef = useRef(false);
-  const [active, setActive] = useState(0);
-  const [placing, setPlacing] = useState<SrsFieldKind | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [hasSignature, setHasSignature] = useState<boolean | null>(null);
   const [mySig, setMySig] = useState<{ open: boolean; then?: boolean }>({ open: false });
@@ -72,12 +55,6 @@ export default function SrsWorkspace({ id }: { id: number }) {
     setFields(ff);
     setProject(pv.data ?? null);
     setCanEdit(!!edit.data);
-    if (!dirtyRef.current) {
-      setLayout(ss.map((x) => ({
-        signer_id: x.signer_id, role_label: x.role_label ?? '',
-        fields: ff.filter((b) => b.signer_row_id === x.id).map((b) => ({ key: `f${b.id}`, kind: b.kind, page_no: b.page_no, x: Number(b.x), y: Number(b.y), w: Number(b.w), h: Number(b.h) })),
-      })));
-    }
   }, [db, id]);
 
   useEffect(() => {
@@ -97,56 +74,18 @@ export default function SrsWorkspace({ id }: { id: number }) {
       if (ev.by !== me?.id && ['signed', 'rejected', 'cancelled'].includes(ev.action)) {
         notify(t(`live.${ev.action as 'signed' | 'rejected' | 'cancelled'}`, { name: profileName(ev.by) }), 'info');
       }
+      if (ev.action === 'layout') return; // the open editor keeps its own copy of the boxes
       load();
     });
     return () => es.close();
   }, [id, load, me?.id, notify, profileName, t]);
 
-  const markDirty = (fn: (l: LayoutSigner[]) => LayoutSigner[]) => {
-    setLayout(fn);
-    dirtyRef.current = true;
-    setDirty(true);
-  };
-
   const editing = !!doc && doc.status === 'draft' && canEdit;
   const myRow = signers.find((s) => s.signer_id === me?.id);
   const myTurn = doc?.status === 'signing' && myRow?.status === 'pending';
-  const colorOf = (signerId: number) => COLORS[Math.max(0, (editing ? layout.map((l) => l.signer_id) : signers.map((s) => s.signer_id)).indexOf(signerId)) % COLORS.length];
+  const colorOf = (signerId: number) => SIGNER_COLORS[Math.max(0, signers.map((s) => s.signer_id).indexOf(signerId)) % SIGNER_COLORS.length];
   const pdfUrl = doc ? `/api/srs/${id}/file?v=${doc.stamped_sha256 ?? doc.original_sha256}` : '';
   const myFields = useMemo(() => (myRow ? fields.filter((f) => f.signer_row_id === myRow.id) : []), [fields, myRow]);
-
-  // ---- layout editing ----
-  const updateBox = (si: number, key: string, patch: Partial<Box>) =>
-    markDirty((l) => l.map((s, i) => (i === si ? { ...s, fields: s.fields.map((b) => (b.key === key ? { ...b, ...patch } : b)) } : s)));
-  const removeBox = (si: number, key: string) => markDirty((l) => l.map((s, i) => (i === si ? { ...s, fields: s.fields.filter((b) => b.key !== key) } : s)));
-
-  const place = (pageNo: number, size: { w: number; h: number }, e: React.PointerEvent<HTMLDivElement>) => {
-    if (!placing || !doc || !layout[active]) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const page = doc.pages[pageNo - 1] ?? { w: size.w, h: size.h };
-    const w = Math.min(0.9, DEFAULT_PT[placing][0] / page.w);
-    const h = Math.min(0.9, DEFAULT_PT[placing][1] / page.h);
-    const x = clamp((e.clientX - r.left) / size.w - w / 2, 0, 1 - w);
-    const y = clamp((e.clientY - r.top) / size.h - h / 2, 0, 1 - h);
-    const key = newKey();
-    markDirty((l) => l.map((s, i) => (i === active ? { ...s, fields: [...s.fields, { key, kind: placing, page_no: pageNo, x, y, w, h }] } : s)));
-    setSelected(key);
-    setPlacing(null);
-  };
-
-  const saveLayout = async () => {
-    const { error } = await db.rpc('srs_save_layout', {
-      p_srs_id: id,
-      p_signers: layout.map((s) => ({ signer_id: s.signer_id, role_label: s.role_label || null, fields: s.fields.map(({ kind, page_no, x, y, w, h }) => ({ kind, page_no, x, y, w, h })) })),
-    });
-    if (error) {
-      notify(errMsg(error), 'error');
-      return false;
-    }
-    dirtyRef.current = false;
-    setDirty(false);
-    return true;
-  };
 
   const run = async (fn: () => Promise<boolean | void>) => {
     setBusy(true);
@@ -156,18 +95,6 @@ export default function SrsWorkspace({ id }: { id: number }) {
       setBusy(false);
     }
   };
-
-  const send = () => run(async () => {
-    const missingSig = layout.filter((s) => !s.fields.some((f) => f.kind === 'signature'));
-    if (!layout.length) return notify(t('editor.needSigner'), 'warning');
-    if (missingSig.length) return notify(t('editor.needSignatureBox', { names: missingSig.map((s) => profileName(s.signer_id)).join(', ') }), 'warning');
-    if (!(await confirmDialog({ title: t('editor.sendTitle'), description: t('editor.sendDescription', { count: layout.length }), confirmText: t('editor.send') }))) return;
-    if (dirtyRef.current && !(await saveLayout())) return;
-    const { error } = await db.rpc('srs_send', { p_srs_id: id });
-    if (error) return notify(errMsg(error), 'error');
-    notify(t('editor.sent'), 'success');
-    await load();
-  });
 
   const cancel = () => run(async () => {
     if (!(await confirmDialog({ title: t('cancelTitle'), description: t('cancelDescription'), confirmText: t('cancel'), destructive: true }))) return;
@@ -205,28 +132,16 @@ export default function SrsWorkspace({ id }: { id: number }) {
   if (!doc || !me) return null;
 
   // ---- page overlays ----
-  const overlay = (pageNo: number, size: { w: number; h: number }) => {
-    if (editing) {
-      return (
-        <div className={cn('absolute inset-0', placing && 'cursor-crosshair bg-primary/5')} onPointerDown={(e) => (placing ? place(pageNo, size, e) : setSelected(null))}>
-          {layout.flatMap((s, si) => s.fields.filter((b) => b.page_no === pageNo).map((b) => (
-            <EditableBox key={b.key} box={b} size={size} color={colorOf(s.signer_id)} label={`${profileName(s.signer_id)} · ${t(`kind.${b.kind}`)}`}
-              selected={selected === b.key} dim={si !== active}
-              onSelect={() => { setSelected(b.key); setActive(si); }}
-              onChange={(p) => updateBox(si, b.key, p)} onDelete={() => removeBox(si, b.key)} />
-          )))}
-        </div>
-      );
-    }
+  const overlay = (pageNo: number) => {
     // signed boxes are already in the PDF; show who is still to sign where
     const open = signers.filter((s) => s.status !== 'signed');
     return open.flatMap((s) => fields.filter((f) => f.signer_row_id === s.id && f.page_no === pageNo).map((f) => {
       const mine = s.signer_id === me.id && myTurn;
       const color = colorOf(s.signer_id);
       return (
-        <div key={f.id} className={cn('absolute flex items-end justify-center rounded-sm border-2 border-dashed text-[10px] leading-tight', mine && 'animate-pulse border-solid')}
-          style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%`, borderColor: color, background: `${color}${mine ? '26' : '12'}` }}>
-          <span className="truncate px-1 font-medium" style={{ color }}>{mine ? t(`kind.${f.kind}`) : `${profileName(s.signer_id)} · ${t(`kind.${f.kind}`)}`}</span>
+        <div key={f.id} className={cn('absolute flex items-center justify-center rounded-sm border-2 border-dashed text-[11px] leading-tight', mine && 'animate-pulse border-solid')}
+          style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%`, borderColor: color, background: `${color}${mine ? '26' : '12'}`, color }}>
+          <FieldLabel kind={f.kind} label={mine ? t(`kind.${f.kind}`) : `${profileName(s.signer_id)} · ${t(`kind.${f.kind}`)}`} className="pb-0.5 font-medium" />
         </div>
       );
     }));
@@ -248,7 +163,7 @@ export default function SrsWorkspace({ id }: { id: number }) {
             <span>· {doc.file_name} · {t('pages', { count: doc.page_count })}</span>
           </div>
         }
-        actions={<>
+        actions={!editing && <>
           <Button variant="outline" asChild><a href={`${pdfUrl}&download=1`}><Download /> {doc.stamped_sha256 ? t('downloadSigned') : t('download')}</a></Button>
           {canEdit && ['draft', 'signing', 'rejected'].includes(doc.status) && <Button variant="ghost" className="text-destructive" disabled={busy} onClick={cancel}><X /> {t('cancel')}</Button>}
         </>}
@@ -284,65 +199,14 @@ export default function SrsWorkspace({ id }: { id: number }) {
       )}
       {doc.status === 'superseded' && <Alert className="mb-4"><AlertDescription>{t('supersededBanner')}</AlertDescription></Alert>}
 
+      {editing ? <SrsEditor key={doc.id} doc={doc} signers={signers} fields={fields} projectId={project?.id ?? null} pdfUrl={pdfUrl} onChanged={load} /> : (
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 rounded-lg bg-[#eef0f4] p-3 sm:p-5">
-          {editing && placing && (
-            // floating, so the pages do not move between choosing the box type and clicking where it goes
-            <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-primary px-4 py-2 text-center text-sm text-white shadow-lg">
-              {t('editor.placing', { kind: t(`kind.${placing}`), name: profileName(layout[active]?.signer_id) })}
-              <button type="button" className="ml-3 underline" onClick={() => setPlacing(null)}>{t('editor.stopPlacing')}</button>
-            </div>
-          )}
           <PdfPages url={pdfUrl} overlay={overlay} />
         </div>
 
-        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-          {editing ? (
-            <Section title={t('editor.title')} className="mb-0">
-              <p className="mb-3 text-xs text-muted-foreground">{t('editor.help')}</p>
-              <div className="space-y-2">
-                {layout.map((s, si) => {
-                  const color = colorOf(s.signer_id);
-                  return (
-                    <div key={s.signer_id} className={cn('rounded-md border p-2.5', si === active && 'ring-2')} style={si === active ? { borderColor: color, ['--tw-ring-color' as string]: `${color}55` } : undefined}
-                      onClick={() => setActive(si)}>
-                      <div className="flex items-center gap-2">
-                        <span className="size-3 shrink-0 rounded-full" style={{ background: color }} />
-                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{si + 1}. {profileName(s.signer_id)}</span>
-                        <Button variant="ghost" size="icon-sm" aria-label={t('editor.removeSigner')} onClick={(e) => { e.stopPropagation(); markDirty((l) => l.filter((_, i) => i !== si)); setActive(0); }}><Trash2 className="size-4" /></Button>
-                      </div>
-                      <TextField className="mt-1.5" placeholder={t('editor.rolePlaceholder')} value={s.role_label}
-                        onChange={(v) => markDirty((l) => l.map((x, i) => (i === si ? { ...x, role_label: v } : x)))} />
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {KINDS.map((k) => {
-                          const Icon = KIND_ICON[k];
-                          const n = s.fields.filter((f) => f.kind === k).length;
-                          return (
-                            <Button key={k} size="sm" variant={placing === k && si === active ? 'default' : 'outline'} className="h-7 px-2 text-xs"
-                              onClick={(e) => { e.stopPropagation(); setActive(si); setPlacing(placing === k && si === active ? null : k); }}>
-                              <Icon className="size-3.5" /> {t(`kind.${k}`)}{n > 0 && <span className="ml-0.5 rounded bg-black/10 px-1">{n}</span>}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                      {!s.fields.some((f) => f.kind === 'signature') && <div className="mt-1.5 text-xs text-[#d97706]">{t('editor.noSignatureBox')}</div>}
-                    </div>
-                  );
-                })}
-              </div>
-              <UserSelect className="mt-3" label={t('editor.addSigner')} value={null}
-                onChange={(uid) => {
-                  if (!uid) return;
-                  if (layout.some((s) => s.signer_id === uid)) return notify(t('editor.alreadySigner'), 'warning');
-                  markDirty((l) => [...l, { signer_id: uid, role_label: '', fields: [] }]);
-                  setActive(layout.length);
-                }} />
-              <div className="mt-4 flex gap-2">
-                <Button variant="outline" className="flex-1" disabled={busy || !dirty} onClick={() => run(saveLayout)}><Save /> {dirty ? t('editor.save') : t('editor.saved')}</Button>
-                <Button className="flex-1" disabled={busy} onClick={send}><Send /> {t('editor.send')}</Button>
-              </div>
-            </Section>
-          ) : (
+        <div className="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
+          {(
             <Section title={t('signers.title')} className="mb-0">
               {signers.length === 0 ? <p className="text-sm text-muted-foreground">{doc.status === 'draft' ? t('signers.draft') : '–'}</p> : (
                 <ol className="space-y-2.5">
@@ -375,6 +239,8 @@ export default function SrsWorkspace({ id }: { id: number }) {
         </div>
       </div>
 
+      )}
+
       <MySignatureDialog open={mySig.open}
         onClose={() => setMySig({ open: false })}
         onSaved={() => { setHasSignature(true); if (mySig.then) setSignOpen(true); }} />
@@ -385,47 +251,6 @@ export default function SrsWorkspace({ id }: { id: number }) {
       <CommentDialog open={rejectOpen} title={t('reject.title')} description={t('reject.description')} confirmLabel={t('reject.button')} required variant="destructive"
         onClose={() => setRejectOpen(false)} onConfirm={reject} />
     </>
-  );
-}
-
-/** A box being placed: drag to move, corner handle to resize, × to remove */
-function EditableBox({ box, size, color, label, selected, dim, onSelect, onChange, onDelete }: {
-  box: Box; size: { w: number; h: number }; color: string; label: string; selected: boolean; dim: boolean;
-  onSelect: () => void; onChange: (p: Partial<Box>) => void; onDelete: () => void;
-}) {
-  const drag = useRef<{ mode: 'move' | 'resize'; px: number; py: number; x: number; y: number; w: number; h: number } | null>(null);
-
-  const start = (mode: 'move' | 'resize', e: React.PointerEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    drag.current = { mode, px: e.clientX, py: e.clientY, x: box.x, y: box.y, w: box.w, h: box.h };
-    onSelect();
-  };
-  const move = (e: React.PointerEvent) => {
-    const d = drag.current;
-    if (!d) return;
-    const dx = (e.clientX - d.px) / size.w;
-    const dy = (e.clientY - d.py) / size.h;
-    if (d.mode === 'move') onChange({ x: clamp(d.x + dx, 0, 1 - d.w), y: clamp(d.y + dy, 0, 1 - d.h) });
-    else onChange({ w: clamp(d.w + dx, 0.02, 1 - d.x), h: clamp(d.h + dy, 0.01, 1 - d.y) });
-  };
-  const end = () => {
-    drag.current = null;
-  };
-
-  return (
-    <div className={cn('group absolute cursor-move touch-none rounded-sm border-2 select-none', dim && !selected && 'opacity-60')}
-      style={{ left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.w * 100}%`, height: `${box.h * 100}%`, borderColor: color, background: `${color}1f`, boxShadow: selected ? `0 0 0 3px ${color}40` : undefined }}
-      onPointerDown={(e) => start('move', e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
-      <span className="pointer-events-none absolute -top-4 left-0 max-w-[16rem] truncate rounded-t px-1 text-[10px] leading-4 font-medium text-white" style={{ background: color }}>{label}</span>
-      <button type="button" aria-label="remove" className={cn('absolute -top-2.5 -right-2.5 hidden size-5 items-center justify-center rounded-full bg-white shadow ring-1 ring-black/10 group-hover:flex', selected && 'flex')}
-        onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDelete(); }}>
-        <X className="size-3" />
-      </button>
-      <span className="absolute -right-1.5 -bottom-1.5 size-3.5 cursor-nwse-resize rounded-sm border-2 bg-white" style={{ borderColor: color }}
-        onPointerDown={(e) => start('resize', e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
-    </div>
   );
 }
 
