@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { useApp } from '@/providers/AppProvider';
 import { confirmDialog } from '@/components/shared/ConfirmDialog';
 import GlobalSearch from './GlobalSearch';
-import { LanguageSwitcher } from './LanguageSwitcher';
+import { LanguageSubmenu, LanguageSwitcher } from './LanguageSwitcher';
 import { SuccessBurst } from '@/components/shared/motion';
 import { Person } from '@/components/shared/labels';
 import { Tip } from '@/components/shared/Tip';
@@ -183,7 +183,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <LanguageSwitcher className="mx-2 my-1 w-fit sm:hidden" />
+            <LanguageSubmenu className="sm:hidden" />
             <DropdownMenuItem onClick={() => setSignature(true)}><Signature /> {t('mySignature')}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => signOut()}><LogOut /> {t('logout')}</DropdownMenuItem>
             <DropdownMenuItem onClick={async () => {
