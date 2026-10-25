@@ -13,12 +13,12 @@ export function sessionSecret(): Uint8Array {
  * User id + session version from the session, or null (sessions from before the INT ids carry a UUID and are rejected).
  * Signature and expiry only — whether the version is still current needs the database (currentUser in auth.ts).
  */
-export async function readSession(token: string | undefined): Promise<{ uid: number; version: number } | null> {
+export async function readSession(token: string | undefined): Promise<{ uid: number; version: number; expiresAt: number | null } | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, sessionSecret());
     if (!payload.sub || !/^\d+$/.test(payload.sub)) return null;
-    return { uid: Number(payload.sub), version: typeof payload.sv === 'number' ? payload.sv : 0 };
+    return { uid: Number(payload.sub), version: typeof payload.sv === 'number' ? payload.sv : 0, expiresAt: payload.exp ? payload.exp * 1000 : null };
   } catch {
     return null;
   }

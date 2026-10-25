@@ -129,8 +129,22 @@ export async function createSession(userId: number): Promise<{ name: string; val
 
 /** Current user from the session cookie (null if signed out / inactive / the session was revoked) */
 export async function currentUser(): Promise<Profile | null> {
+  return (await currentSession())?.me ?? null;
+}
+
+export type Session = { me: Profile; version: number; expiresAt: number | null };
+
+/** currentUser plus the token's session version and expiry — for long-lived connections that must re-check it */
+export async function currentSession(): Promise<Session | null> {
   const s = await readSession((await cookies()).get(SESSION_COOKIE)?.value);
   if (!s) return null;
   const u = await loadProfileWithVersion(s.uid);
-  return u && u.sessionVersion === s.version ? u.profile : null;
+  return u && u.sessionVersion === s.version ? { me: u.profile, version: s.version, expiresAt: s.expiresAt } : null;
+}
+
+/** Whether a session read earlier still holds: not expired, user still active, not revoked since */
+export async function sessionStillValid(s: Session, now = Date.now()): Promise<boolean> {
+  if (s.expiresAt !== null && now >= s.expiresAt) return false;
+  const u = await loadProfileWithVersion(s.me.id);
+  return !!u && u.sessionVersion === s.version;
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import { createElement, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import { handleUnauthorized } from '@/lib/db/client';
 import { ASKED_KEY, desktopStatus, setDesktopEnabled, showDesktop } from '@/lib/desktopNotify';
 
 type LiveNotification = { id: number; title: string; body: string | null; link: string | null };
@@ -42,6 +43,11 @@ export function useLiveNotifications(enabled: boolean, onNotification: () => voi
       });
       // tag collapses the same notification arriving in several open tabs
       if (document.hidden) showDesktop({ title: n.title, body: n.body, tag: `pcw-${n.id}`, onClick: open });
+    });
+    // the session was revoked / expired while the page was open (sign out everywhere, admin force sign-out)
+    es.addEventListener('signed-out', () => {
+      es.close();
+      void handleUnauthorized();
     });
     return () => es.close();
   }, [enabled]);
