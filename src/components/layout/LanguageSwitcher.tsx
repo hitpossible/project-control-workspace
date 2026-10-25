@@ -6,7 +6,7 @@ import { useTransition } from 'react';
 import { setLocale } from '@/i18n/actions';
 import { LOCALE_NAMES, locales } from '@/i18n/config';
 import { cn } from '@/lib/utils';
-import { Tip } from '@/components/shared/common';
+import { Tip } from '@/components/shared/Tip';
 
 /** TH / EN toggle — saves the choice in a cookie; the page re-renders with the new messages */
 export function LanguageSwitcher({ className }: { className?: string }) {

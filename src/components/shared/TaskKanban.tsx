@@ -10,7 +10,7 @@ import type { InternalTask } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/providers/AppProvider';
 import KanbanBoard, { KanbanDue, KanbanProgress, KanbanTag } from './KanbanBoard';
-import { Person } from './common';
+import { Person } from './labels';
 
 /**
  * Internal tasks as a board. Dropping a card changes the task status on the server, where the usual

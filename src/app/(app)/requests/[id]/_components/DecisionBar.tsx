@@ -2,7 +2,7 @@
 
 import { Check, Hourglass, Rocket } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { ActionButton } from '@/components/shared/common';
+import { ActionButton } from '@/components/shared/form';
 import { confirmDialog } from '@/components/shared/ConfirmDialog';
 import { fmtDate } from '@/lib/format';
 import type { ApprovalStep } from '@/lib/types';

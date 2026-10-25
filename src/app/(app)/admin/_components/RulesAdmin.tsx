@@ -3,7 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { BoardGroup, MultiSelect } from '@/components/shared/common';
+import { BoardGroup } from '@/components/shared/labels';
+import { MultiSelect } from '@/components/shared/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';

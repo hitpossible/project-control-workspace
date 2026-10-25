@@ -13,7 +13,9 @@ import type { ProjectView } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import InsightList from './InsightList';
 import { BoardSkeleton, StatCardsSkeleton } from './motion';
-import { BoardGroup, EmptyState, HealthDot, PageHeader, Person, ProgressBar, SelectField, StatCard, StatusChip } from './common';
+import { BoardGroup, HealthDot, Person, ProgressBar, StatusChip } from './labels';
+import { EmptyState, PageHeader, StatCard } from './layout';
+import { SelectField } from './form';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 

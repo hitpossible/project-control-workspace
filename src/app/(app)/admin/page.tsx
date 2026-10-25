@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { PageHeader } from '@/components/shared/common';
+import { PageHeader } from '@/components/shared/layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UsersAdmin } from './_components/UsersAdmin';

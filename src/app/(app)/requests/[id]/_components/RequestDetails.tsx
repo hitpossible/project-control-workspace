@@ -3,7 +3,7 @@
 import { ArrowRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/providers/AppProvider';
-import { Field, Section } from '@/components/shared/common';
+import { Field, Section } from '@/components/shared/layout';
 import { REDUCTION_ROWS } from '../../_components/RequestForm';
 import { fmtNum } from '@/lib/format';
 import type { ProjectRequest, ProjectTemplate, ProjectType } from '@/lib/types';

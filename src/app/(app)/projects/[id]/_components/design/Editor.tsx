@@ -7,7 +7,7 @@ import { useTheme } from 'next-themes';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { Tip } from '@/components/shared/common';
+import { Tip } from '@/components/shared/Tip';
 import { confirmDialog } from '@/components/shared/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';

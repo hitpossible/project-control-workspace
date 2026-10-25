@@ -10,7 +10,8 @@ import { dbClient } from '@/lib/db/client';
 import type { ProjectRequest } from '@/lib/types';
 import AiClarifyDialog from './AiClarifyDialog';
 import { useApp } from '@/providers/AppProvider';
-import { DateField, Section, SelectField, TextField } from '@/components/shared/common';
+import { DateField, SelectField, TextField } from '@/components/shared/form';
+import { Section } from '@/components/shared/layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 

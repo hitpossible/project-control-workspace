@@ -2,7 +2,7 @@
 
 import { Mail, Phone } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Section } from '@/components/shared/common';
+import { Section } from '@/components/shared/layout';
 import type { ProjectRequest } from '@/lib/types';
 
 export function RequestorCard({ r }: { r: ProjectRequest }) {

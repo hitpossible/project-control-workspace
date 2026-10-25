@@ -8,7 +8,7 @@ import type { AiAnalysis } from '@/lib/clarify';
 import { dbClient } from '@/lib/db/client';
 import { fmtDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { Section } from '@/components/shared/common';
+import { Section } from '@/components/shared/layout';
 import { Button } from '@/components/ui/button';
 
 /** labels: ai.analysis.complexity.<level> */

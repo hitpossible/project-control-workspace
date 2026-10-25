@@ -106,7 +106,7 @@ Nobody picks approvers on the form; the requestor never approves their own reque
 
 Profiles store `department_id` / `section_id` / `position_id`. At every AD login the `department`, `section` and `position` names from AD are matched (by name) to those tables; a name that is not found becomes empty.
 
-All tables use INT AUTO_INCREMENT ids (`audit_logs`: BIGINT). Ids are per table, so code that mixes rows of several tables in one map / set keys them with `entityKey(type, id)` (`src/components/shared/common.tsx`), and audit lookups always filter by `table_name`.
+All tables use INT AUTO_INCREMENT ids (`audit_logs`: BIGINT). Ids are per table, so code that mixes rows of several tables in one map / set keys them with `entityKey(type, id)` (`src/lib/ids.ts`), and audit lookups always filter by `table_name`.
 
 The seed runs the **real workflow through the same server functions and access policies as the API**: 3 converted projects (one delayed with recovery plan, one on track, one still planning), plus requests in Approved / Waiting System Review / Waiting Requestor Approval / Draft, QA bugs / retests, a pending baseline revision and a workforce plan.
 

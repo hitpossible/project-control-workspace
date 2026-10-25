@@ -43,5 +43,16 @@
   },
   "days": "{n}d",
   "overdue": "Overdue",
-  "undo": "Undo"
+  "undo": "Undo",
+  "error": {
+    "title": "Something went wrong",
+    "text": "This page could not be shown. Try again, or go back to the home page if it keeps happening.",
+    "retry": "Try again",
+    "home": "Go to home"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "The page you are looking for does not exist or may have been moved.",
+    "home": "Go to home"
+  }
 }

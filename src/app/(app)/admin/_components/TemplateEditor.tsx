@@ -3,7 +3,7 @@
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Copy, Flag, ListChecks, Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useOptions } from '@/i18n/useOptions';
-import { FormField, SelectField, TextField } from '@/components/shared/common';
+import { FormField, SelectField, TextField } from '@/components/shared/form';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';

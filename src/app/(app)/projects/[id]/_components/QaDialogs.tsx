@@ -12,12 +12,15 @@ import { cn } from '@/lib/utils';
 import AuditHistory from '@/components/shared/AuditHistory';
 import CommentThread from './CommentThread';
 import { dispatchEmails, useApp } from '@/providers/AppProvider';
-import { ActionButton, DateField, EmptyState, Person, SelectField, StatusChip, TextField, idValue, toId } from '@/components/shared/common';
+import { ActionButton, DateField, SelectField, TextField } from '@/components/shared/form';
+import { EmptyState } from '@/components/shared/layout';
+import { Person, StatusChip } from '@/components/shared/labels';
+import { idValue, toId } from '@/lib/ids';
 import EvidencePanel from '@/components/shared/EvidencePanel';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserSelect } from '@/components/shared/common';
+import { UserSelect } from '@/components/shared/form';
 
 const col = (n: string) => cn('col-span-12', n);
 

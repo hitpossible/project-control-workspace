@@ -4,7 +4,9 @@ import { Bug, CalendarClock, Check, Clock, FileCheck, Pencil, TrendingUp, Triang
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { dispatchEmails, useApp } from '@/providers/AppProvider';
-import { DateField, HealthDot, Person, ProgressBar, Section, SelectField, StatusChip, TextField, UserSelect } from '@/components/shared/common';
+import { DateField, SelectField, TextField, UserSelect } from '@/components/shared/form';
+import { HealthDot, Person, ProgressBar, StatusChip } from '@/components/shared/labels';
+import { Section } from '@/components/shared/layout';
 import InsightList from '@/components/shared/InsightList';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';

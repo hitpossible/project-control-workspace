@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import AuditHistory from '@/components/shared/AuditHistory';
 import CommentThread from './CommentThread';
 import { dispatchEmails, useApp } from '@/providers/AppProvider';
-import { DateField, FormField, MultiSelect, SelectField, TextField, UserSelect } from '@/components/shared/common';
+import { DateField, FormField, MultiSelect, SelectField, TextField, UserSelect } from '@/components/shared/form';
 import { EntityEvidence } from './EvidenceChecklist';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';

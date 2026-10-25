@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import { Tip } from './common';
+import { Tip } from './Tip';
 
 /** Horizontal bar list (single axis, direct labels) */
 export function HBarChart({ rows, max, suffix = '', emptyText }: {

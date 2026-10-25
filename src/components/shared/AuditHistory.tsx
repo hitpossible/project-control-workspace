@@ -8,7 +8,8 @@ import { fmtDateTime } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { AuditLog } from '@/lib/types';
 import { useApp } from '@/providers/AppProvider';
-import { EmptyState, entityKey } from './common';
+import { EmptyState } from './layout';
+import { entityKey } from '@/lib/ids';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 

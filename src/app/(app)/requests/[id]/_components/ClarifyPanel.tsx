@@ -3,7 +3,7 @@
 import { ChevronRight, CircleHelp, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CoverageIcon } from '../../_components/AiClarifyDialog';
-import { Section } from '@/components/shared/common';
+import { Section } from '@/components/shared/layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { coverageCount } from '@/lib/clarify';
 import { fmtDateTime } from '@/lib/format';

@@ -3,7 +3,9 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { BoardGroup, EmptyState, Section, entityKey } from '@/components/shared/common';
+import { BoardGroup } from '@/components/shared/labels';
+import { EmptyState, Section } from '@/components/shared/layout';
+import { entityKey } from '@/lib/ids';
 import EvidenceChecklist from './EvidenceChecklist';
 import EvidencePanel from '@/components/shared/EvidencePanel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

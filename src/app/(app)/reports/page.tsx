@@ -3,7 +3,9 @@
 import { BarChart3, ClipboardCheck, FileText, Presentation, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
-import { PageHeader, PeriodPicker, SelectField, periodFor, type Period } from '@/components/shared/common';
+import { PageHeader } from '@/components/shared/layout';
+import { PeriodPicker, periodFor, type Period } from '@/components/shared/period';
+import { SelectField } from '@/components/shared/form';
 import { useReport } from '@/components/shared/ReportButton';
 import { Button } from '@/components/ui/button';
 import { dbClient } from '@/lib/db/client';

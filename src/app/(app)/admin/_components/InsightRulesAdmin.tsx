@@ -3,7 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { BoardGroup, SelectField } from '@/components/shared/common';
+import { BoardGroup } from '@/components/shared/labels';
+import { SelectField } from '@/components/shared/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

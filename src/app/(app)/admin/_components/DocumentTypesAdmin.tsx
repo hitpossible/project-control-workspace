@@ -4,7 +4,8 @@ import { ArrowDown, ArrowUp, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-re
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { BoardGroup, MultiSelect, SelectField, TextField } from '@/components/shared/common';
+import { BoardGroup } from '@/components/shared/labels';
+import { MultiSelect, SelectField, TextField } from '@/components/shared/form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { BUG_STATUSES, PROJECT_STATUSES, REQUEST_STATUSES, TASK_STATUSES, type OptList } from '@/lib/constants';
 import { dbClient } from '@/lib/db/client';
 import { cn } from '@/lib/utils';
-import { StatusChip } from '@/components/shared/common';
+import { StatusChip } from '@/components/shared/labels';
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 type Hit = { type: 'project' | 'request' | 'task' | 'bug'; id: number; title: string; code: string | null; subtitle: string | null; status: string; link: string };

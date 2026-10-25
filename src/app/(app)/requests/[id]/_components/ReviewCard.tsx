@@ -1,7 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Section, SelectField, TextField, UserSelect } from '@/components/shared/common';
+import { Section } from '@/components/shared/layout';
+import { SelectField, TextField, UserSelect } from '@/components/shared/form';
 import { Button } from '@/components/ui/button';
 import type { ProjectRequest, ProjectTemplate, ProjectType } from '@/lib/types';
 

@@ -16,7 +16,7 @@ import { useOptions } from '@/i18n/useOptions';
 import { day } from '@/lib/format';
 import { optColor, type OptList } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import type { Opt } from './common';
+import type { Opt } from './form';
 
 type Item = { id: number; status: string };
 type Lists = Record<string, number[]>;

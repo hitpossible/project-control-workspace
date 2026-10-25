@@ -4,7 +4,8 @@ import { Ban, Check, ChevronDown, CircleCheckBig, RotateCcw, TriangleAlert, X } 
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { dispatchEmails, useApp } from '@/providers/AppProvider';
-import { ActionButton, CommentDialog, StatusChip } from '@/components/shared/common';
+import { ActionButton, CommentDialog } from '@/components/shared/form';
+import { StatusChip } from '@/components/shared/labels';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';

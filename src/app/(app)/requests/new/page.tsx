@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { dispatchEmails, useApp } from '@/providers/AppProvider';
 import AiIntake from '../_components/clarify/AiIntake';
-import { EmptyState, PageHeader } from '@/components/shared/common';
+import { EmptyState, PageHeader } from '@/components/shared/layout';
 import { celebrate } from '@/components/shared/motion';
 import RequestForm, { emptyRequest, type RequestDraft } from '../_components/RequestForm';
 import { Button } from '@/components/ui/button';

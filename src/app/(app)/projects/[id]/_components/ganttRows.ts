@@ -1,5 +1,5 @@
 import type { GanttRow } from './GanttChart';
-import { entityKey } from '@/components/shared/common';
+import { entityKey } from '@/lib/ids';
 import type { OptionLabels } from '@/i18n/useOptions';
 import { ACTIVITY_STATUSES, TASK_STATUSES, optColor } from '@/lib/constants';
 import { isOverdue } from '@/lib/format';

@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { MultiSelect } from '@/components/shared/common';
+import { MultiSelect } from '@/components/shared/form';
 import { Button } from '@/components/ui/button';
 import { useOptions } from '@/i18n/useOptions';
 import { DELAY_CATEGORIES } from '@/lib/constants';

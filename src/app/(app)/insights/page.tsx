@@ -3,7 +3,9 @@
 import { Download } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import { BoardGroup, EmptyState, PageHeader, SelectField, StatCard } from '@/components/shared/common';
+import { BoardGroup } from '@/components/shared/labels';
+import { EmptyState, PageHeader, StatCard } from '@/components/shared/layout';
+import { SelectField } from '@/components/shared/form';
 import { InsightRow, useInsights } from '@/components/shared/InsightList';
 import { Button } from '@/components/ui/button';
 import { useOptions } from '@/i18n/useOptions';

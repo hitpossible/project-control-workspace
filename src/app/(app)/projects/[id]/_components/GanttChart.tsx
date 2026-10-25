@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { day, fmtDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { Tip } from '@/components/shared/common';
+import { Tip } from '@/components/shared/Tip';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 

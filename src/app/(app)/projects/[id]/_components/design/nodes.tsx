@@ -4,7 +4,7 @@ import { BaseEdge, type Edge, EdgeLabelRenderer, type EdgeProps, Handle, type No
 import { Plus, Trash2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { Tip } from '@/components/shared/common';
+import { Tip } from '@/components/shared/Tip';
 import { Button } from '@/components/ui/button';
 import { type DiagramNodeData, type ErColumn, FLOW_SHAPES, type EdgeLine, EDGE_LINES, type FlowShape, type TextStyle, ENTITY_WIDTH, nodeSize } from '@/lib/diagram';
 import { cn } from '@/lib/utils';

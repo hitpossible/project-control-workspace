@@ -4,7 +4,7 @@ import { useReactFlow } from '@xyflow/react';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDownToLine, ArrowUpToLine, Bold, FoldVertical, Italic, Type, Underline } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { Tip } from '@/components/shared/common';
+import { Tip } from '@/components/shared/Tip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

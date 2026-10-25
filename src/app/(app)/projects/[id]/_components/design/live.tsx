@@ -4,7 +4,7 @@ import { ViewportPortal, useViewport } from '@xyflow/react';
 import { useTranslations } from 'next-intl';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { Tip } from '@/components/shared/common';
+import { Tip } from '@/components/shared/Tip';
 import { type FlowNode } from './flow';
 
 /**

@@ -9,7 +9,7 @@ import { dbClient } from '@/lib/db/client';
 import type { Insight } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/providers/AppProvider';
-import { EmptyState } from './common';
+import { EmptyState } from './layout';
 
 const ICON = {
   critical: <CircleAlert className="size-4 shrink-0 text-[#e2445c]" />,

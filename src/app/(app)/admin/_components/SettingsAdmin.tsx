@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { TextField } from '@/components/shared/common';
+import { TextField } from '@/components/shared/form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { errMsg } from '@/lib/format';

@@ -4,7 +4,7 @@ import { Copy, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
-import { BoardGroup } from '@/components/shared/common';
+import { BoardGroup } from '@/components/shared/labels';
 import { TemplateEditor, draftProblems, fromDraft, toDraft, type TemplateDraft } from './TemplateEditor';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
