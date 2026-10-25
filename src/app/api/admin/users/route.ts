@@ -1,5 +1,5 @@
 import { withUser } from '@/server/api';
-import { hashPassword } from '@/server/auth';
+import { hashPassword, revokeSessions } from '@/server/auth';
 import { AppError, withCtx } from '@/server/db';
 import { insertRow } from '@/server/engine';
 
@@ -31,15 +31,24 @@ export const POST = withUser(async (me, req) => {
   });
 });
 
-/** Admin: set / clear a local password */
+/**
+ * Admin: { id, password } sets / clears a local password; { id, revoke_sessions: true } signs the user out everywhere.
+ * Setting a password also signs them out, so a session from the old password does not live on.
+ */
 export const PATCH = withUser(async (me, req) => {
   if (!me.roles.includes('admin')) throw new AppError('Administrator only', 403);
   const b = await req.json();
   if (!b.id) throw new AppError('id is required');
+  if (b.revoke_sessions) {
+    if (!(await withCtx(me, (ctx) => ctx.val('SELECT id FROM profiles WHERE id = ?', [b.id])))) throw new AppError('User not found', 404);
+    await revokeSessions(Number(b.id));
+    return { data: true };
+  }
   if (b.password && String(b.password).length < 8) throw new AppError('Password must be at least 8 characters');
-  return withCtx(me, async (ctx) => {
+  await withCtx(me, async (ctx) => {
     const res = await ctx.exec('UPDATE profiles SET password_hash = ? WHERE id = ?', [b.password ? await hashPassword(String(b.password)) : null, b.id]);
     if (!res.affectedRows) throw new AppError('User not found', 404);
-    return { data: true };
   });
+  if (b.password) await revokeSessions(Number(b.id));
+  return { data: true };
 });

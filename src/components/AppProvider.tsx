@@ -21,7 +21,8 @@ interface AppCtx {
   /** requests waiting for my approval or conversion (same rule as the Waiting My Action tab) */
   pendingApprovals: number;
   refreshUnread: () => Promise<void>;
-  signOut: () => Promise<void>;
+  /** everywhere = revoke every session of mine, on all devices */
+  signOut: (everywhere?: boolean) => Promise<void>;
 }
 
 const Ctx = createContext<AppCtx | null>(null);
@@ -101,8 +102,8 @@ export default function AppProvider({ children }: { children: React.ReactNode })
         ...approved.filter((r) => canConvertRequest(r, me)).map((r) => r.id),
       ]).size,
       refreshUnread,
-      signOut: async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
+      signOut: async (everywhere = false) => {
+        await fetch(everywhere ? '/api/auth/logout-all' : '/api/auth/logout', { method: 'POST' });
         router.replace('/login');
         router.refresh();
       },

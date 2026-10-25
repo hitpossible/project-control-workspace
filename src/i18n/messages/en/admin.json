@@ -47,6 +47,13 @@
       "positionHelp": "Synced from AD at each login. Approval: {positions}",
       "telephone": "Telephone",
       "ext": "Ext."
+    },
+    "revoke": {
+      "button": "Force sign-out",
+      "title": "Sign {name} out of all devices?",
+      "text": "Their current sessions stop working right away; they can log in again. Setting a new local password does this too.",
+      "confirm": "Force sign-out",
+      "done": "Signed out of all devices"
     }
   },
   "departments": {

@@ -48,8 +48,8 @@ export const POLICIES: Record<string, Policy> = {
     read: () => all,
     update: (ctx, o) => o.id === ctx.uid || isAdmin(ctx),
     check: (ctx, n) => n.id === ctx.uid || isAdmin(ctx),
-    hidden: ['password_hash', 'signature_path'],
-    readonly: ['password_hash', 'last_login_at', 'created_at', 'signature_path', 'signature_updated_at'],
+    hidden: ['password_hash', 'signature_path', 'session_version'],
+    readonly: ['password_hash', 'session_version', 'last_login_at', 'created_at', 'signature_path', 'signature_updated_at'],
   },
 
   // Master data: read for all, write for admin

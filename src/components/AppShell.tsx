@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, CalendarDays, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck, Signature } from 'lucide-react';
+import { Bell, CalendarDays, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, MonitorX, PanelLeftClose, PanelLeftOpen, ShieldCheck, Signature } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -9,6 +9,7 @@ import { useOptions } from '@/i18n/useOptions';
 import { ROLES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useApp } from './AppProvider';
+import { confirmDialog } from './ConfirmDialog';
 import GlobalSearch from './GlobalSearch';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SuccessBurst } from './motion';
@@ -182,7 +183,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <DropdownMenuSeparator />
             <LanguageSwitcher className="mx-2 my-1 w-fit sm:hidden" />
             <DropdownMenuItem onClick={() => setSignature(true)}><Signature /> {t('mySignature')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={signOut}><LogOut /> {t('logout')}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => signOut()}><LogOut /> {t('logout')}</DropdownMenuItem>
+            <DropdownMenuItem onClick={async () => {
+              if (await confirmDialog({ title: t('logoutAll.title'), description: t('logoutAll.text'), confirmText: t('logoutAll.confirm') })) await signOut(true);
+            }}><MonitorX /> {t('logoutAll.menu')}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </header>

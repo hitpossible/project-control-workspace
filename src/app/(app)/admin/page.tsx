@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, ArrowUp, Copy, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, MonitorX, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/components/AppProvider';
@@ -120,6 +120,14 @@ function UsersAdmin() {
 
   const set = (patch: Partial<Profile> & { password?: string }) => setEdit((e) => ({ ...e, ...patch }));
 
+  const revokeSessions = async () => {
+    if (!edit?.id) return;
+    if (!(await confirmDialog({ title: t('revoke.title', { name: edit.full_name ?? '' }), description: t('revoke.text'), confirmText: t('revoke.confirm'), destructive: true }))) return;
+    const res = await fetch('/api/admin/users', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: edit.id, revoke_sessions: true }) });
+    if (!res.ok) return notify((await res.json().catch(() => null))?.error?.message ?? t('failed'), 'error');
+    notify(t('revoke.done'));
+  };
+
   return (
     <>
       <BoardGroup title={t('title')} color="#579bfc" count={profiles.length}
@@ -167,7 +175,10 @@ function UsersAdmin() {
               <MultiSelect className="col-span-12" label={t('col.roles')} value={edit.roles ?? []} onChange={(v) => set({ roles: v as Role[] })} options={optOptions(ROLES)} />
               <label className="col-span-12 flex items-center gap-2 text-sm"><Switch checked={!!edit.is_active} onCheckedChange={(c) => set({ is_active: c })} /> {t('col.active')}</label>
             </div>
-            <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>{tc('cancel')}</Button><Button onClick={save}>{tc('save')}</Button></DialogFooter>
+            <DialogFooter>
+              {edit.id && <Button variant="outline" className="sm:mr-auto" onClick={revokeSessions}><MonitorX /> {t('revoke.button')}</Button>}
+              <Button variant="outline" onClick={() => setEdit(null)}>{tc('cancel')}</Button><Button onClick={save}>{tc('save')}</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

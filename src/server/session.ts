@@ -9,13 +9,21 @@ export function sessionSecret(): Uint8Array {
   return new TextEncoder().encode(s);
 }
 
-/** user id from the session, or null (sessions from before the INT ids carry a UUID and are rejected) */
-export async function verifySession(token: string | undefined): Promise<number | null> {
+/**
+ * User id + session version from the session, or null (sessions from before the INT ids carry a UUID and are rejected).
+ * Signature and expiry only — whether the version is still current needs the database (currentUser in auth.ts).
+ */
+export async function readSession(token: string | undefined): Promise<{ uid: number; version: number } | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, sessionSecret());
-    return payload.sub && /^\d+$/.test(payload.sub) ? Number(payload.sub) : null;
+    if (!payload.sub || !/^\d+$/.test(payload.sub)) return null;
+    return { uid: Number(payload.sub), version: typeof payload.sv === 'number' ? payload.sv : 0 };
   } catch {
     return null;
   }
+}
+
+export async function verifySession(token: string | undefined): Promise<number | null> {
+  return (await readSession(token))?.uid ?? null;
 }

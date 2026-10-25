@@ -3,10 +3,10 @@ import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import type { Profile } from '@/lib/types';
 import { AppError, pool } from './db';
-import { SESSION_COOKIE, sessionSecret, verifySession } from './session';
-import { loadProfile } from './users';
+import { readSession, SESSION_COOKIE, sessionSecret } from './session';
+import { loadProfile, loadProfileWithVersion } from './users';
 
-export { hashPassword, loadProfile } from './users';
+export { hashPassword, loadProfile, revokeSessions } from './users';
 
 /**
  * Login: company AD endpoint (AUTH_PROVIDERS contains "ad") and/or local password
@@ -120,13 +120,17 @@ async function finish(p: DbProfile): Promise<Profile> {
 }
 
 export async function createSession(userId: number): Promise<{ name: string; value: string; maxAge: number }> {
-  const value = await new SignJWT({}).setProtectedHeader({ alg: 'HS256' }).setSubject(String(userId))
+  const [rows] = await pool().query('SELECT session_version FROM profiles WHERE id = ?', [userId]);
+  const sv = Number((rows as { session_version: number }[])[0]?.session_version ?? 0);
+  const value = await new SignJWT({ sv }).setProtectedHeader({ alg: 'HS256' }).setSubject(String(userId))
     .setIssuedAt().setExpirationTime(`${SESSION_HOURS}h`).sign(sessionSecret());
   return { name: SESSION_COOKIE, value, maxAge: SESSION_HOURS * 3600 };
 }
 
-/** Current user from the session cookie (null if signed out / inactive) */
+/** Current user from the session cookie (null if signed out / inactive / the session was revoked) */
 export async function currentUser(): Promise<Profile | null> {
-  const id = await verifySession((await cookies()).get(SESSION_COOKIE)?.value);
-  return id ? loadProfile(id) : null;
+  const s = await readSession((await cookies()).get(SESSION_COOKIE)?.value);
+  if (!s) return null;
+  const u = await loadProfileWithVersion(s.uid);
+  return u && u.sessionVersion === s.version ? u.profile : null;
 }
