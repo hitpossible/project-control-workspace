@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, CalendarDays, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, MonitorX, PanelLeftClose, PanelLeftOpen, ShieldCheck, Signature } from 'lucide-react';
+import { Bell, CalendarDays, Award, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, MonitorX, PanelLeftClose, PanelLeftOpen, ShieldCheck, Signature } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -70,6 +70,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/projects', label: t('projects'), icon: <LayoutDashboard />, show: true },
     { href: '/management', label: t('management'), icon: <LineChart />, show: isStaff || hasRole('management_view') },
     { href: '/workforce', label: t('workforce'), icon: <CalendarDays />, show: isStaff },
+    { href: '/skills', label: t('skills'), icon: <Award />, show: isStaff },
   ];
   const intelligence: NavItem[] = [
     { href: '/kpi', label: t('kpi'), icon: <Gauge />, show: isStaff || hasRole('management_view') },

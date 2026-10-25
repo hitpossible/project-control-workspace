@@ -15,6 +15,10 @@ export const myRoles = (ctx: Ctx): string[] => (ctx.me?.is_active ? ctx.me.roles
 export const hasRole = (ctx: Ctx, role: string) => isSystem(ctx) || myRoles(ctx).includes(role) || myRoles(ctx).includes('admin');
 export const isAdmin = (ctx: Ctx) => isSystem(ctx) || myRoles(ctx).includes('admin');
 export const isStaff = (ctx: Ctx) => isSystem(ctx) || myRoles(ctx).some((r) => STAFF_ROLES.includes(r));
+/** Supervisor / Manager (admin): verify skill levels, maintain the skill list, see everyone's matrix */
+export const isSkillAssessor = (ctx: Ctx) => hasRole(ctx, 'supervisor') || hasRole(ctx, 'manager');
+/** the whole skill matrix — assessors and Project Leaders (who staff projects); everyone else sees only their own row */
+export const canViewAllSkills = (ctx: Ctx) => isSkillAssessor(ctx) || hasRole(ctx, 'project_leader');
 export const canViewKpiAll = (ctx: Ctx) => isSystem(ctx) || myRoles(ctx).some((r) => ['project_leader', 'supervisor', 'manager', 'admin'].includes(r));
 
 async function cached<T>(ctx: Ctx, key: string, load: () => Promise<T>): Promise<T> {

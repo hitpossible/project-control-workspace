@@ -4,7 +4,7 @@ import { notifyEvent, fmtD, nextSequence } from './logic/common';
 import {
   activityBeforeWrite, applyTemplateChecklist, missingEvidence, openCriticalBugs, recomputeProject, rollupFromActivity, rollupFromTask, taskBeforeWrite,
 } from './logic/project';
-import { isAdmin } from './perms';
+import { isAdmin, isSkillAssessor } from './perms';
 import { removeObject } from './storage';
 
 /** Per-table trigger logic (ported from the Postgres triggers). `ctx.bypass` = workflow code. */
@@ -51,6 +51,28 @@ const requestorInfo = (ctx: Ctx): Row => ({
   req_telephone: ctx.me?.telephone ?? null,
   req_extension: ctx.me?.extension ?? null,
 });
+
+/** MySQL 5.7 ignores CHECK constraints — levels and weights are 1–5 */
+function oneToFive(r: Row, cols: string[], nullable = false) {
+  for (const c of cols) {
+    const v = r[c];
+    if (v == null && nullable) continue;
+    if (!Number.isInteger(Number(v)) || Number(v) < 1 || Number(v) > 5) throw new AppError(`${c} must be 1–5`, 400);
+  }
+}
+
+/** Only the person sets their self-assessment; only a Supervisor / Manager sets (and is recorded against) the verified level */
+function skillLevelRules(ctx: Ctx, n: Row, o: Row | null) {
+  oneToFive(n, ['self_level', 'verified_level'], true);
+  if (ctx.bypass) return;
+  if (o && changed(n, o, 'user_id', 'skill_id')) throw new AppError('A skill level cannot be moved to another person or skill', 400);
+  if (changed(n, o ?? {}, 'self_level') && n.user_id !== ctx.uid) throw new AppError('Only the person can change their own self-assessment', 403);
+  if (changed(n, o ?? {}, 'verified_level')) {
+    if (!isSkillAssessor(ctx)) throw new AppError('Only a Supervisor or Manager can verify a skill level', 403);
+    n.verified_by = n.verified_level == null ? null : ctx.uid;
+    n.verified_at = n.verified_level == null ? null : new Date().toISOString();
+  }
+}
 
 export const HOOKS: Record<string, Hooks> = {
   profiles: {
@@ -175,4 +197,13 @@ export const HOOKS: Record<string, Hooks> = {
   },
 
   comments: commentHooks,
+
+  profile_skills: {
+    beforeInsert: (ctx, r) => skillLevelRules(ctx, r, null),
+    beforeUpdate: (ctx, n, o) => skillLevelRules(ctx, n, o),
+  },
+  project_skill_requirements: {
+    beforeInsert: (_ctx, r) => oneToFive({ required_level: 3, weight: 3, ...r }, ['required_level', 'weight']),
+    beforeUpdate: (_ctx, n) => oneToFive(n, ['required_level', 'weight']),
+  },
 };

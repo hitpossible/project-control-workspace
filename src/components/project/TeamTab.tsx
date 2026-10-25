@@ -12,6 +12,7 @@ import { useOptions } from '@/i18n/useOptions';
 import { MEMBER_ROLES } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
+import SkillFitPanel from './SkillFitPanel';
 import type { TabProps } from './types';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
@@ -85,6 +86,7 @@ export default function TeamTab({ data, perm, reload }: TabProps) {
           </TableBody>
         </Table>
       </BoardGroup>
+      {perm.internal && <SkillFitPanel data={data} perm={perm} reload={reload} />}
     </div>
   );
 }

@@ -130,3 +130,35 @@ describe('own-only tables', () => {
     expect(await POLICIES.comments.update!(fakeCtx(leader), { created_by: 11 })).toBe(false);
   });
 });
+
+describe('skill matrix', () => {
+  const sup = profile(60, ['supervisor']);
+  const ps = (o: Row): Row => ({ user_id: 11, skill_id: 1, self_level: null, verified_level: null, ...o });
+
+  it('levels are personal: own row, or assessors and Project Leaders see everyone', async () => {
+    expect(await POLICIES.profile_skills.read(fakeCtx(dev))).toEqual(['user_id = ?', [11]]);
+    expect(await POLICIES.profile_skills.read(fakeCtx(leader))).toEqual(['1=1', []]);
+    expect(await POLICIES.profile_skills.read(fakeCtx(sup))).toEqual(['1=1', []]);
+    expect(await POLICIES.profile_skills.insert!(fakeCtx(dev), ps({ user_id: 12 }))).toBe(false);
+    expect(await POLICIES.profile_skills.insert!(fakeCtx(sup), ps({ user_id: 12 }))).toBe(true);
+    expect(await POLICIES.skills.insert!(fakeCtx(dev), {})).toBe(false);
+    expect(await POLICIES.skills.insert!(fakeCtx(sup), {})).toBe(true);
+  });
+
+  it('a developer sets only their self-assessment; a verified level is set (and stamped) by an assessor', async () => {
+    const h = HOOKS.profile_skills;
+    await expect(Promise.resolve(h.beforeInsert!(fakeCtx(dev), ps({ self_level: 4 })))).resolves.toBeUndefined();
+    expect(() => h.beforeInsert!(fakeCtx(dev), ps({ verified_level: 4 }))).toThrow(/Supervisor or Manager/);
+    expect(() => h.beforeUpdate!(fakeCtx(sup), ps({ self_level: 2 }), ps({ self_level: 4 }))).toThrow(/own self-assessment/);
+    const next = ps({ verified_level: 3 });
+    h.beforeUpdate!(fakeCtx(sup), next, ps({}));
+    expect(next.verified_by).toBe(60);
+    expect(next.verified_at).toEqual(expect.any(String));
+    expect(() => h.beforeInsert!(fakeCtx(dev), ps({ self_level: 6 }))).toThrow(/1–5/);
+  });
+
+  it('only a verified-free row can be removed by its owner', async () => {
+    expect(await POLICIES.profile_skills.delete!(fakeCtx(dev), ps({ verified_level: null }))).toBe(true);
+    expect(await POLICIES.profile_skills.delete!(fakeCtx(dev), ps({ verified_level: 3 }))).toBe(false);
+  });
+});

@@ -273,5 +273,15 @@
     "pending": "รอลงนาม",
     "signed": "ลงนามแล้ว",
     "rejected": "ส่งกลับแก้ไข"
+  },
+  "skillCategory": {
+    "frontend": "Frontend",
+    "backend": "Backend",
+    "database": "ฐานข้อมูล",
+    "mobile": "Mobile",
+    "devops": "DevOps / โครงสร้างพื้นฐาน",
+    "integration": "การเชื่อมต่อระบบ",
+    "domain": "ความรู้ธุรกิจ",
+    "other": "อื่น ๆ"
   }
 }

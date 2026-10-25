@@ -83,6 +83,17 @@ export const TASK_TYPES = opts('taskType', [
   { value: 'other' },
 ]);
 
+export const SKILL_CATEGORIES = opts('skillCategory', [
+  { value: 'frontend', color: '#579bfc' },
+  { value: 'backend', color: '#a25ddc' },
+  { value: 'database', color: '#00c875' },
+  { value: 'mobile', color: '#ff7575' },
+  { value: 'devops', color: '#fdab3d' },
+  { value: 'integration', color: '#66ccff' },
+  { value: 'domain', color: '#9d50dd' },
+  { value: 'other', color: '#a0a0a0' },
+]);
+
 export const MEMBER_ROLES = opts('memberRole', [
   { value: 'leader' },
   { value: 'developer' },

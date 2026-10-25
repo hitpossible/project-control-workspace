@@ -273,5 +273,15 @@
     "pending": "Waiting",
     "signed": "Signed",
     "rejected": "Sent Back"
+  },
+  "skillCategory": {
+    "frontend": "Frontend",
+    "backend": "Backend",
+    "database": "Database",
+    "mobile": "Mobile",
+    "devops": "DevOps / infrastructure",
+    "integration": "Integration",
+    "domain": "Business domain",
+    "other": "Other"
   }
 }

@@ -9,6 +9,7 @@ import { actOnApproval, cancelRequest, convertRequestToProject, saveReview, subm
 import { triggerNotificationScan } from './scan';
 import { cancelSrs, rejectSrs, saveSrsLayout, sendSrs } from '../srs';
 import { globalSearch } from './search';
+import { recommendMembers } from './skills';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- args come from JSON and are validated by each function */
 type Fn = (ctx: Ctx, args: any) => Promise<unknown>;
@@ -52,6 +53,7 @@ export const RPC: Record<string, Fn> = {
   kpi_team: kpiTeam,
   kpi_individual: kpiIndividual,
   smart_insights: smartInsights,
+  recommend_members: recommendMembers,
   project_qa_stats: projectGuard(async (ctx, pid) => {
     if (!(await canViewProject(ctx, pid))) throw new AppError('Not allowed', 403);
     return [await projectQaStats(ctx, pid)];

@@ -29,10 +29,11 @@ import requestDetail from './requestDetail.json';
 import requestForm from './requestForm.json';
 import requests from './requests.json';
 import search from './search.json';
+import skills from './skills.json';
 import srs from './srs.json';
 import template from './template.json';
 import workforce from './workforce.json';
 
-const messages: Messages = { admin, ai, audit, chart, comments, common, design, enums, evidence, fields, gantt, home, insights, kanban, kpi, login, management, meta, myWork, nav, notifications, plan, project, projects, qa, reports, requestDetail, requestForm, requests, search, srs, template, workforce };
+const messages: Messages = { admin, ai, audit, chart, comments, common, design, enums, evidence, fields, gantt, home, insights, kanban, kpi, login, management, meta, myWork, nav, notifications, plan, project, projects, qa, reports, requestDetail, requestForm, requests, search, skills, srs, template, workforce };
 
 export default messages;

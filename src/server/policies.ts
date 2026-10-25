@@ -1,7 +1,7 @@
 import type { Ctx, Row } from './db';
 import {
-  canManageProject, canQa, canViewInternal, canViewProject, canViewRequest, hasRole, idFilter, internalProjectIds, isAdmin, isProjectMember,
-  isStaff, requestFilter, visibleProjectIds,
+  canManageProject, canQa, canViewAllSkills, canViewInternal, canViewProject, canViewRequest, hasRole, idFilter, internalProjectIds, isAdmin, isProjectMember,
+  isSkillAssessor, isStaff, requestFilter, visibleProjectIds,
 } from './perms';
 
 /**
@@ -204,6 +204,18 @@ export const POLICIES: Record<string, Policy> = {
     check: (ctx, n) => n.user_id === ctx.uid || hasRole(ctx, 'supervisor') || hasRole(ctx, 'manager'),
     delete: (ctx, o) => o.user_id === ctx.uid || hasRole(ctx, 'supervisor') || hasRole(ctx, 'manager'),
   },
+  // Skill matrix: levels are personal — own row, or assessors / Project Leaders. Self vs verified level rules: hooks.ts
+  skills: { read: () => all, insert: isSkillAssessor, update: isSkillAssessor, check: isSkillAssessor, delete: isSkillAssessor },
+  profile_skills: {
+    read: (ctx) => (canViewAllSkills(ctx) ? all : ['user_id = ?', [ctx.uid]]),
+    insert: (ctx, r) => r.user_id === ctx.uid || isSkillAssessor(ctx),
+    update: (ctx, o) => o.user_id === ctx.uid || isSkillAssessor(ctx),
+    check: (ctx, n) => n.user_id === ctx.uid || isSkillAssessor(ctx),
+    delete: (ctx, o) => isSkillAssessor(ctx) || (o.user_id === ctx.uid && o.verified_level === null),
+    readonly: ['verified_by', 'verified_at', 'updated_at'],
+  },
+  project_skill_requirements: { read: (ctx) => internalProject(ctx), insert: manage, update: manage, check: manage, delete: manage },
+
   project_kpi_snapshots: { read: (ctx) => visibleProject(ctx) },
 
   // Comments on internal Tasks / Bugs: internal team reads and writes; authors edit their own

@@ -1,0 +1,101 @@
+{
+  "title": "Skill matrix",
+  "subtitle": "Each developer's level per skill. Supervisors / Managers verify levels; Project Leaders use them to staff projects.",
+  "subtitleOwn": "Your own skill levels. Click a cell to assess yourself — a Supervisor or Manager verifies it.",
+  "manageSkills": "Manage skills",
+  "category": "Category",
+  "allCategories": "All categories",
+  "section": "Section",
+  "allSections": "All sections",
+  "searchPerson": "Search name…",
+  "person": "Developer",
+  "noPeople": "No developers match the filter.",
+  "noSkills": "No active skills — add some under Manage skills.",
+  "saved": "Skill level saved",
+  "selfLevel": "Self-assessment",
+  "selfHelp": "How you rate yourself today.",
+  "selfOnlyOwner": "Only the person can set their own self-assessment.",
+  "verifiedLevel": "Verified level",
+  "verifiedHelp": "Your confirmed rating — it is the one used in scoring.",
+  "verifiedOnlyAssessor": "Set by a Supervisor or Manager.",
+  "note": "Note",
+  "notePlaceholder": "e.g. projects, certificates",
+  "skillName": "Skill",
+  "description": "Description",
+  "add": "Add",
+  "active": "Active",
+  "deactivateHelp": "Turn a skill off instead of deleting it: levels already recorded are kept, but it is hidden from the matrix and from new requirements.",
+  "tip": {
+    "self": "Self-assessed: {level}",
+    "verified": "Verified: {level} by {by} on {date}"
+  },
+  "legend": {
+    "self": "Self-assessed (not verified)",
+    "stale": "Not updated for over a year"
+  },
+  "level": {
+    "none": "None",
+    "1": {
+      "name": "Aware",
+      "hint": "has tried it or is learning"
+    },
+    "2": {
+      "name": "Basic",
+      "hint": "does simple work with guidance"
+    },
+    "3": {
+      "name": "Independent",
+      "hint": "delivers on their own"
+    },
+    "4": {
+      "name": "Advanced",
+      "hint": "handles complex work and reviews others"
+    },
+    "5": {
+      "name": "Expert",
+      "hint": "sets direction and teaches others"
+    }
+  },
+  "fit": {
+    "requirements": "Skill requirements",
+    "requirementsIntro": "What this project needs. Used to rank developers below — the required level is the level someone needs to work on it independently.",
+    "skill": "Skill",
+    "requiredLevel": "Required level",
+    "weight": "Importance",
+    "weightHelp": "1 = nice to have … 5 = core of the project",
+    "mandatory": "Must have",
+    "addRequirement": "Add",
+    "removeRequirement": "Remove requirement",
+    "noRequirements": "No skill requirements yet.",
+    "noRequirementsManage": "No skill requirements yet — add the skills this project needs to get developer recommendations.",
+    "recommended": "Recommended developers",
+    "recalculate": "Recalculate",
+    "needRequirements": "Add at least one skill requirement to see recommendations.",
+    "windowNote": "Availability over {from} – {to} ({days} working days).",
+    "formula": "Score = skill {skill}% · availability {availability}% · on-time track record {track}% · same project type {domain}%.",
+    "noType": "This project has no project type, so the domain part is left out.",
+    "noDevelopers": "No active developers found.",
+    "score": "score",
+    "part": {
+      "skill": "Skill",
+      "availability": "Available",
+      "track": "On time",
+      "domain": "Domain"
+    },
+    "missingMandatory": "Below a must-have skill",
+    "inTeam": "In team",
+    "addToTeam": "Add as developer",
+    "added": "{name} added to the team",
+    "whyLabel": "Why this score",
+    "why": {
+      "skill": "Covers {value}% of the weighted skill requirements",
+      "leave": "{leave} of {days} working days on leave",
+      "load": "{projects} other active projects · {items} open tasks / bugs",
+      "track": "{onTime} of {done} tasks on time in the last 12 months",
+      "domain": "{count} earlier projects of the same type"
+    },
+    "showAll": "Show all {count}",
+    "showTop": "Show top 5",
+    "disclaimer": "A recommendation to support the decision, not an assignment — check workload and development goals with the people involved."
+  }
+}

@@ -247,6 +247,38 @@ export interface ProjectMember {
   notify: boolean;
 }
 
+export interface Skill {
+  id: number;
+  name: string;
+  category: string;
+  description: string | null;
+  is_active: boolean;
+}
+
+export interface ProfileSkill {
+  id: number;
+  user_id: number;
+  skill_id: number;
+  /** the person's own assessment, 1–5 */
+  self_level: number | null;
+  /** confirmed by a Supervisor / Manager — wins over self_level */
+  verified_level: number | null;
+  verified_by: number | null;
+  verified_at: string | null;
+  note: string | null;
+  updated_at: string;
+}
+
+export interface ProjectSkillRequirement {
+  id: number;
+  project_id: number;
+  skill_id: number;
+  required_level: number;
+  /** importance 1–5 */
+  weight: number;
+  is_mandatory: boolean;
+}
+
 export interface Activity {
   id: number;
   project_id: number;
