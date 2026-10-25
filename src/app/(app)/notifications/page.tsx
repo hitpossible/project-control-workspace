@@ -3,7 +3,7 @@
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {
-  AlarmClock, AtSign, BellOff, BellRing, Bug, Check, CheckCheck, CircleCheck, Clock, FileText, Flag, FolderKanban,
+  AlarmClock, AtSign, Ban, BellOff, BellRing, Bug, Check, CheckCheck, CircleCheck, CircleCheckBig, Clock, FileText, Flag, FolderKanban,
   ListChecks, MessageSquare, MonitorSmartphone, Paperclip, Send, TriangleAlert, type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -36,6 +36,8 @@ const EVENT_META: Record<string, Meta> = {
   activity_delayed: { icon: AlarmClock, color: RED },
   project_need_attention: { icon: TriangleAlert, color: RED },
   project_converted: { icon: FolderKanban, color: GREEN },
+  project_completed: { icon: CircleCheckBig, color: GREEN },
+  project_cancelled: { icon: Ban, color: RED },
   approval_waiting: { icon: FileText, color: ORANGE },
   request_approved: { icon: CircleCheck, color: GREEN },
   request_reject: { icon: FileText, color: RED },

@@ -135,6 +135,24 @@ export const HOOKS: Record<string, Hooks> = {
           link: `/projects/${p.id}`, dedupe: `need_attention:${p.id}:${ctx.today}`,
         });
       }
+      // Project closed / cancelled → requestor + team (no dedupe: a reopened project may close again)
+      if ((p.status === 'completed' || p.status === 'cancelled') && o.status !== p.status) {
+        const requestor = p.request_id
+          ? await ctx.val<number>('SELECT requestor_id FROM project_requests WHERE id = ?', [p.request_id])
+          : null;
+        const done = p.status === 'completed';
+        const prev = String(o.remark ?? '');
+        const added = String(p.remark ?? '').startsWith(prev) ? String(p.remark ?? '').slice(prev.length).trim() : '';
+        await notifyEvent(ctx, {
+          event: done ? 'project_completed' : 'project_cancelled',
+          projectId: Number(p.id), requestId: (p.request_id as number | null) ?? null, explicit: [requestor],
+          title: `${done ? 'Project completed' : 'Project cancelled'}: ${p.project_code}`,
+          body: done
+            ? `${p.project_name} has been closed as completed on ${fmtD(ctx.today)}.`
+            : `${p.project_name} has been cancelled.${added ? `\n${added}` : ''}`,
+          link: `/projects/${p.id}`,
+        });
+      }
     },
   },
 

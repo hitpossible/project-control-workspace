@@ -24,6 +24,8 @@
     "activity_delayed": "Delayed",
     "project_need_attention": "Needs attention",
     "project_converted": "Project created",
+    "project_completed": "Project completed",
+    "project_cancelled": "Project cancelled",
     "approval_waiting": "Approval",
     "request_approved": "Request approved",
     "request_reject": "Request rejected",

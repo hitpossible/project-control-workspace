@@ -24,6 +24,8 @@
     "activity_delayed": "ล่าช้า",
     "project_need_attention": "ต้องติดตาม",
     "project_converted": "สร้างโปรเจกต์แล้ว",
+    "project_completed": "ปิดโปรเจกต์แล้ว",
+    "project_cancelled": "ยกเลิกโปรเจกต์",
     "approval_waiting": "รออนุมัติ",
     "request_approved": "คำขอได้รับอนุมัติ",
     "request_reject": "คำขอถูกปฏิเสธ",
