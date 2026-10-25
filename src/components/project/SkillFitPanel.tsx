@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { dbClient } from '@/lib/db/client';
 import { errMsg, fmtDate } from '@/lib/format';
-import type { SkillSuggestion, SkillSuggestions } from '@/lib/requirements';
+import type { SkillSuggestion, SkillSuggestions } from '@/lib/definition';
 import { type MemberRecommendations, SCORE_WEIGHTS, SKILL_LEVELS } from '@/lib/skills';
 import type { ProjectSkillRequirement, Skill } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,7 @@ const scoreColor = (v: number) => (v >= 75 ? '#00c875' : v >= 50 ? '#fdab3d' : '
 export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'data' | 'perm' | 'reload'>) {
   const t = useTranslations('skills.fit');
   const ts = useTranslations('skills');
-  const tr = useTranslations('requirements');
+  const tr = useTranslations('definition');
   const db = dbClient();
   const { profileName, hasRole, notify } = useApp();
   const pid = data.project.id;
@@ -253,7 +253,7 @@ function SuggestDialog({ ai, projectId, skills, onClose, onAdded }: {
 }) {
   const t = useTranslations('skills.fit');
   const tc = useTranslations('common');
-  const tr = useTranslations('requirements');
+  const tr = useTranslations('definition');
   const db = dbClient();
   const { notify } = useApp();
   const state = ai.state;
@@ -289,7 +289,7 @@ function SuggestDialog({ ai, projectId, skills, onClose, onAdded }: {
         {state === 'no_summary' && (
           <div className="flex flex-col items-center gap-3 py-6 text-sm text-muted-foreground">
             <p>{t('aiNoSummary')}</p>
-            <Button asChild variant="outline"><Link href={`/projects/${projectId}?tab=requirements`} onClick={onClose}>{t('aiOpenSummary')}</Link></Button>
+            <Button asChild variant="outline"><Link href={`/projects/${projectId}?tab=definition`} onClick={onClose}>{t('aiOpenSummary')}</Link></Button>
           </div>
         )}
         {state === 'ready' && (

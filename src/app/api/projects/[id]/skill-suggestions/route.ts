@@ -1,13 +1,13 @@
-import enRequirements from '@/i18n/messages/en/requirements.json';
-import { isEmptySummary, normalizeSummary, parseSkillSuggestions, type RequirementSummary, summaryText } from '@/lib/requirements';
+import enDefinition from '@/i18n/messages/en/definition.json';
+import { definitionText, normalizeDefinition, parseSkillSuggestions, type ProjectDefinition } from '@/lib/definition';
 import { aiEnabled, type SkillCatalogItem, suggestProjectSkills } from '@/server/ai';
 import { withUser } from '@/server/api';
 import { AppError, withCtx } from '@/server/db';
 import { canPlanProject } from '@/server/perms';
 
 /**
- * Company LLM suggests the project's skill requirements from its saved requirement summary. Nothing is saved: the
- * leader / Supervisor / Manager picks which to add. off: true = AI not set up; no_summary: true = write the summary first.
+ * Company LLM suggests the project's skill requirements from its saved project definition. Nothing is saved: the
+ * leader / Supervisor / Manager picks which to add. off: true = AI not set up; no_summary: true = write the definition (with features) first.
  */
 export const POST = withUser(async (me, _req, params) => {
   const id = Number(params.id);
@@ -15,8 +15,8 @@ export const POST = withUser(async (me, _req, params) => {
     if (!(await canPlanProject(ctx, id))) throw new AppError('Not allowed', 403);
     const p = await ctx.one<{ project_code: string; project_name: string }>('SELECT project_code, project_name FROM projects WHERE id = ?', [id]);
     if (!p) throw new AppError('Project not found', 404);
-    const saved = await ctx.one<{ content: RequirementSummary }>('SELECT content FROM project_requirement_summaries WHERE project_id = ?', [id]);
-    const summary = saved ? normalizeSummary(saved.content) : null;
+    const saved = await ctx.one<{ content: ProjectDefinition }>('SELECT content FROM project_definitions WHERE project_id = ?', [id]);
+    const summary = saved ? normalizeDefinition(saved.content) : null;
     // how many active developers hold each skill at level 3+ (verified, else self) — the team's usual stack
     const catalog = await ctx.q<SkillCatalogItem>(
       `SELECT s.id, s.name, s.category, s.description,
@@ -29,8 +29,8 @@ export const POST = withUser(async (me, _req, params) => {
 
   if (!aiEnabled()) return { data: { off: true } };
   const { summary } = context;
-  if (!summary || isEmptySummary(summary) || !summary.features.length) return { data: { no_summary: true } };
-  const raw = await suggestProjectSkills(context.project, summaryText(summary, enRequirements.section), context.catalog);
+  if (!summary?.features.length) return { data: { no_summary: true } };
+  const raw = await suggestProjectSkills(context.project, definitionText(summary, enDefinition), context.catalog);
   if (!raw) throw new AppError('The AI could not suggest skills — please try again', 502);
   return {
     data: parseSkillSuggestions(raw, { skillIds: new Set(context.catalog.map((c) => c.id)), required: new Set(context.required), features: summary.features.length }),

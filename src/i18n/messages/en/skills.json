@@ -99,15 +99,15 @@
     "disclaimer": "A recommendation to support the decision, not an assignment — check workload and development goals with the people involved.",
     "aiSuggest": "Suggest with AI",
     "aiTitle": "AI skill suggestions",
-    "aiIntro": "From the requirement summary. Tick the ones to add — you can change level, importance and must-have first.",
+    "aiIntro": "From the project definition. Tick the ones to add — you can change level, importance and must-have first.",
     "aiNone": "The AI found nothing to add beyond the current requirements.",
-    "aiNoSummary": "Write the requirement summary first — the AI suggests skills from it.",
-    "aiOpenSummary": "Open requirement summary",
+    "aiNoSummary": "Fill in the project definition (with features) first — the AI suggests skills from it.",
+    "aiOpenSummary": "Open project definition",
     "aiAdd": "Add {count} selected",
     "aiAdded": "{count} skill requirements added",
     "aiMissing": "Needed but not in the skill list",
     "aiMissingHelp": "A Supervisor or Manager can add these on the Skill matrix page.",
-    "aiThinking": "The AI is reading the requirement summary…",
+    "aiThinking": "The AI is reading the project definition…",
     "from": "from"
   }
 }

@@ -387,36 +387,55 @@ export async function draftDiagram(kind: DiagramKind, prompt: string, ctx: Diagr
   }
 }
 
-const SUMMARY = `You are a senior business analyst in the IT System Service team of a manufacturing company.
-Write the REQUIREMENT SUMMARY of a project: the working summary the development team plans, estimates and staffs from (it is not the formal SRS).
-Use only what the sources say — never invent features, numbers, users or systems. Anything important that is unknown, vague or undecided goes under open_questions instead of being guessed.
+const DEFINITION = `You are a senior business analyst in the IT System Service team of a manufacturing company.
+Write the PROJECT DEFINITION: everything the development team must know to build the system — what the team scopes, estimates, staffs, builds and tests from (it is not the formal SRS).
+Use only what the sources say — never invent features, numbers, people, systems or dates. Leave a section empty ("" or []) when the sources say nothing about it;
+anything important that is unknown, vague or undecided goes under open_questions instead of being guessed.
 Sections:
-- "objective": 1–3 sentences — the business problem and what the system must achieve (with measurable targets when stated).
-- "users": 1–3 sentences — who uses it: roles, departments, how many, shifts.
-- "features": the functional requirements, one concrete capability per item starting with a verb (e.g. "Record scrap per line and shift with reason code"). 5–25 items, most important first, no duplicates.
-- "out_of_scope": what was explicitly excluded; [] when nothing was said.
-- "integrations": systems, files, machines or e-mail it connects to — with the direction and the data (e.g. "Read item master from SAP daily").
-- "data_reports": the main data kept and the reports, documents or dashboards it must produce; volumes when known.
-- "environment": 1–2 sentences — devices and places of use (office PC, tablet on the shop floor, mobile), languages.
-- "constraints": permissions, approval rules, standards (IATF, ISO), personal data (PDPA), performance, what drives the deadline.
-- "open_questions": points still missing or undecided that could change scope or effort.
-Each list item at most about 25 words. Write in the OUTPUT LANGUAGE given.
-Reply with JSON only, exactly in this shape:
-{"objective": "...", "users": "...", "features": ["..."], "out_of_scope": ["..."], "integrations": ["..."], "data_reports": ["..."], "environment": "...", "constraints": ["..."], "open_questions": ["..."]}`;
+- "background": 1–4 sentences — how the work is done today and what goes wrong.
+- "objectives": what the system must achieve, measurable where stated (e.g. "Cut stock count from 2 days to 2 hours").
+- "stakeholders": people / groups and their part, e.g. "Key user: K. Nam (Stock) — gives details, does UAT"; requestor, approver, owner after go-live.
+- "in_scope": the main areas the project covers (higher level than features).
+- "out_of_scope": what was explicitly excluded.
+- "assumptions": things taken as true for planning, only when the sources state them.
+- "constraints": deadline and why, budget, dependencies on other systems, projects or vendors, standards to follow.
+- "roles": user roles and what each may do, e.g. "Stock staff — record movements, view balance; cannot delete".
+- "process": 1–5 sentences — the to-be flow of work through the system (and the as-is where it helps).
+- "features": the functional requirements, each {"title": "short verb phrase", "detail": "1–2 sentences", "priority": "must|should|could", "acceptance": "how the requestor will check it works"}.
+  5–30 features, most important first, no duplicates; "must" = needed for go-live. Acceptance only from what the sources imply, else "".
+- "business_rules": calculations, validations, approval conditions, numbering.
+- "screens": main screens, only when mentioned.
+- "reports": reports, documents, dashboards and exports it must produce.
+- "notifications": who is told what, when, how.
+- "entities": the main data the system keeps (e.g. "Item — code, name, unit, location").
+- "migration": old data to bring in — source, volume, who cleans it.
+- "data_volume": expected records per day / month and how long to keep them.
+- "integrations": systems, files, machines or e-mail it connects to — direction, method, frequency, data.
+- "non_functional": performance, hours of use (shifts), security, audit log, personal data (PDPA), traceability (IATF / ISO), backup.
+- "environment": 1–2 sentences — devices, places of use, network, languages.
+- "tech_approach": technology or hosting only when the sources state it.
+- "milestones": dated milestones only when stated.
+- "testing": who tests and how (UAT), only when stated.
+- "go_live": go-live, training, support and owner after go-live, only when stated.
+- "risks": concrete risks that could change scope, effort or the date.
+- "open_questions": points still missing or undecided.
+Each list item at most about 30 words. Write everything — feature titles included — in the OUTPUT LANGUAGE given; keep product, system and technical names as they are.
+Reply with JSON only, with every section key above (strings for background, process, migration, data_volume, environment, tech_approach, testing, go_live; arrays for the rest):
+{"background": "...", "objectives": ["..."], "features": [{"title": "...", "detail": "...", "priority": "must", "acceptance": "..."}], "...": "..."}`;
 
-export interface SummaryContext {
+export interface DefinitionContext {
   project: { code: string; name: string };
   request: ProjectRequest | null;
   analysis: AiAnalysis | null;
   activities: string[];
-  /** the saved summary, to be updated rather than rewritten */
+  /** the saved definition, to be updated rather than rewritten */
   current: string | null;
   /** extra material from the team: meeting notes, e-mails, decisions */
   notes: string;
 }
 
-/** Draft the requirement summary from everything known about the project; untrusted (see normalizeSummary) or null when the AI failed */
-export async function draftRequirementSummary(c: SummaryContext): Promise<unknown | null> {
+/** Draft the project definition from everything known about the project; untrusted (see normalizeDefinition) or null when the AI failed */
+export async function draftProjectDefinition(c: DefinitionContext): Promise<unknown | null> {
   const r = c.request;
   const lines = [`PROJECT ${c.project.code}: ${c.project.name}`];
   if (r) {
@@ -444,29 +463,29 @@ export async function draftRequirementSummary(c: SummaryContext): Promise<unknow
   }
   if (c.activities.length) lines.push('', `PLANNED ACTIVITIES: ${c.activities.join(', ')}`);
   if (c.notes) lines.push('', 'NOTES FROM THE TEAM (newer than the request — they win where they differ)', c.notes);
-  if (c.current) lines.push('', 'CURRENT SUMMARY — update it with the information above: keep what is still valid (the team may have edited it), add what is new, fix what changed. Reply with the whole summary.', c.current);
+  if (c.current) lines.push('', 'CURRENT DEFINITION — update it with the information above: keep what is still valid (the team wrote or edited much of it, including sections the sources do not cover), add what is new, fix what changed. Reply with the whole definition.', c.current);
   const thai = /[\u0E00-\u0E7F]/.test([c.project.name, r?.description, r?.reason, c.notes, c.current].join(' '));
   lines.push('', `OUTPUT LANGUAGE: ${thai ? 'Thai (keep system, product and technical names in English)' : 'English'}.`);
   try {
-    const text = await chat(SUMMARY, lines.join('\n'));
+    const text = await chat(DEFINITION, lines.join('\n'));
     const out = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1) || '{}') as Record<string, unknown>;
     if (!Array.isArray(out.features)) throw new Error('no features in the reply');
     return out;
   } catch (e) {
-    console.warn('[ai] requirement summary failed:', e instanceof Error ? e.message : e);
+    console.warn('[ai] project definition failed:', e instanceof Error ? e.message : e);
     return null;
   }
 }
 
 const SKILLS = `You are the technical lead of the IT System Service team of a manufacturing company, staffing a new project.
-From the REQUIREMENT SUMMARY, choose the skills from the SKILL LIST the developers on this project need.
+From the PROJECT DEFINITION, choose the skills from the SKILL LIST the developers on this project need.
 For each skill:
 - "skill_id": an id from the SKILL LIST only.
 - "required_level": 1–5 (1 aware, 2 basic, 3 independent, 4 advanced, 5 expert) — the level someone needs to build that part on their own.
   Most work needs 3; complex or critical parts (core framework of a large system, a tricky integration) 4; 5 only for something unusually hard.
 - "weight": 1–5 — how much of the project depends on it (5 = the core of the project).
 - "is_mandatory": true only when the project cannot be delivered without it — usually the main language / framework and a critical integration. At most 3.
-- "reason": one short sentence saying which requirement needs it.
+- "reason": one short sentence saying which requirement needs it (features, integrations, non-functional needs, technical approach).
 - "refs": the features it comes from, as their numbers (e.g. ["F2", "F5"]); [] when it comes from another section.
 Where the summary names no technology, use the team's usual stack — the skills most developers hold in the SKILL LIST — rather than introducing a new one.
 Add a business-domain skill when the features clearly sit in that domain. Prefer 3–8 skills; leave out skills the summary gives no reason for.
@@ -477,9 +496,9 @@ Reply with JSON only, exactly in this shape:
 
 export interface SkillCatalogItem { id: number; name: string; category: string; description: string | null; holders: number }
 
-/** Skills a project needs, from its requirement summary text; untrusted (validated by the caller) or null when the AI failed */
+/** Skills a project needs, from its project definition text; untrusted (validated by the caller) or null when the AI failed */
 export async function suggestProjectSkills(project: { code: string; name: string }, summary: string, catalog: SkillCatalogItem[]): Promise<unknown | null> {
-  const lines = [`PROJECT ${project.code}: ${project.name}`, '', 'REQUIREMENT SUMMARY', summary, '', 'SKILL LIST (developers at level 3 or above)'];
+  const lines = [`PROJECT ${project.code}: ${project.name}`, '', 'PROJECT DEFINITION', summary, '', 'SKILL LIST (developers at level 3 or above)'];
   for (const s of catalog) lines.push(`- id ${s.id}: ${s.name} [${s.category}]${s.description ? ` — ${s.description}` : ''} | ${s.holders} developers`);
   const thai = /[\u0E00-\u0E7F]/.test(summary);
   lines.push('', `OUTPUT LANGUAGE: ${thai ? 'Thai' : 'English'}.`);

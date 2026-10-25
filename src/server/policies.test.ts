@@ -157,8 +157,8 @@ describe('skill matrix', () => {
     expect(() => h.beforeInsert!(fakeCtx(dev), ps({ self_level: 6 }))).toThrow(/1–5/);
   });
 
-  it('skill requirements and the requirement summary: the leader or a Supervisor / Manager, not a developer', async () => {
-    for (const table of ['project_skill_requirements', 'project_requirement_summaries']) {
+  it('skill requirements and the project definition: the leader or a Supervisor / Manager, not a developer', async () => {
+    for (const table of ['project_skill_requirements', 'project_definitions']) {
       expect(await POLICIES[table].insert!(fakeCtx(leader, world), { project_id: 1 }), table).toBe(true);
       expect(await POLICIES[table].insert!(fakeCtx(sup, world), { project_id: 1 }), table).toBe(true);
       expect(await POLICIES[table].insert!(fakeCtx(dev, world), { project_id: 1 }), table).toBe(false);

@@ -11,7 +11,7 @@
     "evidence": "Evidence",
     "history": "History",
     "srs": "SRS",
-    "requirements": "Requirements"
+    "definition": "Project definition"
   },
   "round": "Round {no}",
   "leader": "Leader {name}",

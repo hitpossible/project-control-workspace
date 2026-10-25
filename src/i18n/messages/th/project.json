@@ -11,7 +11,7 @@
     "evidence": "หลักฐาน",
     "history": "ประวัติ",
     "srs": "SRS",
-    "requirements": "สรุปความต้องการ"
+    "definition": "ขอบเขตและข้อกำหนดระบบ"
   },
   "round": "รอบที่ {no}",
   "leader": "หัวหน้า {name}",

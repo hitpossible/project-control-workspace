@@ -217,8 +217,8 @@ export const POLICIES: Record<string, Policy> = {
   },
   // the leader, or a Supervisor / Manager staffing the project
   project_skill_requirements: { read: (ctx) => internalProject(ctx), insert: plan, update: plan, check: plan, delete: plan },
-  // working requirement summary (internal); content is normalised and the editor stamped in hooks.ts
-  project_requirement_summaries: {
+  // project definition (internal); content is normalised and the editor stamped in hooks.ts
+  project_definitions: {
     read: (ctx) => internalProject(ctx), insert: plan, update: plan, check: plan, delete: plan,
     readonly: ['created_by', 'created_at', 'updated_by', 'updated_at'],
   },
