@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Figtree, Poppins, Sarabun } from 'next/font/google';
 import { LocaleSync } from '@/i18n/LocaleSync';
-import { ConfirmDialogHost } from '@/components/ConfirmDialog';
+import { ConfirmDialogHost } from '@/components/shared/ConfirmDialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import './globals.css';

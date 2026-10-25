@@ -3,9 +3,9 @@
 import { Plus, Settings2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { useApp } from '@/components/AppProvider';
-import { EmptyState, FormField, PageHeader, Person, SearchBox, SelectField, TextField } from '@/components/common';
-import { LevelBadge, LevelLegend, LevelPicker } from '@/components/skills';
+import { useApp } from '@/providers/AppProvider';
+import { EmptyState, FormField, PageHeader, Person, SearchBox, SelectField, TextField } from '@/components/shared/common';
+import { LevelBadge, LevelLegend, LevelPicker } from '@/components/shared/skills';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';

@@ -3,8 +3,8 @@
 import { Download } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import { BoardGroup, EmptyState, PageHeader, SelectField, StatCard } from '@/components/common';
-import { InsightRow, useInsights } from '@/components/InsightList';
+import { BoardGroup, EmptyState, PageHeader, SelectField, StatCard } from '@/components/shared/common';
+import { InsightRow, useInsights } from '@/components/shared/InsightList';
 import { Button } from '@/components/ui/button';
 import { useOptions } from '@/i18n/useOptions';
 import { GROUP_COLORS, INSIGHT_SEVERITIES } from '@/lib/constants';

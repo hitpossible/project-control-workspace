@@ -3,8 +3,8 @@
 import { BarChart3, ClipboardCheck, FileText, Presentation, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
-import { PageHeader, PeriodPicker, SelectField, periodFor, type Period } from '@/components/common';
-import { useReport } from '@/components/ReportButton';
+import { PageHeader, PeriodPicker, SelectField, periodFor, type Period } from '@/components/shared/common';
+import { useReport } from '@/components/shared/ReportButton';
 import { Button } from '@/components/ui/button';
 import { dbClient } from '@/lib/db/client';
 import type { ProjectView } from '@/lib/types';

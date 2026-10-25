@@ -4,9 +4,9 @@ import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, Eye, FileText, M
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useApp } from '@/components/AppProvider';
-import { Person, TextField, UserSelect } from '@/components/common';
-import { confirmDialog } from '@/components/ConfirmDialog';
+import { useApp } from '@/providers/AppProvider';
+import { Person, TextField, UserSelect } from '@/components/shared/common';
+import { confirmDialog } from '@/components/shared/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { dbClient } from '@/lib/db/client';

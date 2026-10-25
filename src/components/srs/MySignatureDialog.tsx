@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
-import { useApp } from '@/components/AppProvider';
+import { useApp } from '@/providers/AppProvider';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import SignaturePad, { type SignaturePadHandle } from './SignaturePad';

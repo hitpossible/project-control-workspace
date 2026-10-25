@@ -106,7 +106,7 @@ Nobody picks approvers on the form; the requestor never approves their own reque
 
 Profiles store `department_id` / `section_id` / `position_id`. At every AD login the `department`, `section` and `position` names from AD are matched (by name) to those tables; a name that is not found becomes empty.
 
-All tables use INT AUTO_INCREMENT ids (`audit_logs`: BIGINT). Ids are per table, so code that mixes rows of several tables in one map / set keys them with `entityKey(type, id)` (`src/components/common.tsx`), and audit lookups always filter by `table_name`.
+All tables use INT AUTO_INCREMENT ids (`audit_logs`: BIGINT). Ids are per table, so code that mixes rows of several tables in one map / set keys them with `entityKey(type, id)` (`src/components/shared/common.tsx`), and audit lookups always filter by `table_name`.
 
 The seed runs the **real workflow through the same server functions and access policies as the API**: 3 converted projects (one delayed with recovery plan, one on track, one still planning), plus requests in Approved / Waiting System Review / Waiting Requestor Approval / Draft, QA bugs / retests, a pending baseline revision and a workforce plan.
 
@@ -118,6 +118,7 @@ src/
   proxy.ts                     redirect anonymous users to /login (checks the session JWT)
   instrumentation.ts           starts the scheduler when the Node server boots
   app/(app)/                   authenticated pages (client components)
+  app/(app)/<route>/_components   UI used only by that route (private folder — not routable)
   app/api/data                 generic table access for the browser query builder
   app/api/rpc/[fn]             workflow / KPI / insight functions
   app/api/auth/*               login (AD / local) · logout · me
@@ -136,8 +137,16 @@ src/
     auth.ts session.ts         AD / local login, JWT session cookie
     storage.ts                 MinIO
     scheduler.ts               hourly notification scan · Monday 06:00 KPI snapshot · e-mail every minute (was pg_cron)
-  components/ …                UI (shadcn/ui)
+  components/
+    ui/                        shadcn/ui primitives
+    layout/                    app shell, global search, language switcher
+    shared/                    UI used by more than one route
+    srs/                       SRS signing workspace (SRS page + signature dialog in the shell)
+  providers/AppProvider.tsx    session, profiles, notify — useApp()
+  hooks/                       shared client hooks
 ```
+
+A component used by one route lives in that route's `_components/`; move it to `components/shared/` once a second route needs it.
 
 **Security lives on the server.** The browser never talks to MySQL: every `/api/data` statement is restricted by the table policy (`src/server/policies.ts`, a 1:1 port of the former RLS), column names are whitelisted from `information_schema`, and values are parameterised. Workflow state (request status, approvals, project code, baseline, bug status) can only change through the workflow functions, which validate status before every update; guards in `hooks.ts` block direct edits to protected fields.
 

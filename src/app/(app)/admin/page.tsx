@@ -3,9 +3,9 @@
 import { ArrowDown, ArrowUp, Copy, MonitorX, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
-import { useApp } from '@/components/AppProvider';
-import { BoardGroup, DateField, MultiSelect, PageHeader, Person, SelectField, TextField } from '@/components/common';
-import { TemplateEditor, draftProblems, fromDraft, toDraft, type TemplateDraft } from '@/components/TemplateEditor';
+import { useApp } from '@/providers/AppProvider';
+import { BoardGroup, DateField, MultiSelect, PageHeader, Person, SelectField, TextField } from '@/components/shared/common';
+import { TemplateEditor, draftProblems, fromDraft, toDraft, type TemplateDraft } from './_components/TemplateEditor';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import { DEFAULT_CRITERIA, type ClarifyCriterion } from '@/lib/clarify';
 import { POSITION_LEVELS, ROUTE_STAGES, andUp, defaultRoute, formatPrefix, routeApprovers, routeProblems, type RouteStage, type RouteStep } from '@/lib/approval';
 import { cn } from '@/lib/utils';
 import { DEFAULT_WORK_WEEK, WORK_WEEKS, WORK_WEEK_KEY, makeCalendar } from '@/lib/workdays';
-import { confirmDialog } from '@/components/ConfirmDialog';
+import { confirmDialog } from '@/components/shared/ConfirmDialog';
 
 // A plain mouse wheel only scrolls vertically, so turn it into horizontal scrolling of the tab strip.
 function wheelScrollX(el: HTMLDivElement | null) {

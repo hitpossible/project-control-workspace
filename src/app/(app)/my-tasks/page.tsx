@@ -3,11 +3,11 @@
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { useApp } from '@/components/AppProvider';
-import { BoardGroup, EmptyState, PageHeader, Person, PriorityChip, ProgressBar, SelectField, StatusChip } from '@/components/common';
-import { BoardSkeleton } from '@/components/motion';
-import { ViewToggle } from '@/components/project/PlanTab';
-import TaskKanban from '@/components/TaskKanban';
+import { useApp } from '@/providers/AppProvider';
+import { BoardGroup, EmptyState, PageHeader, Person, PriorityChip, ProgressBar, SelectField, StatusChip } from '@/components/shared/common';
+import { BoardSkeleton } from '@/components/shared/motion';
+import { ViewToggle } from '../projects/[id]/_components/PlanTab';
+import TaskKanban from '@/components/shared/TaskKanban';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BUG_STATUSES, GROUP_COLORS, SEVERITIES, TASK_STATUSES } from '@/lib/constants';

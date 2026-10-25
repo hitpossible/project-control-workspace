@@ -9,9 +9,9 @@ import {
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useApp } from '@/components/AppProvider';
-import { PageHeader, Tip } from '@/components/common';
-import { ListSkeleton, useNewIds } from '@/components/motion';
+import { useApp } from '@/providers/AppProvider';
+import { PageHeader, Tip } from '@/components/shared/common';
+import { ListSkeleton, useNewIds } from '@/components/shared/motion';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
