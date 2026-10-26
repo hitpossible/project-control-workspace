@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, CalendarDays, Award, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, MonitorX, PanelLeftClose, PanelLeftOpen, ShieldCheck, Signature } from 'lucide-react';
+import { Bell, CalendarDays, Award, ClipboardList, FileBarChart, Gauge, Home, LayoutDashboard, Lightbulb, LineChart, ListChecks, LogOut, Menu, MonitorX, PanelLeftClose, PanelLeftOpen, ShieldCheck, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -18,7 +18,6 @@ import { Tip } from '@/components/shared/Tip';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import MySignatureDialog from '@/components/srs/MySignatureDialog';
 
 /** Product logo (public/brand/logo.png, 841 × 530 — keep this ratio) */
 export function BrandMark({ size = 26 }: { size?: number }) {
@@ -46,7 +45,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [signature, setSignature] = useState(false);
   const [animate, setAnimate] = useState(false); // only animate user toggles, not the restore on load
 
   // remember the sidebar state per browser
@@ -184,7 +182,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <LanguageSubmenu className="sm:hidden" />
-            <DropdownMenuItem onClick={() => setSignature(true)}><Signature /> {t('mySignature')}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/profile')}><UserRound /> {t('profile')}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => signOut()}><LogOut /> {t('logout')}</DropdownMenuItem>
             <DropdownMenuItem onClick={async () => {
               if (await confirmDialog({ title: t('logoutAll.title'), description: t('logoutAll.text'), confirmText: t('logoutAll.confirm') })) await signOut(true);
@@ -192,8 +190,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
-
-      <MySignatureDialog open={signature} onClose={() => setSignature(false)} />
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-64 bg-white pt-12">

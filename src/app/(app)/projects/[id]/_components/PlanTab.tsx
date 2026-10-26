@@ -1,7 +1,7 @@
 'use client';
 
 import dayjs from 'dayjs';
-import { ChevronsDownUp, ChevronsUpDown, Plus } from 'lucide-react';
+import { ChartGantt, ChevronsDownUp, ChevronsUpDown, Plus, Table2, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
@@ -21,11 +21,12 @@ import { cn } from '@/lib/utils';
 import { allGanttKeys, buildGanttRows, ganttDeps } from './ganttRows';
 import type { TabProps } from './types';
 
-export function ViewToggle({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string][] }) {
+/** options are [value, label] or [value, label, icon] */
+export function ViewToggle({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string, LucideIcon?][] }) {
   return (
     <ToggleGroup type="single" variant="outline" size="sm" value={value} onValueChange={(v) => v && onChange(v)} className="h-9">
-      {options.map(([v, l]) => (
-        <ToggleGroupItem key={v} value={v} className="h-9 px-3 data-[state=on]:bg-selected data-[state=on]:text-primary">{l}</ToggleGroupItem>
+      {options.map(([v, l, Icon]) => (
+        <ToggleGroupItem key={v} value={v} className="h-9 gap-1.5 px-3 data-[state=on]:bg-selected data-[state=on]:text-primary">{Icon && <Icon />}{l}</ToggleGroupItem>
       ))}
     </ToggleGroup>
   );
@@ -62,7 +63,7 @@ export default function PlanTab({ data, perm, reload, memberProfiles }: TabProps
   return (
     <div>
       <div className="no-print mb-4 flex flex-wrap items-end gap-3">
-        <ViewToggle value={view} onChange={setView} options={[['gantt', t('view.gantt')], ['table', t('view.table')]]} />
+        <ViewToggle value={view} onChange={setView} options={[['gantt', t('view.gantt'), ChartGantt], ['table', t('view.table'), Table2]]} />
         <SelectField className="w-44" label={t('pic')} value={pic} allowEmpty placeholder={tc('all')} onChange={setPic} options={pics.map((p) => ({ value: p, label: p }))} />
         <SelectField className="w-44" label={t('status')} value={status} allowEmpty placeholder={tc('all')} onChange={setStatus}
           options={[{ value: 'overdue', label: `⚠ ${tc('overdue')}` }, ...options(ACTIVITY_STATUSES)]} />

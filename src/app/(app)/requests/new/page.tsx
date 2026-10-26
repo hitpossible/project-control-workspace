@@ -112,7 +112,7 @@ export default function NewRequestPage() {
   }
 
   return (
-    <div className={shown === 'ai' ? 'max-w-7xl' : 'max-w-5xl'}>
+    <div className={shown === 'ai' ? 'max-w-[1600px]' : 'max-w-5xl'}>
       {header}
       {shown === 'ai' ? (
         <AiIntake key={type.id} initial={emptyRequest(type.id)} onSaved={saved} onSubmit={submit}

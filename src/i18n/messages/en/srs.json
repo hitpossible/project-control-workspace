@@ -149,6 +149,7 @@
     "removed": "Signature removed",
     "remove": "Remove",
     "redraw": "Draw a new one",
+    "cancel": "Keep the current one",
     "close": "Close"
   },
   "pageOf": "Page {page} of {total}"

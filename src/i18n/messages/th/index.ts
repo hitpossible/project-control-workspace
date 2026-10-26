@@ -22,6 +22,7 @@ import myWork from './myWork.json';
 import nav from './nav.json';
 import notifications from './notifications.json';
 import plan from './plan.json';
+import profile from './profile.json';
 import project from './project.json';
 import projects from './projects.json';
 import qa from './qa.json';
@@ -35,6 +36,6 @@ import srs from './srs.json';
 import template from './template.json';
 import workforce from './workforce.json';
 
-const messages: Messages = { admin, ai, audit, chart, comments, common, definition, design, enums, evidence, fields, gantt, home, insights, kanban, kpi, login, management, meta, myWork, nav, notifications, plan, project, projects, qa, reports, requestDetail, requestForm, requests, search, skills, srs, template, workforce };
+const messages: Messages = { admin, ai, audit, chart, comments, common, definition, design, enums, evidence, fields, gantt, home, insights, kanban, kpi, login, management, meta, myWork, nav, notifications, plan, profile, project, projects, qa, reports, requestDetail, requestForm, requests, search, skills, srs, template, workforce };
 
 export default messages;

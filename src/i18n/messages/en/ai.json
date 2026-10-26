@@ -36,6 +36,8 @@
     "notCoveredPlaceholder": "Not covered yet — add a line if you can",
     "checklist": "Checklist",
     "requiredCount": "Required {covered}/{total}",
+    "moreOptional": "+{count} optional",
+    "lessOptional": "Hide optional",
     "group": {
       "required": "Required",
       "optional": "Optional"

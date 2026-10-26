@@ -280,9 +280,8 @@ function Column({ col, count, dragging, hot, isTarget, emptyText, children }: {
       ref={setNodeRef}
       data-kanban-col={col.value}
       className={cn(
-        // columns with cards share the width; empty ones stay narrow so the busy ones get room
-        'flex max-h-[calc(100vh-16rem)] min-h-48 flex-col rounded-xl bg-[#f3f4f7] transition-[background-color,box-shadow]',
-        count ? 'min-w-[240px] flex-1' : 'w-40 shrink-0',
+        // every column has the same width; the board scrolls sideways when they do not fit
+        'flex max-h-[calc(100vh-16rem)] min-h-48 w-72 shrink-0 flex-col rounded-xl bg-[#f3f4f7] transition-[background-color,box-shadow]',
         hot && 'bg-primary/[.07] ring-2 ring-primary/40',
       )}
     >

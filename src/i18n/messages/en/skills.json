@@ -70,6 +70,13 @@
     "noRequirementsManage": "No skill requirements yet — add the skills this project needs to get developer recommendations.",
     "recommended": "Recommended developers",
     "recalculate": "Recalculate",
+    "calculating": {
+      "title": "Finding the best fit…",
+      "skill": "Matching skills to the requirements",
+      "availability": "Checking leave and open work",
+      "track": "Looking at on-time delivery",
+      "domain": "Comparing past projects of this type"
+    },
     "needRequirements": "Add at least one skill requirement to see recommendations.",
     "windowNote": "Availability over {from} – {to} ({days} working days).",
     "formula": "Score = skill {skill}% · availability {availability}% · on-time track record {track}% · same project type {domain}%.",
@@ -95,7 +102,7 @@
       "domain": "{count} earlier projects of the same type"
     },
     "showAll": "Show all {count}",
-    "showTop": "Show top 5",
+    "showTop": "Show top {count}",
     "disclaimer": "A recommendation to support the decision, not an assignment — check workload and development goals with the people involved.",
     "aiSuggest": "Suggest with AI",
     "aiTitle": "AI skill suggestions",

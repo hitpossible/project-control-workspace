@@ -36,6 +36,8 @@
     "notCoveredPlaceholder": "ยังไม่มีข้อมูล — เพิ่มสักบรรทัดถ้าทำได้",
     "checklist": "รายการตรวจสอบ",
     "requiredCount": "จำเป็น {covered}/{total}",
+    "moreOptional": "+ไม่บังคับ {count} ข้อ",
+    "lessOptional": "ซ่อนข้อไม่บังคับ",
     "group": {
       "required": "จำเป็น",
       "optional": "ไม่บังคับ"

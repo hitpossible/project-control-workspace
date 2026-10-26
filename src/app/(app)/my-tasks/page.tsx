@@ -1,5 +1,6 @@
 'use client';
 
+import { List, SquareKanban } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -78,7 +79,7 @@ function MyWork() {
       </Tabs>
       <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-grid pb-4">
         <ViewToggle value={scope} onChange={setScope} options={tab === 'tasks' ? [['mine', tw('scope.assigned')], ['review', tw('scope.review')], ['all', tw('scope.all')]] : [['mine', tw('scope.mine')], ['all', tw('scope.all')]]} />
-        {tab === 'tasks' && <ViewToggle value={layout} onChange={setLayout} options={[['list', tw('view.list')], ['kanban', tw('view.kanban')]]} />}
+        {tab === 'tasks' && <ViewToggle value={layout} onChange={setLayout} options={[['list', tw('view.list'), List], ['kanban', tw('view.kanban'), SquareKanban]]} />}
         {tab !== 'retests' && (
           <SelectField className="w-40" value={filter} onChange={setFilter}
             options={[{ value: 'open', label: tw('filter.open') }, { value: 'overdue', label: `⚠ ${tw('filter.overdue')}` }, { value: 'all', label: tw('filter.all') }]} />

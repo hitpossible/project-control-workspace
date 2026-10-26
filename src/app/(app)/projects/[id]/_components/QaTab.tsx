@@ -1,6 +1,6 @@
 'use client';
 
-import { Bug as BugIcon, FlaskConical, Info, Plus } from 'lucide-react';
+import { Bug as BugIcon, FlaskConical, Info, Plus, SquareKanban } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
@@ -96,7 +96,7 @@ export default function QaTab({ data, perm, reload, memberProfiles, focusBug, fo
       </div>
 
       <div className="no-print mb-5 flex flex-wrap items-end gap-3">
-        <ViewToggle value={view} onChange={setView} options={[['bugs', t('view.bugs')], ['kanban', t('view.kanban')], ['rounds', t('view.rounds')]]} />
+        <ViewToggle value={view} onChange={setView} options={[['bugs', t('view.bugs'), BugIcon], ['kanban', t('view.kanban'), SquareKanban], ['rounds', t('view.rounds'), FlaskConical]]} />
         {view !== 'rounds' && (
           <>
             <SelectField className="w-40" label={t('severity')} value={sev} allowEmpty placeholder={tc('all')} onChange={setSev} options={options(SEVERITIES)} />

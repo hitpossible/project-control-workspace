@@ -1,12 +1,13 @@
 'use client';
 
-import { ChevronDown, RefreshCw, Sparkles, Trash2, UserPlus } from 'lucide-react';
+import { Check, ChevronDown, RefreshCw, Sparkles, Trash2, UserPlus, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { dispatchEmails, useApp } from '@/providers/AppProvider';
 import { BoardGroup, Person } from '@/components/shared/labels';
 import { EmptyState } from '@/components/shared/layout';
+import { CountUp, Skeleton } from '@/components/shared/motion';
 import { SelectField } from '@/components/shared/form';
 import { Tip } from '@/components/shared/Tip';
 import { LevelBadge } from '@/components/shared/skills';
@@ -24,6 +25,12 @@ import type { TabProps } from './types';
 
 const levelOpts = SKILL_LEVELS.map((l) => ({ value: String(l), label: String(l) }));
 const scoreColor = (v: number) => (v >= 75 ? '#00c875' : v >= 50 ? '#fdab3d' : '#e2445c');
+const PARTS = ['skill', 'availability', 'track', 'domain'] as const;
+/** the calculation is usually instant — keep the "working" state up long enough to read */
+const MIN_CALC_MS = 1300;
+const STEP_MS = 320;
+/** cards shown before "show all" — fills two or three columns evenly */
+const TOP = 6;
 
 /** Team tab: what skills the project needs (leader edits) and the developers who fit best */
 export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'data' | 'perm' | 'reload'>) {
@@ -37,6 +44,8 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
   const [reqs, setReqs] = useState<ProjectSkillRequirement[]>([]);
   const [rec, setRec] = useState<MemberRecommendations | null>(null);
   const [busy, setBusy] = useState(false);
+  /** bumped on every visible recalculation so the result list animates in again */
+  const [round, setRound] = useState(0);
   const [draft, setDraft] = useState({ skill: '', level: '3', weight: '3', mandatory: false });
   const [showAll, setShowAll] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
@@ -44,13 +53,18 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
   const [suggest, setSuggest] = useState<AiState | null>(null);
   const canPlan = perm.manage || hasRole('supervisor', 'manager');
 
-  const recommend = useCallback(async () => {
+  /** quiet = refresh the numbers in place (e.g. after adding someone) without the calculating animation */
+  const recommend = useCallback(async (quiet = false) => {
     if (!canPlan) return;
-    setBusy(true);
-    const { data: r, error } = await db.rpc<MemberRecommendations>('recommend_members', { p_project_id: pid });
+    if (!quiet) setBusy(true);
+    const [{ data: r, error }] = await Promise.all([
+      db.rpc<MemberRecommendations>('recommend_members', { p_project_id: pid }),
+      quiet ? null : new Promise((ok) => setTimeout(ok, MIN_CALC_MS)),
+    ]);
     setBusy(false);
     if (error) return notify(errMsg(error), 'error');
     setRec(r);
+    if (!quiet) setRound((n) => n + 1);
   }, [db, pid, canPlan, notify]);
 
   const load = useCallback(async () => {
@@ -101,12 +115,12 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
     notify(t('added', { name: profileName(uid) }));
     dispatchEmails();
     await reload();
-    await recommend();
+    await recommend(true);
   };
 
   const free = skills.filter((s) => s.is_active && !reqs.some((r) => r.skill_id === s.id));
   const list = rec?.candidates ?? [];
-  const shown = showAll ? list : list.slice(0, 5);
+  const shown = showAll ? list : list.slice(0, TOP);
 
   return (
     <>
@@ -172,9 +186,9 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
         <BoardGroup
           title={t('recommended')}
           color="#00c875"
-          actions={reqs.length > 0 && <Button variant="outline" size="sm" disabled={busy} onClick={recommend}><RefreshCw className={cn(busy && 'animate-spin')} /> {t('recalculate')}</Button>}
+          actions={reqs.length > 0 && <Button variant="outline" size="sm" disabled={busy} onClick={() => recommend()}><RefreshCw className={cn(busy && 'animate-spin')} /> {t('recalculate')}</Button>}
         >
-          {!reqs.length ? <EmptyState text={t('needRequirements')} /> : !rec ? null : (
+          {!reqs.length ? <EmptyState text={t('needRequirements')} /> : busy ? <Calculating /> : !rec ? null : (
             <div className="p-3">
               <p className="mb-3 text-sm text-muted-foreground">
                 {t('windowNote', { from: fmtDate(rec.window.from), to: fmtDate(rec.window.to), days: rec.window.workdays })}{' '}
@@ -182,25 +196,42 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
                 {!rec.hasProjectType && ` ${t('noType')}`}
               </p>
               {!list.length ? <EmptyState text={t('noDevelopers')} /> : (
-                <div className="flex flex-col gap-2">
-                  {shown.map((c, i) => (
-                    <div key={c.user_id} className={cn('rounded-md border border-grid bg-white', !c.eligible && 'opacity-70')}>
-                      <div className="flex flex-wrap items-center gap-3 p-3">
-                        <span className="w-6 text-center text-sm font-semibold text-muted-foreground">{i + 1}</span>
-                        <div className="w-52 min-w-0"><Person name={profileName(c.user_id)} /></div>
-                        <div className="flex w-20 flex-col items-center">
-                          <span className="text-xl font-semibold tabular-nums" style={{ color: scoreColor(c.score) }}>{c.score}</span>
-                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('score')}</span>
-                        </div>
-                        <div className="grid min-w-56 flex-1 grid-cols-4 gap-2 text-center text-xs">
-                          {(['skill', 'availability', 'track', 'domain'] as const).map((k) => (
-                            <div key={k}>
-                              <div className="text-muted-foreground">{t(`part.${k}`)}</div>
-                              <div className="font-medium tabular-nums">{c.parts[k] ?? '–'}</div>
+                <div key={round}>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {shown.map((c, i) => (
+                      <div key={c.user_id} className={cn('motion-rise flex flex-col rounded-lg border border-grid border-t-4 bg-white', !c.eligible && 'opacity-75')}
+                        style={{ animationDelay: `${Math.min(i, 8) * 70}ms`, borderTopColor: scoreColor(c.score) }}>
+                        <div className="flex items-start gap-3 p-3 pb-2">
+                          <span className={cn('grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold', i === 0 ? 'bg-[#00c875] text-white' : 'bg-muted text-muted-foreground')}>{i + 1}</span>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <Person name={profileName(c.user_id)} size={32} />
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {c.is_member && <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{t('inTeam')}</span>}
+                              {!c.eligible && <span className="rounded bg-[#e2445c]/10 px-1.5 py-0.5 text-[11px] text-[#b3243a]">{t('missingMandatory')}</span>}
                             </div>
-                          ))}
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end">
+                            <span className="text-3xl leading-none font-semibold tabular-nums" style={{ color: scoreColor(c.score) }}><CountUp value={c.score} duration={900} /></span>
+                            <span className="mt-1 text-[10px] tracking-wide text-muted-foreground uppercase">{t('score')}</span>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-col gap-1.5 px-3 py-2">
+                          {PARTS.map((k, j) => {
+                            const v = c.parts[k];
+                            return (
+                              <div key={k} className="text-xs">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">{t(`part.${k}`)}</span>
+                                  <span className="font-medium tabular-nums">{v === null ? '–' : <CountUp value={v} />}</span>
+                                </div>
+                                <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                                  {v !== null && <div className="motion-grow-x h-full origin-left rounded-full bg-[#579bfc]" style={{ width: `${v}%`, animationDelay: `${Math.min(i, 8) * 70 + 120 + j * 60}ms` }} />}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex flex-wrap gap-1 px-3 py-2">
                           {c.fit.map((f) => (
                             <Tip key={f.skill_id} title={`${skillName(f.skill_id)}: ${f.level || '–'} / ${f.required}${f.verified ? '' : ` (${ts('legend.self')})`}${f.stale ? ` · ${ts('legend.stale')}` : ''}`}>
                               <span className={cn('rounded px-1.5 py-0.5 text-[11px]', f.met ? 'bg-[#00c875]/15 text-[#007a48]' : 'bg-[#e2445c]/10 text-[#b3243a]')}>
@@ -209,30 +240,27 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
                             </Tip>
                           ))}
                         </div>
-                        <div className="ml-auto flex items-center gap-2">
-                          {!c.eligible && <span className="rounded bg-[#e2445c]/10 px-1.5 py-0.5 text-[11px] text-[#b3243a]">{t('missingMandatory')}</span>}
-                          {c.is_member
-                            ? <span className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">{t('inTeam')}</span>
-                            : perm.manage && <Button size="sm" variant="outline" onClick={() => addMember(c.user_id)}><UserPlus /> {t('addToTeam')}</Button>}
-                          <Button variant="ghost" size="icon-sm" aria-label={t('whyLabel')} aria-expanded={open === c.user_id} onClick={() => setOpen(open === c.user_id ? null : c.user_id)}>
-                            <ChevronDown className={cn('transition-transform', open === c.user_id && 'rotate-180')} />
+                        {open === c.user_id && (
+                          <ul className="mx-3 mb-2 flex list-disc flex-col gap-1 rounded-md bg-muted/50 py-2 pr-2 pl-6 text-xs text-muted-foreground">
+                            <li>{t('why.skill', { value: c.parts.skill })}</li>
+                            <li>{t('why.leave', { leave: c.load.leaveDays, days: c.load.workdays })}</li>
+                            <li>{t('why.load', { projects: c.load.activeProjects, items: c.load.openItems })}</li>
+                            <li>{t('why.track', { onTime: c.load.onTimeTasks, done: c.load.doneTasks })}</li>
+                            {c.parts.domain !== null && <li>{t('why.domain', { count: c.load.sameTypeProjects })}</li>}
+                          </ul>
+                        )}
+                        <div className="mt-auto flex items-center gap-2 border-t border-grid p-2">
+                          <Button variant="ghost" size="sm" className="text-muted-foreground" aria-expanded={open === c.user_id} onClick={() => setOpen(open === c.user_id ? null : c.user_id)}>
+                            {t('whyLabel')} <ChevronDown className={cn('transition-transform', open === c.user_id && 'rotate-180')} />
                           </Button>
+                          {!c.is_member && perm.manage && <Button size="sm" variant="outline" className="ml-auto" onClick={() => addMember(c.user_id)}><UserPlus /> {t('addToTeam')}</Button>}
                         </div>
                       </div>
-                      {open === c.user_id && (
-                        <ul className="grid gap-1 border-t border-grid px-12 py-2 text-xs text-muted-foreground sm:grid-cols-2">
-                          <li>{t('why.skill', { value: c.parts.skill })}</li>
-                          <li>{t('why.leave', { leave: c.load.leaveDays, days: c.load.workdays })}</li>
-                          <li>{t('why.load', { projects: c.load.activeProjects, items: c.load.openItems })}</li>
-                          <li>{t('why.track', { onTime: c.load.onTimeTasks, done: c.load.doneTasks })}</li>
-                          {c.parts.domain !== null && <li>{t('why.domain', { count: c.load.sameTypeProjects })}</li>}
-                        </ul>
-                      )}
-                    </div>
-                  ))}
-                  {list.length > 5 && (
-                    <Button variant="ghost" size="sm" className="self-start" onClick={() => setShowAll(!showAll)}>
-                      {showAll ? t('showTop') : t('showAll', { count: list.length })}
+                    ))}
+                  </div>
+                  {list.length > TOP && (
+                    <Button variant="ghost" size="sm" className="mt-2" onClick={() => setShowAll(!showAll)}>
+                      {showAll ? t('showTop', { count: TOP }) : t('showAll', { count: list.length })}
                     </Button>
                   )}
                 </div>
@@ -244,6 +272,59 @@ export default function SkillFitPanel({ data, perm, reload }: Pick<TabProps, 'da
       )}
       {canPlan && suggest && <SuggestDialog key={suggest.state} ai={suggest} projectId={pid} skills={skills} onClose={() => setSuggest(null)} onAdded={load} />}
     </>
+  );
+}
+
+/** Shown while the ranking is worked out: steps through what the score looks at, over placeholder rows */
+function Calculating() {
+  const t = useTranslations('skills.fit');
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setStep((s) => Math.min(s + 1, PARTS.length - 1)), STEP_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div role="status" aria-live="polite" className="p-3">
+      <div className="flex items-start gap-3 rounded-md border border-grid bg-white p-3">
+        <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-[#00c875]/15 text-[#00a35c]">
+          <span className="absolute inset-0 animate-ping rounded-full bg-[#00c875]/25 motion-reduce:animate-none" />
+          <Users className="relative size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold">{t('calculating.title')}</div>
+          <div key={step} className="motion-rise text-xs text-muted-foreground">{t(`calculating.${PARTS[step]}`)}</div>
+          <div className="mt-2.5 grid grid-cols-4 gap-2">
+            {PARTS.map((k, i) => (
+              <div key={k}>
+                <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
+                  {i < step && <div className="motion-grow-x absolute inset-0 origin-left rounded-full bg-[#00c875]" />}
+                  {i === step && <div className="skeleton absolute inset-0 rounded-full" />}
+                </div>
+                <div className={cn('mt-1 flex items-center gap-1 text-[11px] transition-colors', i <= step ? 'text-foreground' : 'text-muted-foreground')}>
+                  {i < step && <Check className="size-3 text-[#00c875]" />}{t(`part.${k}`)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {[0, 1, 2].map((r) => (
+          <div key={r} className={cn('rounded-lg border border-grid border-t-4 border-t-[#e3e6ec] bg-white p-3', r === 1 && 'hidden sm:block', r === 2 && 'hidden xl:block')}>
+            <div className="flex items-start gap-3">
+              <Skeleton className="size-7 shrink-0 rounded-full" />
+              <Skeleton className="size-8 shrink-0 rounded-full" />
+              <Skeleton className="mt-2 h-3.5 flex-1" />
+              <Skeleton className="h-8 w-10" />
+            </div>
+            <div className="mt-4 flex flex-col gap-3">{PARTS.map((k) => <Skeleton key={k} className="h-2.5" />)}</div>
+            <div className="mt-4 flex gap-1">{[0, 1, 2].map((s) => <Skeleton key={s} className="h-5 w-16" />)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

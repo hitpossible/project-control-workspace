@@ -1,6 +1,6 @@
 'use client';
 
-import { CornerDownRight, Lock, Plus } from 'lucide-react';
+import { ChartGantt, CornerDownRight, Lock, Plus, SquareKanban, Table2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
@@ -93,7 +93,7 @@ export default function InternalTab({ data, perm, reload, memberProfiles, focusT
         <AlertDescription>{ti('notice')}</AlertDescription>
       </Alert>
       <div className="no-print mb-5 flex flex-wrap items-end gap-3">
-        <ViewToggle value={view} onChange={setView} options={[['table', ti('view.table')], ['kanban', ti('view.kanban')], ['gantt', ti('view.gantt')]]} />
+        <ViewToggle value={view} onChange={setView} options={[['table', ti('view.table'), Table2], ['kanban', ti('view.kanban'), SquareKanban], ['gantt', ti('view.gantt'), ChartGantt]]} />
         <SelectField className="w-48" label={ti('owner')} value={owner} allowEmpty placeholder={tc('all')} onChange={setOwner}
           options={[{ value: 'me', label: ti('assignedToMe') }, ...owners.map((o) => ({ value: String(o), label: profileName(o) }))]} />
         <SelectField className="w-44" label={ti('status')} value={status} allowEmpty placeholder={tc('all')} onChange={setStatus}

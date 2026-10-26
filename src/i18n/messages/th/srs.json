@@ -149,6 +149,7 @@
     "removed": "ลบลายเซ็นแล้ว",
     "remove": "ลบ",
     "redraw": "วาดใหม่",
+    "cancel": "ใช้ลายเซ็นเดิม",
     "close": "ปิด"
   },
   "pageOf": "หน้า {page} จาก {total}"
