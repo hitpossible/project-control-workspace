@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { Profile } from '@/lib/types';
+import { bearerToken, userFromToken } from './api-tokens';
 import { currentUser } from './auth';
 import { AppError } from './db';
 
@@ -11,6 +12,24 @@ export function withUser(fn: (me: Profile, req: Request, params: Record<string, 
       if (!me) return NextResponse.json({ error: { message: 'Not signed in', status: 401 } }, { status: 401 });
       const out = await fn(me, req, await ctx.params);
       return out instanceof Response ? out : NextResponse.json(out ?? { data: null });
+    } catch (e) {
+      return errorResponse(e);
+    }
+  };
+}
+
+/**
+ * Like withUser, but also accepts a personal access token (Authorization: Bearer pcw_…) — for read-only routes
+ * that a user's own tools may call. A request that sends a token is judged by the token alone.
+ */
+export function withApiUser(fn: (me: Profile, req: Request, params: Record<string, string>) => Promise<unknown>) {
+  return async (req: Request, ctx: { params: Promise<Record<string, string>> }) => {
+    try {
+      const token = bearerToken(req);
+      const me = token ? await userFromToken(token) : req.headers.has('authorization') ? null : await currentUser();
+      if (!me) return NextResponse.json({ error: { message: token ? 'Invalid or expired token' : 'Not signed in', status: 401 } }, { status: 401 });
+      const out = await fn(me, req, await ctx.params);
+      return out instanceof Response ? out : NextResponse.json(out ?? { data: null }, { headers: { 'Cache-Control': 'private, no-store' } });
     } catch (e) {
       return errorResponse(e);
     }

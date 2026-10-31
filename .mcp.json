@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "pcw-tasks": {
+      "command": "node",
+      "args": ["mcp/pcw-tasks.mjs"],
+      "env": {
+        "PCW_URL": "${PCW_URL:-http://localhost:3000}",
+        "PCW_TOKEN": "${PCW_TOKEN:-}"
+      }
+    }
+  }
+}

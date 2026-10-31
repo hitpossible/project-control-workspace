@@ -8,6 +8,7 @@ import { useApp } from '@/providers/AppProvider';
 import { Field, PageHeader, Section } from '@/components/shared/layout';
 import { Person } from '@/components/shared/labels';
 import MySignature from '@/components/srs/MySignature';
+import ApiTokens from './_components/ApiTokens';
 
 /** The signed-in user's own page: account details (read-only, from AD) and their signature */
 export default function ProfilePage() {
@@ -52,6 +53,11 @@ export default function ProfilePage() {
       <Section title={ts('title')}>
         <p className="mb-3 text-sm text-muted-foreground">{ts('description')}</p>
         <MySignature />
+      </Section>
+
+      <Section title={t('tokens.title')}>
+        <p className="mb-3 text-sm text-muted-foreground">{t('tokens.description')}</p>
+        <ApiTokens />
       </Section>
     </div>
   );

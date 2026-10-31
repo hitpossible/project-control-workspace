@@ -14,5 +14,29 @@
     "extension": "เบอร์ภายใน",
     "roles": "บทบาท",
     "lastLogin": "เข้าสู่ระบบล่าสุด"
+  },
+  "tokens": {
+    "title": "API token",
+    "description": "ให้เครื่องมือของคุณเอง เช่น ผู้ช่วย AI อ่านงานของคุณได้โดยไม่ต้องเข้าสู่ระบบ token ทำงานในนามคุณ จึงควรเก็บเป็นความลับ และยกเลิกเมื่อไม่ใช้แล้ว",
+    "name": "ชื่อ token",
+    "namePlaceholder": "เช่น Claude Code บนโน้ตบุ๊ก",
+    "expires": "หมดอายุ",
+    "days": "{count} วัน",
+    "never": "ไม่หมดอายุ",
+    "create": "สร้าง token",
+    "createdNote": "คัดลอก token นี้เก็บไว้ตอนนี้ ระบบจะไม่แสดงอีก",
+    "copy": "คัดลอก",
+    "copied": "คัดลอกแล้ว",
+    "done": "เสร็จ",
+    "empty": "ยังไม่มี token",
+    "createdAt": "สร้างเมื่อ {date}",
+    "lastUsed": "ใช้ล่าสุด {date}",
+    "neverUsed": "ยังไม่เคยใช้",
+    "expiresAt": "หมดอายุ {date}",
+    "noExpiry": "ไม่หมดอายุ",
+    "revoke": "ยกเลิก",
+    "revokeConfirm": "ยกเลิก \"{name}\" ใช่ไหม",
+    "revokeHint": "เครื่องมือที่ใช้ token นี้จะใช้งานไม่ได้ทันที",
+    "revoked": "ยกเลิก token แล้ว"
   }
 }

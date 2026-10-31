@@ -14,5 +14,29 @@
     "extension": "Extension",
     "roles": "Roles",
     "lastLogin": "Last login"
+  },
+  "tokens": {
+    "title": "API tokens",
+    "description": "Let your own tools — such as an AI assistant — read your tasks without signing in. A token acts as you, so keep it private and revoke it when you no longer use it.",
+    "name": "Token name",
+    "namePlaceholder": "e.g. Claude Code on my laptop",
+    "expires": "Expires",
+    "days": "{count} days",
+    "never": "Never",
+    "create": "Create token",
+    "createdNote": "Copy this token now — it will not be shown again.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "done": "Done",
+    "empty": "No tokens yet.",
+    "createdAt": "Created {date}",
+    "lastUsed": "last used {date}",
+    "neverUsed": "never used",
+    "expiresAt": "expires {date}",
+    "noExpiry": "no expiry",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke \"{name}\"?",
+    "revokeHint": "Tools using this token stop working immediately.",
+    "revoked": "Token revoked"
   }
 }
