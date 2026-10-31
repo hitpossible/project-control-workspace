@@ -110,13 +110,17 @@ All tables use INT AUTO_INCREMENT ids (`audit_logs`: BIGINT). Ids are per table,
 
 ### AI assistant (MCP)
 
-An AI assistant such as Claude Code can read your open work through `mcp/pcw-tasks.mjs`, an MCP server registered in `.mcp.json`. It has one tool, `get_my_agenda`, which returns your open tasks, review tasks, bugs and pending retests. Each item is tagged `overdue` / `today` / `this_week` / `later`.
+An AI assistant such as Claude Code can read and update your work through `mcp/pcw-tasks.mjs`, an MCP server registered in `.mcp.json`. It has three tools:
 
-1. Profile → **API tokens** → create a token. Copy it right away, because it is shown only once.
+- `get_my_agenda`: your open tasks, review tasks, bugs and pending retests. Each item is tagged `overdue` / `today` / `this_week` / `later`.
+- `get_work_item_detail`: one task or bug in full, including the description, steps to reproduce, fix cycles, retests, sub-tasks and comments.
+- `update_task_progress`: for a task, sets status / progress and adds a comment. For a bug, runs `start_fix` or `fix_ready` and adds a comment. This tool needs a **Read & update** token. It cannot complete or cancel a task, because the reviewer or leader does that. Comments it posts are prefixed `[via AI assistant]`.
+
+1. Profile → **API tokens** → create a token. Choose **Read only** or **Read & update**. Copy it right away, because it is shown only once.
 2. `export PCW_TOKEN=pcw_…` (and `PCW_URL=…` if the app is not on `http://localhost:3000`), then start `claude` in this folder and approve the `pcw-tasks` server.
 3. Ask "what do I have to do today?"
 
-The token calls `GET /api/me/agenda?date=YYYY-MM-DD` as you. Bearer tokens work only on routes wrapped in `withApiUser` (`src/server/api.ts`), and they cannot create other tokens. Only a SHA-256 of each token is stored (`api_tokens`). Revoking a token on the Profile page stops it right away.
+The tools call `GET /api/me/agenda?date=YYYY-MM-DD` and `GET` / `POST /api/me/work/<task|bug>/<id>` as you. These routes use the same table policies (`runQuery`) and QA workflow functions as the UI, so a token can do only what you can do in the browser. Every change lands in the audit log. Bearer tokens work only on routes wrapped in `withApiUser` (`src/server/api.ts`). Write routes need a write-scope token, and tokens cannot create other tokens. Only a SHA-256 of each token is stored (`api_tokens`). Revoking a token on the Profile page stops it right away.
 
 The seed runs the **real workflow through the same server functions and access policies as the API**: 3 converted projects (one delayed with recovery plan, one on track, one still planning), plus requests in Approved / Waiting System Review / Waiting Requestor Approval / Draft, QA bugs / retests, a pending baseline revision and a workforce plan.
 

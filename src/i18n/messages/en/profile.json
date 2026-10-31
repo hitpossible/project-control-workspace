@@ -17,7 +17,7 @@
   },
   "tokens": {
     "title": "API tokens",
-    "description": "Let your own tools — such as an AI assistant — read your tasks without signing in. A token acts as you, so keep it private and revoke it when you no longer use it.",
+    "description": "Let your own tools — such as an AI assistant — read your tasks without signing in. \"Read & update\" also lets them change the status / progress of your tasks and bugs and comment on them, as you. A token acts as you, so keep it private and revoke it when you no longer use it.",
     "name": "Token name",
     "namePlaceholder": "e.g. Claude Code on my laptop",
     "expires": "Expires",
@@ -37,6 +37,9 @@
     "revoke": "Revoke",
     "revokeConfirm": "Revoke \"{name}\"?",
     "revokeHint": "Tools using this token stop working immediately.",
-    "revoked": "Token revoked"
+    "revoked": "Token revoked",
+    "scope": "Access",
+    "scopeRead": "Read only",
+    "scopeWrite": "Read & update"
   }
 }
