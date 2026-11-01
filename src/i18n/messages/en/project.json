@@ -662,5 +662,38 @@
       "createdSkipped": "{n} tasks created, {skipped} already had one",
       "recordedAt": "Recorded {when}"
     }
+  },
+  "gettingStarted": {
+    "title": "Get the project started",
+    "progress": "{done} of {total} done",
+    "intro": "The usual order for a new project. Each step is ticked when its data exists.",
+    "open": "Open",
+    "team": {
+      "title": "Add the team",
+      "hint": "Developers and QA who will work on it (Team tab)."
+    },
+    "meeting": {
+      "title": "Hold the first meeting with the requestor",
+      "hint": "Schedule it, send the invitation, and record the MOM (Meetings tab)."
+    },
+    "requirements": {
+      "title": "Approve the requirements",
+      "hint": "Review the drafts and approve what is in scope (Requirements tab)."
+    },
+    "tasks": {
+      "title": "Turn requirements into tasks",
+      "hint": "The convert button on the Requirements tab puts approved requirements in the internal plan."
+    },
+    "baseline": {
+      "title": "Set Baseline V1",
+      "hint": "Lock the plan once the scope and dates are agreed (Baseline tab)."
+    }
+  },
+  "tabGroup": {
+    "overview": "Overview",
+    "scope": "Scope",
+    "plan": "Plan",
+    "team": "Team & meetings",
+    "quality": "Quality"
   }
 }

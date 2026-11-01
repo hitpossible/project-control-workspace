@@ -7,6 +7,7 @@ import { dispatchEmails, useApp } from '@/providers/AppProvider';
 import { DateField, SelectField, TextField, UserSelect } from '@/components/shared/form';
 import { HealthDot, Person, ProgressBar, StatusChip } from '@/components/shared/labels';
 import { Section } from '@/components/shared/layout';
+import GettingStarted from './GettingStarted';
 import InsightList from '@/components/shared/InsightList';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -77,6 +78,8 @@ export default function OverviewTab({ data, perm, reload }: TabProps) {
             <AlertDescription><ul className="list-disc pl-4">{p.attention.map((a) => <li key={a}>{a}</li>)}</ul></AlertDescription>
           </Alert>
         )}
+
+        {perm.manage && !['completed', 'cancelled'].includes(p.status) && <GettingStarted data={data} internal={perm.internal} />}
 
         <Section title={t('focus')} actions={perm.manage && <Button variant="ghost" size="sm" className="no-print" onClick={() => setEdit(true)}><Pencil /> {t('edit')}</Button>}>
           <div className="rounded-lg border-l-4 border-primary bg-[#eef5ff] px-4 py-3">

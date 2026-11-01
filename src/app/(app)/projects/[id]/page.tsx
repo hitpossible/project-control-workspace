@@ -123,22 +123,32 @@ function Workspace() {
   const openCrs = data.changeRequests.filter((c) => ['submitted', 'assessed', 'agreed', 'approved'].includes(c.status)).length;
   const setTab = (t: string) => router.replace(`/projects/${id}?tab=${t}`, { scroll: false });
 
-  const tabs = [
-    { v: 'overview', l: tp('tab.overview') },
-    { v: 'plan', l: tp('tab.plan') },
-    ...(perm.internal ? [{ v: 'definition', l: tp('tab.definition') }] : []),
-    ...(perm.internal ? [{ v: 'internal', l: tp('tab.internal') }] : []),
-    ...(perm.internal ? [{ v: 'qa', l: `${tp('tab.qa')}${p.open_bugs ? ` (${p.open_bugs})` : ''}` }] : []),
-    ...(perm.internal ? [{ v: 'design', l: tp('tab.design') }] : []),
-    { v: 'requirements', l: `${tp('tab.requirements')}${data.reqs.length ? ` (${data.reqs.length})` : ''}` },
-    { v: 'meetings', l: `${tp('tab.meetings')}${data.meetings.length ? ` (${data.meetings.length})` : ''}` },
-    { v: 'changes', l: `${tp('tab.changes')}${openCrs ? ` (${openCrs})` : ''}` },
-    { v: 'srs', l: tp('tab.srs') },
-    { v: 'team', l: tp('tab.team') },
-    { v: 'baseline', l: `${tp('tab.baseline')}${p.baseline_version ? ` (V${p.baseline_version})` : ''}` },
-    { v: 'evidence', l: tp('tab.evidence') },
-    ...(perm.internal ? [{ v: 'history', l: tp('tab.history') }] : []),
-  ];
+  // 13 tabs in one row was too many: grouped by what people are doing; ?tab= keeps naming the single tab, so every link still works
+  const all: Record<string, { l: string; alert?: number; show: boolean }> = {
+    overview: { l: tp('tab.overview'), show: true },
+    history: { l: tp('tab.history'), show: perm.internal },
+    definition: { l: tp('tab.definition'), show: perm.internal },
+    requirements: { l: `${tp('tab.requirements')}${data.reqs.length ? ` (${data.reqs.length})` : ''}`, show: true },
+    changes: { l: `${tp('tab.changes')}${openCrs ? ` (${openCrs})` : ''}`, alert: openCrs, show: true },
+    srs: { l: tp('tab.srs'), show: true },
+    plan: { l: tp('tab.plan'), show: true },
+    internal: { l: tp('tab.internal'), show: perm.internal },
+    design: { l: tp('tab.design'), show: perm.internal },
+    baseline: { l: `${tp('tab.baseline')}${p.baseline_version ? ` (V${p.baseline_version})` : ''}`, show: true },
+    team: { l: tp('tab.team'), show: true },
+    meetings: { l: `${tp('tab.meetings')}${data.meetings.length ? ` (${data.meetings.length})` : ''}`, show: true },
+    qa: { l: `${tp('tab.qa')}${p.open_bugs ? ` (${p.open_bugs})` : ''}`, alert: p.open_bugs, show: perm.internal },
+    evidence: { l: tp('tab.evidence'), show: true },
+  };
+  const groups = ([
+    { k: 'overview', tabs: ['overview', 'history'] },
+    { k: 'scope', tabs: ['definition', 'requirements', 'changes', 'srs'] },
+    { k: 'plan', tabs: ['plan', 'internal', 'design', 'baseline'] },
+    { k: 'team', tabs: ['team', 'meetings'] },
+    { k: 'quality', tabs: ['qa', 'evidence'] },
+  ] as { k: 'overview' | 'scope' | 'plan' | 'team' | 'quality'; tabs: string[] }[]).map((g) => ({ ...g, tabs: g.tabs.filter((t) => all[t].show) })).filter((g) => g.tabs.length);
+  const group = groups.find((g) => g.tabs.includes(tab)) ?? groups[0];
+  const activeTab = group.tabs.includes(tab) ? tab : 'overview';
 
   // keyed by entityKey(): ids are per table, so activity 5 and task 5 are different things
   const names: Record<string, string> = Object.fromEntries([
@@ -177,28 +187,37 @@ function Workspace() {
           <CloseProjectButton data={data} perm={perm} reload={load} />
         </>}
       />
-      <Tabs value={tabs.some((t) => t.v === tab) ? tab : 'overview'} onValueChange={setTab} className="no-print mb-5">
+      <Tabs value={group.k} onValueChange={(k) => setTab(groups.find((g) => g.k === k)!.tabs[0])} className="no-print mb-2">
         <TabsList variant="line" className="w-full justify-start overflow-x-auto overflow-y-hidden border-b border-grid">
-          {tabs.map((t) => <TabsTrigger key={t.v} value={t.v} className="flex-none px-3">{t.l}</TabsTrigger>)}
+          {groups.map((g) => {
+            const alert = g.tabs.reduce((n, t) => n + (all[t].alert ?? 0), 0);
+            return <TabsTrigger key={g.k} value={g.k} className="flex-none px-3">{tp(`tabGroup.${g.k}`)}{alert ? ` (${alert})` : ''}</TabsTrigger>;
+          })}
         </TabsList>
       </Tabs>
+      {group.tabs.length > 1 && (
+        <Tabs value={activeTab} onValueChange={setTab} className="no-print mb-5">
+          <TabsList>{group.tabs.map((t) => <TabsTrigger key={t} value={t} className="flex-none px-3">{all[t].l}</TabsTrigger>)}</TabsList>
+        </Tabs>
+      )}
+      {group.tabs.length <= 1 && <div className="mb-3" />}
 
       {/* keyed so the panel eases in on every tab switch */}
-      <div key={tab} className="motion-rise">
-      {tab === 'overview' && <OverviewTab {...ctx} />}
-      {tab === 'plan' && <PlanTab {...ctx} />}
-      {tab === 'definition' && perm.internal && <DefinitionTab {...ctx} />}
-      {tab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={toId(params.get('task'))} focusPanel={params.get('panel')} />}
-      {tab === 'qa' && perm.internal && <QaTab {...ctx} focusBug={toId(params.get('bug'))} focusPanel={params.get('panel')} />}
-      {tab === 'design' && perm.internal && <DesignTab {...ctx} />}
-      {tab === 'srs' && <SrsTab {...ctx} />}
-      {tab === 'team' && <TeamTab {...ctx} />}
-      {tab === 'requirements' && <RequirementsTab {...ctx} />}
-      {tab === 'meetings' && <MeetingsTab {...ctx} />}
-      {tab === 'changes' && <ChangesTab {...ctx} focusCr={toId(params.get('cr'))} />}
-      {tab === 'baseline' && <BaselineTab {...ctx} linkCr={toId(params.get('cr'))} />}
-      {tab === 'evidence' && <EvidenceTab {...ctx} names={names} />}
-      {tab === 'history' && perm.internal && <AuditHistory projectId={p.id} names={names} />}
+      <div key={activeTab} className="motion-rise">
+      {activeTab === 'overview' && <OverviewTab {...ctx} />}
+      {activeTab === 'plan' && <PlanTab {...ctx} />}
+      {activeTab === 'definition' && perm.internal && <DefinitionTab {...ctx} />}
+      {activeTab === 'internal' && perm.internal && <InternalTab {...ctx} focusTask={toId(params.get('task'))} focusPanel={params.get('panel')} />}
+      {activeTab === 'qa' && perm.internal && <QaTab {...ctx} focusBug={toId(params.get('bug'))} focusPanel={params.get('panel')} />}
+      {activeTab === 'design' && perm.internal && <DesignTab {...ctx} />}
+      {activeTab === 'srs' && <SrsTab {...ctx} />}
+      {activeTab === 'team' && <TeamTab {...ctx} />}
+      {activeTab === 'requirements' && <RequirementsTab {...ctx} />}
+      {activeTab === 'meetings' && <MeetingsTab {...ctx} />}
+      {activeTab === 'changes' && <ChangesTab {...ctx} focusCr={toId(params.get('cr'))} />}
+      {activeTab === 'baseline' && <BaselineTab {...ctx} linkCr={toId(params.get('cr'))} />}
+      {activeTab === 'evidence' && <EvidenceTab {...ctx} names={names} />}
+      {activeTab === 'history' && perm.internal && <AuditHistory projectId={p.id} names={names} />}
       </div>
     </>
   );
