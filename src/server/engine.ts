@@ -16,6 +16,8 @@ const ME_DEFAULTS: Record<string, string[]> = {
   internal_tasks: ['created_by'],
   work_links: ['created_by'],
   project_requirements: ['created_by'],
+  project_meetings: ['created_by'],
+  meeting_invitations: ['sent_by'],
   evidence: ['uploaded_by'],
   test_rounds: ['created_by'],
   bugs: ['reporter_id'],
@@ -33,10 +35,12 @@ const JSON_DEFAULTS: Record<string, Row> = {
   notification_rules: { recipient_roles: ['explicit'], channels: ['in_app', 'email'], escalate_roles: [] },
   comments: { mentions: [] },
   srs_documents: { pages: [] },
+  project_meetings: { agenda: [], attendees: [], mom_discussion: [], mom_decisions: [], mom_actions: [], mom_questions: [], mom_info: [] },
+  meeting_invitations: { recipients: [] },
 };
 
 /** updated_at / updated_by maintained on update (was touch_updated) */
-const TOUCH = new Set(['project_requests', 'projects', 'activities', 'internal_tasks', 'test_rounds', 'bugs', 'change_requests', 'project_requirements']);
+const TOUCH = new Set(['project_requests', 'projects', 'activities', 'internal_tasks', 'test_rounds', 'bugs', 'change_requests', 'project_requirements', 'project_meetings']);
 /** board arrangement only (Kanban order) — not an edit of the record, so it does not touch updated_at / updated_by */
 const LAYOUT_ONLY = new Set(['board_rank']);
 
@@ -59,6 +63,8 @@ const AUDIT: Record<string, { ops: ('insert' | 'update' | 'delete')[]; fields: s
   work_links: { ops: ['insert', 'delete'], fields: [] },
   change_requests: { ops: ['insert', 'update'], fields: ['status', 'title', 'impact_md', 'impact_target', 'impact_summary', 'agreed_by', 'decided_by', 'decision_comment'] },
   project_requirements: { ops: ['insert', 'update'], fields: ['status', 'title', 'priority', 'category', 'estimated_md'] },
+  project_meetings: { ops: ['insert', 'update', 'delete'], fields: ['status', 'title', 'start_at', 'location', 'online_link', 'mom_recorded_at'] },
+  meeting_invitations: { ops: ['insert'], fields: [] },
   workforce_plans: { ops: ['insert', 'update', 'delete'], fields: ['work_type', 'work_date', 'project_id', 'start_time', 'end_time'] },
   comments: { ops: ['update', 'delete'], fields: ['body'] },
   srs_documents: { ops: ['insert', 'update'], fields: ['status'] },

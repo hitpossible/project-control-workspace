@@ -213,6 +213,9 @@ export const POLICIES: Record<string, Policy> = {
   change_requests: { read: (ctx) => visibleProject(ctx) },
   // requirements: with the project (the requestor sees the scope); written only by rpc/requirements.ts
   project_requirements: { read: (ctx) => visibleProject(ctx) },
+  // meetings and MOM: readable with the project; written only by rpc/meetings.ts. The e-mail log is for the project team
+  project_meetings: { read: (ctx) => visibleProject(ctx) },
+  meeting_invitations: { read: (ctx) => internalProject(ctx) },
   // closure sign-off: with the project; written only by rpc/closure.ts
   project_closures: { read: (ctx) => visibleProject(ctx), hidden: ['signature_path'] },
 

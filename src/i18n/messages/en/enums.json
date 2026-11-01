@@ -308,5 +308,18 @@
     "draft": "Draft",
     "approved": "Approved",
     "dropped": "Dropped"
+  },
+  "meetingType": {
+    "kickoff": "Kick-off",
+    "requirement": "Requirement gathering",
+    "review": "Review",
+    "uat": "UAT",
+    "status": "Status update",
+    "other": "Other"
+  },
+  "meetingStatus": {
+    "planned": "Planned",
+    "held": "Held",
+    "cancelled": "Cancelled"
   }
 }

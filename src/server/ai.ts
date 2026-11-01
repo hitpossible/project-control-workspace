@@ -3,6 +3,7 @@ import { CRITERIA_PER_TURN, MAX_AI_TURNS, parseAiRequirements, type AiRequiremen
 import enEnums from '@/i18n/messages/en/enums.json';
 import { REDUCTION_ROWS } from '@/lib/constants';
 import type { DiagramDraft, DiagramKind } from '@/lib/diagram';
+import { fallbackInvitation, meetingDetailsText, parseAiInvitation, parseAiMom, type AgendaItem, type Attendee, type InviteKind, type MailLang, type MailMeeting, type MomInput } from '@/lib/meetings';
 import type { ProjectRequest } from '@/lib/types';
 
 /**
@@ -527,6 +528,74 @@ export async function suggestProjectSkills(project: { code: string; name: string
     return out;
   } catch (e) {
     console.warn('[ai] skill suggestion failed:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+const MEETING_MAIL = `You write e-mails for a project team of a manufacturing company's IT System Service department.
+Write a short, polite, professional e-mail about a meeting — the KIND tells what it is for: "invite" = invitation, "update" = the arrangement changed, "cancel" = the meeting is cancelled.
+Use ONLY the meeting facts given (title, date and time, place, online link, purpose, agenda). Never invent a date, place, link, name or agenda item.
+- 3 to 8 short lines before the closing; the date/time, place and online link must appear exactly as given, on their own lines.
+- For an invitation: say in one sentence why the meeting is held (from the purpose and the project context) and list the agenda as a numbered list; ask people to prepare what the agenda needs and to reply if they cannot attend.
+- For an update: say what to take note of (the details below are the current ones). For a cancel: apologise briefly and say a new date will be announced.
+- Plain text only, no markdown. Start with a greeting and end with the closing and the organizer's name given.
+Write in the OUTPUT LANGUAGE given.
+Reply with JSON only: {"subject": "...", "body": "..."}`;
+
+export interface MeetingMailContext {
+  kind: Exclude<InviteKind, 'mom'>; lang: MailLang; project: { code: string; name: string }; summary: string | null;
+  meeting: MailMeeting; organizer: string;
+}
+
+/** Draft of an invitation / update / cancellation e-mail; the plain template when the AI is off or fails. `ai` says which one it is. */
+export async function draftMeetingMail(c: MeetingMailContext): Promise<{ subject: string; body: string; ai: boolean }> {
+  const plain = { ...fallbackInvitation(c.kind, c.meeting, c.project, c.organizer, c.lang), ai: false };
+  if (!aiEnabled()) return plain;
+  const lines = [
+    `KIND: ${c.kind}`, `PROJECT ${c.project.code}: ${c.project.name}`, ...(c.summary ? [`PROJECT CONTEXT: ${c.summary}`] : []),
+    `MEETING #${c.meeting.meeting_no}: ${c.meeting.title}`, meetingDetailsText(c.meeting, c.lang), `ORGANIZER: ${c.organizer}`,
+    `OUTPUT LANGUAGE: ${c.lang === 'th' ? 'Thai' : 'English'}.`,
+  ];
+  try {
+    const out = parseAiInvitation(await chat(MEETING_MAIL, lines.join('\n')));
+    if (!out) throw new Error('unusable reply');
+    return { ...out, ai: true };
+  } catch (e) {
+    console.warn('[ai] meeting e-mail failed:', e instanceof Error ? e.message : e);
+    return plain;
+  }
+}
+
+const MEETING_MOM = `You are the secretary of a project meeting in a manufacturing company's IT System Service team.
+From the ROUGH NOTES, write the minutes of meeting (MOM). Use only what the notes say — never invent decisions, owners, dates or numbers.
+Reply with JSON only:
+{"summary": "3-5 lines", "discussion": [{"topic": "an AGENDA item title when it fits, else a short topic", "notes": "what was said"}],
+ "decisions": ["..."], "action_items": [{"text": "what must be done", "owner": "name exactly as in ATTENDEES, or empty", "due_date": "YYYY-MM-DD or empty"}],
+ "open_questions": ["..."], "information": [{"topic": "...", "detail": "facts the team learned about the system or the business: users, volumes, rules, interfaces, constraints"}]}
+- "information" is what the analysis of the system needs later: requirements, business rules, data, integrations, constraints, numbers. Keep it concrete.
+- An action item needs a real task in the notes; take the owner and due date only when the notes give them. Dates are relative to TODAY when the notes say "next Friday".
+- Use empty arrays for what the notes do not contain. Write in the OUTPUT LANGUAGE; keep names and technical terms as they are.`;
+
+export interface MeetingMomContext {
+  lang: MailLang; today: string; project: { code: string; name: string }; meeting: MailMeeting; attendees: Attendee[]; notes: string;
+}
+
+/** Structured MOM suggested from rough notes; null when the AI is off or failed. The user reviews it before it is applied. */
+export async function structureMom(c: MeetingMomContext): Promise<(MomInput & { suggested: true }) | null> {
+  if (!aiEnabled()) return null;
+  const agenda: AgendaItem[] = c.meeting.agenda;
+  const lines = [
+    `TODAY: ${c.today}`, `PROJECT ${c.project.code}: ${c.project.name}`, `MEETING: ${c.meeting.title}`,
+    ...(agenda.length ? ['AGENDA:', ...agenda.map((a, i) => `${i + 1}. ${a.title}`)] : []),
+    `ATTENDEES: ${c.attendees.map((a) => a.name).join(', ') || '-'}`, '', 'ROUGH NOTES:', c.notes,
+    '', `OUTPUT LANGUAGE: ${c.lang === 'th' ? 'Thai' : 'English'}.`,
+  ];
+  try {
+    const out = parseAiMom(await chat(MEETING_MOM, lines.join('\n')), c.attendees, agenda);
+    if (!out) throw new Error('unusable reply');
+    return out;
+  } catch (e) {
+    console.warn('[ai] MOM structuring failed:', e instanceof Error ? e.message : e);
     return null;
   }
 }

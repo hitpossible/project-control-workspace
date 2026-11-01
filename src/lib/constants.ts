@@ -192,6 +192,9 @@ export const REQ_PRIORITIES = opts('reqPriority', [
 
 export const REQ_STATUSES = opts('reqStatus', [{ value: 'draft', color: '#fdab3d' }, { value: 'approved', color: '#00c875' }, { value: 'dropped', color: '#757575' }]);
 
+export const MEETING_TYPE_OPTS = opts('meetingType', ['kickoff', 'requirement', 'review', 'uat', 'status', 'other'].map((value) => ({ value, color: '#579bfc' })));
+export const MEETING_STATUS_OPTS = opts('meetingStatus', [{ value: 'planned', color: '#fdab3d' }, { value: 'held', color: '#00c875' }, { value: 'cancelled', color: '#757575' }]);
+
 export const CR_TYPES = opts('crType', [{ value: 'add', color: '#00c875' }, { value: 'modify', color: '#fdab3d' }, { value: 'remove', color: '#e2445c' }]);
 
 // Phase 3

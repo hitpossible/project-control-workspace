@@ -7,6 +7,7 @@ import { kpiIndividual, kpiProjects, kpiTeam, triggerKpiSnapshot } from './kpi';
 import { agreeChangeRequest, assessChangeRequest, decideChangeRequest, implementChangeRequest, submitChangeRequest, withdrawChangeRequest } from './change-requests';
 import { decideClosure, requestClosure, withdrawClosure } from './closure';
 import { convertRequirementsToTasks, deleteRequirement, saveRequirement } from './requirements';
+import { convertMeetingActionsToTasks, deleteMeeting, saveMeeting, saveMeetingMom, sendMeetingEmail } from './meetings';
 import { myPendingActions } from '../pending-actions';
 import { assignBug, cancelBug, markFixReady, recordRetest, reportBug, startFix } from './qa';
 import { actOnApproval, cancelRequest, convertRequestToProject, saveReview, submitRequest } from './requests';
@@ -55,6 +56,12 @@ export const RPC: Record<string, Fn> = {
   save_requirement: saveRequirement,
   delete_requirement: deleteRequirement,
   convert_requirements_to_tasks: convertRequirementsToTasks,
+  // Meetings: schedule, invitation e-mails, MOM, action items → tasks
+  save_meeting: saveMeeting,
+  save_meeting_mom: saveMeetingMom,
+  delete_meeting: deleteMeeting,
+  send_meeting_email: sendMeetingEmail,
+  convert_meeting_actions_to_tasks: convertMeetingActionsToTasks,
   my_pending_actions: (ctx) => myPendingActions(ctx),
   // Closure sign-off (projects from a request complete when the requestor accepts)
   request_closure: requestClosure,

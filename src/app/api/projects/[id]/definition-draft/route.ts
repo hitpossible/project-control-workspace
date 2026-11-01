@@ -1,6 +1,7 @@
 import enDefinition from '@/i18n/messages/en/definition.json';
 import type { AiAnalysis } from '@/lib/clarify';
 import { definitionText, isEmptyDefinition, MAX_TEXT, normalizeDefinition, type ProjectDefinition } from '@/lib/definition';
+import { meetingsForAnalysis, type ProjectMeeting } from '@/lib/meetings';
 import type { ProjectRequest } from '@/lib/types';
 import { aiEnabled, draftProjectDefinition } from '@/server/ai';
 import { withUser } from '@/server/api';
@@ -15,7 +16,7 @@ import { canPlanProject, canViewInternal } from '@/server/perms';
 export const POST = withUser(async (me, req, params) => {
   const id = Number(params.id);
   const body = (await req.json().catch(() => ({}))) as { notes?: unknown; update?: unknown };
-  const notes = typeof body.notes === 'string' ? body.notes.trim().slice(0, MAX_TEXT * 2) : '';
+  const typed = typeof body.notes === 'string' ? body.notes.trim().slice(0, MAX_TEXT * 2) : '';
 
   const context = await withCtx(me, async (ctx) => {
     if (!(await canViewInternal(ctx, id))) throw new AppError('Project not found', 404);
@@ -29,13 +30,16 @@ export const POST = withUser(async (me, req, params) => {
       ? await ctx.one<{ content: ProjectDefinition }>('SELECT content FROM project_definitions WHERE project_id = ?', [id])
       : null;
     const current = saved ? normalizeDefinition(saved.content) : null;
+    // what the held meetings decided and learned (their MOM) is extra input, after the notes typed here
+    const held = await ctx.q<ProjectMeeting>("SELECT * FROM project_meetings WHERE project_id = ? AND status = 'held' ORDER BY start_at", [id]);
+    const minutes = meetingsForAnalysis(held);
     return {
+      notes: [typed, minutes && `MEETING MINUTES (decisions and information obtained):\n${minutes}`].filter(Boolean).join('\n\n'),
       project: { code: p.project_code, name: p.project_name },
       request,
       analysis: (request?.ai_analysis ?? null) as AiAnalysis | null,
       activities: acts.map((a) => a.name),
       current: current && !isEmptyDefinition(current) ? definitionText(current, enDefinition) : null,
-      notes,
     };
   });
 

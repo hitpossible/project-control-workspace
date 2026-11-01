@@ -1,3 +1,4 @@
+import type { MeetingInvitation, ProjectMeeting } from '@/lib/meetings';
 import type {
   Activity, Baseline, BaselineItem, BaselineRevision, ChangeRequest, ProjectRequirement, Bug, BugFix, Evidence, EvidenceRequirement, InternalTask, Profile,
   ProjectClosure, ProjectMember, ProjectView, Retest, TaskDependency, TestRound,
@@ -14,6 +15,9 @@ export interface ProjectData {
   changeRequests: ChangeRequest[];
   /** what the system must do, in order of entry */
   reqs: ProjectRequirement[];
+  /** meetings by start time, newest first, and the e-mails sent for them (project team only) */
+  meetings: ProjectMeeting[];
+  invitations: MeetingInvitation[];
   /** closure sign-off rounds, newest first */
   closures: ProjectClosure[];
   tasks: InternalTask[];

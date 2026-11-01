@@ -19,6 +19,7 @@ import InternalTab from './_components/InternalTab';
 import OverviewTab from './_components/OverviewTab';
 import PlanTab from './_components/PlanTab';
 import ChangesTab from './_components/ChangesTab';
+import MeetingsTab from './_components/MeetingsTab';
 import RequirementsTab from './_components/RequirementsTab';
 import { CloseProjectButton, ProjectStatusMenu } from './_components/ProjectStatus';
 import QaTab from './_components/QaTab';
@@ -31,6 +32,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { errMsg } from '@/lib/format';
 import { exportProjectExcel } from '@/lib/exportExcel';
 import { dbClient } from '@/lib/db/client';
+import type { MeetingInvitation, ProjectMeeting } from '@/lib/meetings';
 import type { Activity, Baseline, BaselineItem, BaselineRevision, Bug, BugFix, ChangeRequest, Evidence, EvidenceRequirement, InternalTask, ProjectClosure, ProjectRequirement, ProjectMember, ProjectView, Retest, TaskDependency, TestRound } from '@/lib/types';
 
 function Workspace() {
@@ -55,7 +57,7 @@ function Workspace() {
     const canInternal = !!internal.data;
     setPerm({ internal: canInternal, manage: !!manage.data });
     const none = Promise.resolve({ data: [] });
-    const [acts, mem, bl, tasks, deps, reqs, ev, rounds, bugs, fixes, retests, revs, closures, crs, reqRows] = await Promise.all([
+    const [acts, mem, bl, tasks, deps, reqs, ev, rounds, bugs, fixes, retests, revs, closures, crs, reqRows, meetingRows, inviteRows] = await Promise.all([
       db.from('activities').select('*').eq('project_id', id).order('seq').order('plan_start'),
       db.from('project_members').select('*').eq('project_id', id).order('member_role'),
       db.from('project_baselines').select('*').eq('project_id', id).order('version_no', { ascending: false }),
@@ -71,6 +73,8 @@ function Workspace() {
       db.from('project_closures').select('*').eq('project_id', id).order('round_no', { ascending: false }),
       db.from('change_requests').select('*').eq('project_id', id).order('id', { ascending: false }),
       db.from('project_requirements').select('*').eq('project_id', id).order('seq'),
+      db.from('project_meetings').select('*').eq('project_id', id).order('start_at', { ascending: false }),
+      canInternal ? db.from('meeting_invitations').select('*').eq('project_id', id).order('sent_at', { ascending: false }) : none,
     ]);
     const baselines = (bl.data ?? []) as Baseline[];
     const items = baselines.length
@@ -85,6 +89,8 @@ function Workspace() {
       revisions: (revs.data ?? []) as BaselineRevision[],
       closures: (closures.data ?? []) as ProjectClosure[],
       reqs: (reqRows.data ?? []) as ProjectRequirement[],
+      meetings: (meetingRows.data ?? []) as ProjectMeeting[],
+      invitations: (inviteRows.data ?? []) as MeetingInvitation[],
       changeRequests: (crs.data ?? []) as ChangeRequest[],
       tasks: (tasks.data ?? []) as InternalTask[],
       deps: (deps.data ?? []) as TaskDependency[],
@@ -125,6 +131,7 @@ function Workspace() {
     ...(perm.internal ? [{ v: 'qa', l: `${tp('tab.qa')}${p.open_bugs ? ` (${p.open_bugs})` : ''}` }] : []),
     ...(perm.internal ? [{ v: 'design', l: tp('tab.design') }] : []),
     { v: 'requirements', l: `${tp('tab.requirements')}${data.reqs.length ? ` (${data.reqs.length})` : ''}` },
+    { v: 'meetings', l: `${tp('tab.meetings')}${data.meetings.length ? ` (${data.meetings.length})` : ''}` },
     { v: 'changes', l: `${tp('tab.changes')}${openCrs ? ` (${openCrs})` : ''}` },
     { v: 'srs', l: tp('tab.srs') },
     { v: 'team', l: tp('tab.team') },
@@ -187,6 +194,7 @@ function Workspace() {
       {tab === 'srs' && <SrsTab {...ctx} />}
       {tab === 'team' && <TeamTab {...ctx} />}
       {tab === 'requirements' && <RequirementsTab {...ctx} />}
+      {tab === 'meetings' && <MeetingsTab {...ctx} />}
       {tab === 'changes' && <ChangesTab {...ctx} focusCr={toId(params.get('cr'))} />}
       {tab === 'baseline' && <BaselineTab {...ctx} linkCr={toId(params.get('cr'))} />}
       {tab === 'evidence' && <EvidenceTab {...ctx} names={names} />}

@@ -308,5 +308,18 @@
     "draft": "ฉบับร่าง",
     "approved": "อนุมัติแล้ว",
     "dropped": "ยกเลิก"
+  },
+  "meetingType": {
+    "kickoff": "Kick-off",
+    "requirement": "รวบรวมความต้องการ",
+    "review": "ทบทวน",
+    "uat": "UAT",
+    "status": "ติดตามความคืบหน้า",
+    "other": "อื่น ๆ"
+  },
+  "meetingStatus": {
+    "planned": "นัดหมายแล้ว",
+    "held": "ประชุมแล้ว",
+    "cancelled": "ยกเลิก"
   }
 }

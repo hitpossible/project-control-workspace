@@ -5,7 +5,7 @@ import { pool } from './db';
 export async function sendQueuedEmails(limit = 50): Promise<number> {
   const db = pool();
   const [rows] = await db.query(`SELECT * FROM email_outbox WHERE status = 'queued' ORDER BY created_at LIMIT ?`, [limit]);
-  const queue = rows as { id: number; to_email: string; subject: string; body: string | null }[];
+  const queue = rows as { id: number; to_email: string; subject: string; body: string | null; ics: string | null }[];
   if (!queue.length || !process.env.SMTP_HOST) return 0;
 
   const transport = nodemailer.createTransport({
@@ -22,7 +22,7 @@ export async function sendQueuedEmails(limit = 50): Promise<number> {
     if ((claim as { changedRows: number }).changedRows !== 1) continue;
     const body = String(m.body ?? '').replace(/(^|\n)(\/[^\s]*)$/, (_: string, p: string, path: string) => `${p}${appUrl}${path}`);
     try {
-      await transport.sendMail({ from: process.env.MAIL_FROM, to: m.to_email, subject: m.subject, text: body });
+      await transport.sendMail({ from: process.env.MAIL_FROM, to: m.to_email, subject: m.subject, text: body, ...(m.ics ? { icalEvent: { method: /METHOD:(\w+)/.exec(m.ics)?.[1] ?? 'REQUEST', content: m.ics } } : {}) });
       sent++;
     } catch (e) {
       await db.query(`UPDATE email_outbox SET status = 'failed', error = ? WHERE id = ?`, [String(e), m.id]);
