@@ -12,7 +12,8 @@
     "history": "History",
     "srs": "SRS",
     "definition": "Project definition",
-    "changes": "Changes"
+    "changes": "Changes",
+    "requirements": "Requirements"
   },
   "round": "Round {no}",
   "leader": "Leader {name}",
@@ -466,5 +467,53 @@
       "approved": "Next: the leader updates the plan and marks it implemented."
     },
     "revisionBusy": "Another baseline revision is waiting for approval — once it is decided, request one linked to this change request."
+  },
+  "requirements": {
+    "intro": "What the system must do. The leader approves each requirement, then turns approved ones into tasks of the internal plan. Coverage shows how much of each is built.",
+    "new": "New requirement",
+    "edit": "Edit requirement",
+    "empty": "No requirements yet.",
+    "field": {
+      "title": "Function / requirement",
+      "description": "Description",
+      "category": "Module / area",
+      "priority": "Priority",
+      "status": "Status",
+      "acceptance": "Acceptance criteria",
+      "effort": "Estimate (man-days)",
+      "tasks": "Tasks",
+      "coverage": "Coverage"
+    },
+    "descriptionPlaceholder": "What the system should do, for whom",
+    "acceptancePlaceholder": "How we know it is done, one check per line",
+    "categoryPlaceholder": "e.g. Login, Reports, Admin",
+    "uncategorised": "Other",
+    "noTasks": "No task",
+    "tasksDone": "{done}/{total} done",
+    "md": "{n} MD",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saved": "Requirement saved",
+    "delete": "Delete",
+    "deleted": "Requirement deleted",
+    "confirmDelete": "Delete {no}?",
+    "approve": "Approve",
+    "drop": "Drop",
+    "total": "{n} requirements",
+    "approvedCount": "{n} approved",
+    "covered": "{pct}% done",
+    "convert": "Create tasks",
+    "convertTitle": "Create tasks from requirements",
+    "convertDescription": "One task is created for each selected requirement that has none yet. You can refine them in the Internal Execution Plan afterwards.",
+    "convertable": "{n} ready",
+    "convertNone": "No approved requirement without a task.",
+    "activity": "Activity",
+    "owner": "Owner",
+    "due": "Due date",
+    "preview": "Tasks to be created",
+    "confirm": "Create {n} tasks",
+    "created": "{n} tasks created",
+    "createdSkipped": "{n} tasks created, {skipped} already had one",
+    "needActivity": "The project has no activity yet — add one in the plan first."
   }
 }

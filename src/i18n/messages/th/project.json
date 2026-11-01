@@ -12,7 +12,8 @@
     "history": "ประวัติ",
     "srs": "SRS",
     "definition": "ขอบเขตและข้อกำหนดระบบ",
-    "changes": "การเปลี่ยนแปลง"
+    "changes": "การเปลี่ยนแปลง",
+    "requirements": "ความต้องการ"
   },
   "round": "รอบที่ {no}",
   "leader": "หัวหน้า {name}",
@@ -466,5 +467,53 @@
       "approved": "ขั้นต่อไป: ผู้นำโปรเจกต์ปรับแผนแล้วบันทึกว่าดำเนินการแล้ว"
     },
     "revisionBusy": "มีคำขอปรับ Baseline อื่นรออนุมัติอยู่ เมื่อพิจารณาเสร็จแล้วจึงขอปรับ Baseline โดยอ้างอิงคำขอเปลี่ยนแปลงนี้"
+  },
+  "requirements": {
+    "intro": "สิ่งที่ระบบต้องทำได้ Leader อนุมัติแต่ละข้อ แล้วแปลงข้อที่อนุมัติเป็น task ในแผนภายใน Coverage แสดงว่าทำเสร็จไปแล้วเท่าไร",
+    "new": "เพิ่มความต้องการ",
+    "edit": "แก้ไขความต้องการ",
+    "empty": "ยังไม่มีความต้องการ",
+    "field": {
+      "title": "ฟังก์ชัน / ความต้องการ",
+      "description": "รายละเอียด",
+      "category": "โมดูล / ส่วนงาน",
+      "priority": "ความสำคัญ",
+      "status": "สถานะ",
+      "acceptance": "เกณฑ์การยอมรับ",
+      "effort": "ประมาณการ (man-day)",
+      "tasks": "Task",
+      "coverage": "ความคืบหน้า"
+    },
+    "descriptionPlaceholder": "ระบบต้องทำอะไร สำหรับใคร",
+    "acceptancePlaceholder": "ตรวจอย่างไรว่าเสร็จ ข้อละบรรทัด",
+    "categoryPlaceholder": "เช่น Login, รายงาน, Admin",
+    "uncategorised": "อื่น ๆ",
+    "noTasks": "ยังไม่มี task",
+    "tasksDone": "เสร็จ {done}/{total}",
+    "md": "{n} MD",
+    "cancel": "ยกเลิก",
+    "save": "บันทึก",
+    "saved": "บันทึกความต้องการแล้ว",
+    "delete": "ลบ",
+    "deleted": "ลบความต้องการแล้ว",
+    "confirmDelete": "ลบ {no}?",
+    "approve": "อนุมัติ",
+    "drop": "ยกเลิกข้อนี้",
+    "total": "{n} ข้อ",
+    "approvedCount": "อนุมัติแล้ว {n}",
+    "covered": "เสร็จ {pct}%",
+    "convert": "สร้าง task",
+    "convertTitle": "สร้าง task จากความต้องการ",
+    "convertDescription": "ระบบสร้าง 1 task ต่อความต้องการที่เลือกและยังไม่มี task แก้รายละเอียดต่อได้ใน Internal Execution Plan",
+    "convertable": "พร้อมสร้าง {n}",
+    "convertNone": "ไม่มีความต้องการที่อนุมัติแล้วและยังไม่มี task",
+    "activity": "Activity",
+    "owner": "ผู้รับผิดชอบ",
+    "due": "กำหนดส่ง",
+    "preview": "Task ที่จะถูกสร้าง",
+    "confirm": "สร้าง {n} task",
+    "created": "สร้าง {n} task แล้ว",
+    "createdSkipped": "สร้าง {n} task แล้ว ข้ามอีก {skipped} ข้อที่มี task อยู่แล้ว",
+    "needActivity": "โปรเจกต์ยังไม่มี activity — เพิ่มในแผนก่อน"
   }
 }

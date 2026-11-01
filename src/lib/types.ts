@@ -318,6 +318,8 @@ export interface InternalTask {
   project_id: number;
   activity_id: number;
   parent_task_id: number | null;
+  /** the requirement this task carries out */
+  requirement_id: number | null;
   seq: number;
   /** Kanban order within its status column; null = by due date */
   board_rank: number | null;
@@ -535,6 +537,24 @@ export interface EvidenceRequirement {
   is_mandatory: boolean;
   source: string;
   created_at: string;
+}
+
+export interface ProjectRequirement {
+  id: number;
+  project_id: number;
+  req_no: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  /** MoSCoW */
+  priority: 'must' | 'should' | 'could' | 'wont';
+  acceptance_criteria: string | null;
+  estimated_md: number | null;
+  status: 'draft' | 'approved' | 'dropped';
+  seq: number;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ChangeRequest {

@@ -186,6 +186,12 @@ export const CR_STATUSES = opts('crStatus', [
   { value: 'withdrawn', color: '#757575' },
 ]);
 
+export const REQ_PRIORITIES = opts('reqPriority', [
+  { value: 'must', color: '#e2445c' }, { value: 'should', color: '#fdab3d' }, { value: 'could', color: '#579bfc' }, { value: 'wont', color: '#757575' },
+]);
+
+export const REQ_STATUSES = opts('reqStatus', [{ value: 'draft', color: '#fdab3d' }, { value: 'approved', color: '#00c875' }, { value: 'dropped', color: '#757575' }]);
+
 export const CR_TYPES = opts('crType', [{ value: 'add', color: '#00c875' }, { value: 'modify', color: '#fdab3d' }, { value: 'remove', color: '#e2445c' }]);
 
 // Phase 3

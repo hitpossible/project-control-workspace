@@ -15,6 +15,7 @@ const ME_DEFAULTS: Record<string, string[]> = {
   project_baselines: ['created_by'],
   internal_tasks: ['created_by'],
   work_links: ['created_by'],
+  project_requirements: ['created_by'],
   evidence: ['uploaded_by'],
   test_rounds: ['created_by'],
   bugs: ['reporter_id'],
@@ -35,7 +36,7 @@ const JSON_DEFAULTS: Record<string, Row> = {
 };
 
 /** updated_at / updated_by maintained on update (was touch_updated) */
-const TOUCH = new Set(['project_requests', 'projects', 'activities', 'internal_tasks', 'test_rounds', 'bugs', 'change_requests']);
+const TOUCH = new Set(['project_requests', 'projects', 'activities', 'internal_tasks', 'test_rounds', 'bugs', 'change_requests', 'project_requirements']);
 /** board arrangement only (Kanban order) — not an edit of the record, so it does not touch updated_at / updated_by */
 const LAYOUT_ONLY = new Set(['board_rank']);
 
@@ -57,6 +58,7 @@ const AUDIT: Record<string, { ops: ('insert' | 'update' | 'delete')[]; fields: s
   project_closures: { ops: ['insert', 'update'], fields: ['status', 'decided_by', 'decision_comment'] },
   work_links: { ops: ['insert', 'delete'], fields: [] },
   change_requests: { ops: ['insert', 'update'], fields: ['status', 'title', 'impact_md', 'impact_target', 'impact_summary', 'agreed_by', 'decided_by', 'decision_comment'] },
+  project_requirements: { ops: ['insert', 'update'], fields: ['status', 'title', 'priority', 'category', 'estimated_md'] },
   workforce_plans: { ops: ['insert', 'update', 'delete'], fields: ['work_type', 'work_date', 'project_id', 'start_time', 'end_time'] },
   comments: { ops: ['update', 'delete'], fields: ['body'] },
   srs_documents: { ops: ['insert', 'update'], fields: ['status'] },

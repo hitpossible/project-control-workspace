@@ -211,6 +211,8 @@ export const POLICIES: Record<string, Policy> = {
   },
   // change requests: with the project (the requestor takes part); written only by rpc/change-requests.ts
   change_requests: { read: (ctx) => visibleProject(ctx) },
+  // requirements: with the project (the requestor sees the scope); written only by rpc/requirements.ts
+  project_requirements: { read: (ctx) => visibleProject(ctx) },
   // closure sign-off: with the project; written only by rpc/closure.ts
   project_closures: { read: (ctx) => visibleProject(ctx), hidden: ['signature_path'] },
 

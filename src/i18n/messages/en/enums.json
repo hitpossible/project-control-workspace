@@ -297,5 +297,16 @@
     "add": "Add scope",
     "modify": "Modify scope",
     "remove": "Remove scope"
+  },
+  "reqPriority": {
+    "must": "Must have",
+    "should": "Should have",
+    "could": "Could have",
+    "wont": "Won't have"
+  },
+  "reqStatus": {
+    "draft": "Draft",
+    "approved": "Approved",
+    "dropped": "Dropped"
   }
 }
