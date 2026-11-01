@@ -42,7 +42,9 @@
     "retest_due": "Retest due",
     "retest_failed": "Retest failed",
     "bug_closed": "Bug closed",
-    "evidence_missing": "Evidence missing"
+    "evidence_missing": "Evidence missing",
+    "closure_requested": "Acceptance needed",
+    "closure_changes_requested": "Changes requested"
   },
   "empty": {
     "unread": {

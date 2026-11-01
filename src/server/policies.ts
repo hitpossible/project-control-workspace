@@ -196,6 +196,8 @@ export const POLICIES: Record<string, Policy> = {
   // Checklist names are visible with the project; managed by the leader
   evidence_requirements: { read: (ctx) => visibleProject(ctx), insert: manage, update: manage, check: manage, delete: manage },
   baseline_revisions: { read: (ctx) => visibleProject(ctx) },
+  // closure sign-off: with the project; written only by rpc/closure.ts
+  project_closures: { read: (ctx) => visibleProject(ctx), hidden: ['signature_path'] },
 
   // Workforce plan: staff see the team; own or Supervisor / Manager edit
   workforce_plans: {

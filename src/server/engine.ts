@@ -53,6 +53,7 @@ const AUDIT: Record<string, { ops: ('insert' | 'update' | 'delete')[]; fields: s
   retests: { ops: ['insert', 'update'], fields: ['status', 'result', 'tester_id', 'due_date'] },
   evidence_requirements: { ops: ['insert', 'delete'], fields: [] },
   baseline_revisions: { ops: ['insert', 'update'], fields: ['status', 'decided_by', 'decision_comment'] },
+  project_closures: { ops: ['insert', 'update'], fields: ['status', 'decided_by', 'decision_comment'] },
   workforce_plans: { ops: ['insert', 'update', 'delete'], fields: ['work_type', 'work_date', 'project_id', 'start_time', 'end_time'] },
   comments: { ops: ['update', 'delete'], fields: ['body'] },
   srs_documents: { ops: ['insert', 'update'], fields: ['status'] },

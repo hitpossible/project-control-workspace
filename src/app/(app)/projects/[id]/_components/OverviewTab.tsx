@@ -17,6 +17,7 @@ import { errMsg, fmtDate, fmtDateTime, isOverdue, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { Project } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { ClosureBanner } from './ClosureSignoff';
 import { ReadyToCloseBanner } from './ProjectStatus';
 import type { TabProps } from './types';
 
@@ -51,6 +52,7 @@ export default function OverviewTab({ data, perm, reload }: TabProps) {
       </div>
 
       <div className="col-span-12 min-w-0 lg:col-span-8">
+        <ClosureBanner data={data} perm={perm} reload={reload} />
         <ReadyToCloseBanner data={data} perm={perm} reload={reload} />
         {p.attention.length > 0 && (
           <Alert variant={p.health === 'red' ? 'destructive' : 'default'} className="mb-4">

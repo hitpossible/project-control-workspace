@@ -1,6 +1,6 @@
 import type {
   Activity, Baseline, BaselineItem, BaselineRevision, Bug, BugFix, Evidence, EvidenceRequirement, InternalTask, Profile,
-  ProjectMember, ProjectView, Retest, TaskDependency, TestRound,
+  ProjectClosure, ProjectMember, ProjectView, Retest, TaskDependency, TestRound,
 } from '@/lib/types';
 
 export interface ProjectData {
@@ -10,6 +10,8 @@ export interface ProjectData {
   baselines: Baseline[];
   baselineItems: BaselineItem[];
   revisions: BaselineRevision[];
+  /** closure sign-off rounds, newest first */
+  closures: ProjectClosure[];
   tasks: InternalTask[];
   deps: TaskDependency[];
   requirements: EvidenceRequirement[];

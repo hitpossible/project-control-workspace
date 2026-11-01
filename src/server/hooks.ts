@@ -2,7 +2,7 @@ import { AppError, type Ctx, type Row } from './db';
 import { commentHooks } from './logic/comments';
 import { notifyEvent, fmtD, nextSequence } from './logic/common';
 import {
-  activityBeforeWrite, applyTemplateChecklist, missingEvidence, openCriticalBugs, recomputeProject, rollupFromActivity, rollupFromTask, taskBeforeWrite,
+  activityBeforeWrite, applyTemplateChecklist, assertCanComplete, recomputeProject, rollupFromActivity, rollupFromTask, taskBeforeWrite,
 } from './logic/project';
 import { normalizeDefinition } from '@/lib/definition';
 import { isAdmin, isSkillAssessor } from './perms';
@@ -117,12 +117,9 @@ export const HOOKS: Record<string, Hooks> = {
         throw new AppError('Project code, request reference and baseline version are system controlled', 403);
       }
       if (n.status === 'completed' && o.status !== 'completed') {
-        const open = await ctx.val(`SELECT 1 FROM activities WHERE project_id = ? AND status NOT IN ('completed','cancelled') LIMIT 1`, [n.id]);
-        if (open) throw new AppError('All activities must be completed or cancelled before completing the project');
-        const missing = await missingEvidence(ctx, 'project', Number(n.id));
-        if (missing.length) throw new AppError(`Mandatory project evidence missing: ${missing.join(', ')}`);
-        const crit = await openCriticalBugs(ctx, Number(n.id));
-        if (crit > 0) throw new AppError(`${crit} critical bug(s) still open — close them before completing the project`);
+        // a project from a request is completed only when the requestor accepts the closure (rpc/closure.ts)
+        if (n.request_id) throw new AppError('This project is completed when the requestor accepts the delivery — send it for acceptance (Close project)', 409);
+        await assertCanComplete(ctx, Number(n.id));
       }
     },
     async afterUpdate(ctx, p, o) {
@@ -134,6 +131,10 @@ export const HOOKS: Record<string, Hooks> = {
           body: `${p.project_name} — health turned RED. Forecast ${fmtD(p.forecast_date as string)}, target ${fmtD(p.target_date as string)}.`,
           link: `/projects/${p.id}`, dedupe: `need_attention:${p.id}:${ctx.today}`,
         });
+      }
+      // a closure still waiting for acceptance is moot once the project is cancelled
+      if (p.status === 'cancelled' && o.status !== 'cancelled') {
+        await ctx.exec(`UPDATE project_closures SET status = 'withdrawn' WHERE project_id = ? AND status = 'pending'`, [p.id]);
       }
       // Project closed / cancelled → requestor + team (no dedupe: a reopened project may close again)
       if ((p.status === 'completed' || p.status === 'cancelled') && o.status !== p.status) {

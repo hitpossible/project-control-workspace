@@ -40,7 +40,11 @@
     "closed": "Project closed",
     "button": "Close Project",
     "bannerTitle": "All activities are done",
-    "bannerText": "Check the closing list and mark the project Done."
+    "bannerText": "Check the closing list and mark the project Done.",
+    "acceptanceTitle": "Send for acceptance",
+    "acceptanceDescription": "{code} came from a request, so it is completed when the requestor accepts the delivery. Check the list, then summarise what is handed over.",
+    "waiting": "Waiting for acceptance",
+    "bannerTextAcceptance": "Check the closing list and send the delivery to the requestor for acceptance."
   },
   "status": {
     "change": "Change status",
@@ -351,5 +355,31 @@
     },
     "noBugsInRound": "No bugs in this round",
     "reportInRound": "Report bug in this round"
+  },
+  "closure": {
+    "summary": "Handover summary",
+    "summaryPlaceholder": "What was delivered, where it runs, documents / training handed over, known limitations…",
+    "summaryHelp": "The requestor reads this before accepting.",
+    "send": "Send for acceptance",
+    "sent": "Sent to the requestor for acceptance",
+    "notYet": "Not yet",
+    "changesTitle": "The requestor asked for changes",
+    "acceptTitle": "Accept the delivery",
+    "acceptDescription": "Accepting completes {code}. Your signature is recorded with your acceptance.",
+    "needSignature": "Draw your signature once to sign the acceptance.",
+    "commentOptional": "Comment (optional)",
+    "acceptNote": "Not ready yet? Close this and choose “Ask for changes” instead.",
+    "accept": "Accept delivery",
+    "accepted": "Delivery accepted — the project is completed",
+    "pendingTitle": "Waiting for the requestor to accept",
+    "pendingTitleAcceptor": "Please review and accept this delivery",
+    "pendingText": "Sent by {by} on {date}",
+    "requestChanges": "Ask for changes",
+    "changesDescription": "Say what still needs to change. The leader is notified and sends it again when done.",
+    "changesSent": "Sent back to the project leader",
+    "withdraw": "Withdraw",
+    "withdrawn": "Acceptance request withdrawn",
+    "acceptedTitle": "Delivery accepted",
+    "decidedBy": "by {by} on {date}"
   }
 }

@@ -42,7 +42,9 @@
     "retest_due": "ครบกำหนดทดสอบซ้ำ",
     "retest_failed": "ทดสอบซ้ำไม่ผ่าน",
     "bug_closed": "ปิดบั๊กแล้ว",
-    "evidence_missing": "หลักฐานยังไม่ครบ"
+    "evidence_missing": "หลักฐานยังไม่ครบ",
+    "closure_requested": "รอรับมอบงาน",
+    "closure_changes_requested": "ขอให้แก้ไขก่อนปิด"
   },
   "empty": {
     "unread": {

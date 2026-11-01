@@ -13,7 +13,7 @@ export async function loadProjectsView(ctx: Ctx): Promise<Row[]> {
   const OVERDUE = `a.plan_finish < ? AND a.status NOT IN ('completed','cancelled')`;
   const rows = await ctx.q<ProjectView & { unreviewed_recovery: number }>(`
     SELECT p.*, pt.code project_type_code, pt.name project_type_name, l.full_name leader_name,
-           r.request_no, r.req_department requestor_department,
+           r.request_no, r.req_department requestor_department, r.requestor_id,
            (SELECT b.planned_finish FROM project_baselines b WHERE b.project_id = p.id ORDER BY b.version_no DESC LIMIT 1) baseline_finish,
            (SELECT COUNT(*) FROM activities a WHERE a.project_id = p.id AND a.status <> 'cancelled') activity_count,
            (SELECT COUNT(*) FROM activities a WHERE a.project_id = p.id AND ${OVERDUE}) overdue_activities,

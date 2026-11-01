@@ -1,5 +1,5 @@
 // PDF reports (PRD §25.2) — generated client-side from Workspace data
-import { Document, Font, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer';
+import { Document, Font, Image, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer';
 import dayjs from 'dayjs';
 import { ACTIVITY_STATUSES, HEALTH_COLORS, INSIGHT_SEVERITIES, MEMBER_ROLES, PROJECT_STATUSES, optColor, optLabelEn, type OptList } from '../constants';
 import type { Activity, ProjectView } from '../types';
@@ -290,6 +290,7 @@ function ClosureReport({ d, meta }: { d: ProjectReportData; meta: ReportMeta }) 
   const allDone = live.length > 0 && live.every((a) => a.actual_finish);
   const finish = allDone ? live.map((a) => a.actual_finish!).sort().pop()! : null;
   const ok = (r: { id: number }) => d.evidence.some((e) => e.requirement_id === r.id && e.verification_status !== 'rejected');
+  const acc = d.acceptance;
   return (
     <Document title={`${p.project_code} Project Closure`}>
       <Page size="A4" style={s.page}>
@@ -339,11 +340,29 @@ function ClosureReport({ d, meta }: { d: ProjectReportData; meta: ReportMeta }) 
           <Tile label="Retest pass rate" value={d.kpi?.retest_pass_rate == null ? '-' : `${d.kpi.retest_pass_rate}%`} />
           <Tile label="Evidence completion" value={d.kpi?.evidence_completion == null ? '-' : `${d.kpi.evidence_completion}%`} />
         </View>
+        {d.acceptance ? (
+          <>
+            <Text style={s.h2} minPresenceAhead={70}>Handover summary</Text>
+            <Text>{d.acceptance.summary}</Text>
+          </>
+        ) : null}
         <Text style={s.h2} minPresenceAhead={70}>Lessons learned</Text>
         {[0, 1, 2].map((i) => <View key={i} style={s.lines} />)}
         <Text style={s.h2} minPresenceAhead={70}>Acceptance & Sign-off</Text>
         <View style={{ flexDirection: 'row', gap: 8 }} wrap={false}>
           {[['Project Leader', p.leader_name], ['Requestor / User', ''], ['System Service Manager', ''], ['Authority Approver', '']].map(([role, nm]) => (
+            role === 'Requestor / User' && acc ? (
+              <View key={role} style={s.sign}>
+                <Text style={s.label}>{`${role} — accepted in system`}</Text>
+                <View>
+                  {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt */}
+                  {acc.signature ? <Image src={acc.signature} style={{ height: 26, objectFit: 'contain', alignSelf: 'flex-start' }} /> : null}
+                  <View style={{ borderBottomWidth: 1, borderBottomColor: C.text, marginBottom: 2 }} />
+                  <Text style={{ fontSize: 7.5 }}>{`(${meta.name(acc.by)})`}</Text>
+                  <Text style={{ fontSize: 7, color: C.muted }}>{`Date ${dayjs(acc.at).format('DD/MM/YYYY HH:mm')}`}</Text>
+                </View>
+              </View>
+            ) : (
             <View key={role} style={s.sign}>
               <Text style={s.label}>{role}</Text>
               <View>
@@ -352,6 +371,7 @@ function ClosureReport({ d, meta }: { d: ProjectReportData; meta: ReportMeta }) 
                 <Text style={{ fontSize: 7, color: C.muted }}>Date ____/____/______</Text>
               </View>
             </View>
+            )
           ))}
         </View>
       </Page>

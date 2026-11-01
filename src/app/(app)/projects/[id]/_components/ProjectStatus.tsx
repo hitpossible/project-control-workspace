@@ -1,6 +1,6 @@
 'use client';
 
-import { Ban, Check, ChevronDown, CircleCheckBig, RotateCcw, TriangleAlert, X } from 'lucide-react';
+import { Ban, Check, ChevronDown, CircleCheckBig, Hourglass, RotateCcw, TriangleAlert, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { dispatchEmails, useApp } from '@/providers/AppProvider';
@@ -15,6 +15,7 @@ import { PROJECT_STATUSES } from '@/lib/constants';
 import { errMsg } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import { cn } from '@/lib/utils';
+import { SendForAcceptance, pendingClosure } from './ClosureSignoff';
 import type { TabProps } from './types';
 
 const CLOSED = ['completed', 'cancelled'];
@@ -57,12 +58,14 @@ export function CloseProjectDialog({ data, perm, reload, onClose }: Pick<TabProp
   const [busy, setBusy] = useState(false);
   const checks = closeChecks({ data, perm }, t);
   const blocked = checks.some((c) => !c.ok && c.blocking);
+  // a project from a request is completed by the requestor's acceptance (ClosureSignoff)
+  const viaAcceptance = !!data.project.request_id;
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{t('title')}</DialogTitle>
-          <DialogDescription>{t('description', { code: data.project.project_code })}</DialogDescription>
+          <DialogTitle>{viaAcceptance ? t('acceptanceTitle') : t('title')}</DialogTitle>
+          <DialogDescription>{viaAcceptance ? t('acceptanceDescription', { code: data.project.project_code }) : t('description', { code: data.project.project_code })}</DialogDescription>
         </DialogHeader>
         <ul className="flex flex-col gap-2">
           {checks.map((c) => (
@@ -81,7 +84,7 @@ export function CloseProjectDialog({ data, perm, reload, onClose }: Pick<TabProp
         {blocked
           ? <p className="text-sm text-destructive">{t('blocked')}</p>
           : checks.some((c) => !c.ok) && <p className="text-sm text-amber-700">{t('warnings')}</p>}
-        <DialogFooter>
+        {viaAcceptance ? <SendForAcceptance data={data} reload={reload} blocked={blocked} onDone={onClose} /> : <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('notYet')}</Button>
           <ActionButton tone="success" disabled={blocked || busy} onClick={async () => {
             setBusy(true);
@@ -96,7 +99,7 @@ export function CloseProjectDialog({ data, perm, reload, onClose }: Pick<TabProp
               setBusy(false);
             }
           }}><CircleCheckBig /> {t('title')}</ActionButton>
-        </DialogFooter>
+        </DialogFooter>}
       </DialogContent>
     </Dialog>
   );
@@ -144,7 +147,7 @@ export function ProjectStatusMenu({ data, perm, reload }: Pick<TabProps, 'data' 
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setDialog('close')}><CircleCheckBig className="text-[#00c875]" /> {t('closeDone')}</DropdownMenuItem>
+              <DropdownMenuItem disabled={!!pendingClosure(data)} onSelect={() => setDialog('close')}><CircleCheckBig className="text-[#00c875]" /> {t('closeDone')}</DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onSelect={() => setDialog('cancel')}><Ban /> {t('cancelEllipsis')}</DropdownMenuItem>
             </>
           )}
@@ -169,6 +172,7 @@ export function CloseProjectButton({ data, perm, reload }: Pick<TabProps, 'data'
   const t = useTranslations('project.close');
   const [open, setOpen] = useState(false);
   if (!perm.manage || CLOSED.includes(data.project.status)) return null;
+  if (pendingClosure(data)) return <Button variant="outline" disabled><Hourglass /> {t('waiting')}</Button>;
   const ready = data.activities.length > 0 && data.activities.every((a) => CLOSED.includes(a.status));
   return (
     <>
@@ -185,15 +189,15 @@ export function ReadyToCloseBanner({ data, perm, reload }: Pick<TabProps, 'data'
   const t = useTranslations('project.close');
   const [open, setOpen] = useState(false);
   const p = data.project;
-  if (!perm.manage || CLOSED.includes(p.status) || !data.activities.length || data.activities.some((a) => !CLOSED.includes(a.status))) return null;
+  if (!perm.manage || CLOSED.includes(p.status) || pendingClosure(data) || !data.activities.length || data.activities.some((a) => !CLOSED.includes(a.status))) return null;
   return (
     <>
       <Alert className="mb-4 border-[#00c875] bg-[#00c875]/5">
         <CircleCheckBig className="text-[#00c875]" />
         <AlertTitle>{t('bannerTitle')}</AlertTitle>
         <AlertDescription className="flex flex-wrap items-center gap-3">
-          <span>{t('bannerText')}</span>
-          <ActionButton tone="success" size="sm" onClick={() => setOpen(true)}><CircleCheckBig /> {t('title')}</ActionButton>
+          <span>{p.request_id ? t('bannerTextAcceptance') : t('bannerText')}</span>
+          <ActionButton tone="success" size="sm" onClick={() => setOpen(true)}><CircleCheckBig /> {p.request_id ? t('acceptanceTitle') : t('title')}</ActionButton>
         </AlertDescription>
       </Alert>
       {open && <CloseProjectDialog data={data} perm={perm} reload={reload} onClose={() => setOpen(false)} />}

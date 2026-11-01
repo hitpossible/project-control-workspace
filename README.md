@@ -215,11 +215,13 @@ A component used by one route lives in that route's `_components/`; move it to `
 | **Kanban board** for internal tasks (@dnd-kit) — drag a card (mouse, or long-press on touch) or focus it and press Alt + ← / → to change status; server rules still apply (permissions, mandatory evidence before Done, 100% → Review) | Project → Internal Execution Plan → Kanban; My work → Kanban |
 | **Bug Kanban** (view only — status still changes through the bug workflow) | Project → QA & Bugs → Kanban |
 | **Comments with @mention** on Tasks and Bugs — mentioned people get in-app + e-mail notifications, owners / reviewers / developers get "new comment"; authors edit / delete their own | Task / Bug dialog → Comments |
+| **Closure sign-off**: a project that came from a request is completed only when the requestor (or a requestor representative) accepts the delivery. The leader sends a handover summary, and the requestor either accepts (their saved signature is copied in) or asks for changes with a comment. Rounds are kept, and the acceptance and signature appear in the Project Closure PDF. Projects without a request close directly | Project → Close Project / Overview banner |
 | **Global search** (Ctrl / ⌘ K): projects, requests, tasks, bugs by code or name, filtered by each user's access + quick page navigation | header search box |
 
 Bug workflow RPCs: `report_bug`, `assign_bug`, `start_fix`, `mark_fix_ready`, `record_retest`, `cancel_bug`.
 Re-plan RPCs: `request_baseline_revision`, `decide_baseline_revision`, `cancel_baseline_revision`, `review_recovery_plan`.
 Bug status can only change through these functions (guard in `hooks.ts`).
+Closure RPCs: `request_closure`, `decide_closure`, `withdraw_closure` (`src/server/rpc/closure.ts`). The projects hook only allows `completed` on a request-based project through `decide_closure`.
 
 ## Phase 3 — Management Intelligence
 

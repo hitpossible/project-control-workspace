@@ -224,6 +224,7 @@ export interface ProjectView extends Project {
   leader_name: string | null;
   request_no: string | null;
   requestor_department: string | null;
+  requestor_id: number | null;
   baseline_finish: string | null;
   schedule_variance: number | null;
   overdue_activities: number;
@@ -530,6 +531,19 @@ export interface EvidenceRequirement {
   is_mandatory: boolean;
   source: string;
   created_at: string;
+}
+
+export interface ProjectClosure {
+  id: number;
+  project_id: number;
+  round_no: number;
+  summary: string;
+  status: 'pending' | 'accepted' | 'changes_requested' | 'withdrawn';
+  requested_by: number;
+  requested_at: string;
+  decided_by: number | null;
+  decided_at: string | null;
+  decision_comment: string | null;
 }
 
 export interface BaselineRevision {

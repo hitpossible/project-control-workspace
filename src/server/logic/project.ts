@@ -37,6 +37,16 @@ export async function openCriticalBugs(ctx: Ctx, projectId: number): Promise<num
   return Number(await ctx.val(`SELECT COUNT(*) FROM bugs WHERE project_id = ? AND severity = 'critical' AND status NOT IN ('closed','cancelled')`, [projectId]));
 }
 
+/** What must hold before a project is completed (used by the projects hook and the closure workflow) */
+export async function assertCanComplete(ctx: Ctx, projectId: number) {
+  const open = await ctx.val(`SELECT 1 FROM activities WHERE project_id = ? AND status NOT IN ('completed','cancelled') LIMIT 1`, [projectId]);
+  if (open) throw new AppError('All activities must be completed or cancelled before completing the project');
+  const missing = await missingEvidence(ctx, 'project', projectId);
+  if (missing.length) throw new AppError(`Mandatory project evidence missing: ${missing.join(', ')}`);
+  const crit = await openCriticalBugs(ctx, projectId);
+  if (crit > 0) throw new AppError(`${crit} critical bug(s) still open — close them before completing the project`);
+}
+
 export type QaStats = { open_bugs: number; critical_bugs: number; high_bugs: number; retest_pending: number; retest_overdue: number; fix_overdue: number; evidence_missing: number };
 
 /** Due / finished checklist items without evidence */

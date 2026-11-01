@@ -29,7 +29,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { errMsg } from '@/lib/format';
 import { exportProjectExcel } from '@/lib/exportExcel';
 import { dbClient } from '@/lib/db/client';
-import type { Activity, Baseline, BaselineItem, BaselineRevision, Bug, BugFix, Evidence, EvidenceRequirement, InternalTask, ProjectMember, ProjectView, Retest, TaskDependency, TestRound } from '@/lib/types';
+import type { Activity, Baseline, BaselineItem, BaselineRevision, Bug, BugFix, Evidence, EvidenceRequirement, InternalTask, ProjectClosure, ProjectMember, ProjectView, Retest, TaskDependency, TestRound } from '@/lib/types';
 
 function Workspace() {
   const tp = useTranslations('project');
@@ -53,7 +53,7 @@ function Workspace() {
     const canInternal = !!internal.data;
     setPerm({ internal: canInternal, manage: !!manage.data });
     const none = Promise.resolve({ data: [] });
-    const [acts, mem, bl, tasks, deps, reqs, ev, rounds, bugs, fixes, retests, revs] = await Promise.all([
+    const [acts, mem, bl, tasks, deps, reqs, ev, rounds, bugs, fixes, retests, revs, closures] = await Promise.all([
       db.from('activities').select('*').eq('project_id', id).order('seq').order('plan_start'),
       db.from('project_members').select('*').eq('project_id', id).order('member_role'),
       db.from('project_baselines').select('*').eq('project_id', id).order('version_no', { ascending: false }),
@@ -66,6 +66,7 @@ function Workspace() {
       canInternal ? db.from('bug_fixes').select('*').eq('project_id', id).order('fix_cycle') : none,
       canInternal ? db.from('retests').select('*').eq('project_id', id).order('retest_round') : none,
       db.from('baseline_revisions').select('*').eq('project_id', id).order('requested_at', { ascending: false }),
+      db.from('project_closures').select('*').eq('project_id', id).order('round_no', { ascending: false }),
     ]);
     const baselines = (bl.data ?? []) as Baseline[];
     const items = baselines.length
@@ -78,6 +79,7 @@ function Workspace() {
       baselines,
       baselineItems: items,
       revisions: (revs.data ?? []) as BaselineRevision[],
+      closures: (closures.data ?? []) as ProjectClosure[],
       tasks: (tasks.data ?? []) as InternalTask[],
       deps: (deps.data ?? []) as TaskDependency[],
       requirements: (reqs.data ?? []) as EvidenceRequirement[],
