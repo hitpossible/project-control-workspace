@@ -27,7 +27,7 @@ export const POST = withUser(async (me, req, params) => {
   const turn = await chatTurn(r, criteria, moreInfo, messages, turns, { lang: chatLang(body?.lang) });
   if (!turn) return { data: { message: null } };
 
-  const coverage: AiCoverage = { checked_at: new Date().toISOString(), criteria: turn.coverage };
+  const coverage: AiCoverage = { checked_at: new Date().toISOString(), criteria: turn.coverage, requirements: turn.requirements };
   const transcript = assess ? messages : [...messages, turn.message];
   await withCtx(me, (ctx) => ctx.exec(`UPDATE project_requests SET ai_chat = ?, ai_coverage = ? WHERE id = ? AND requestor_id = ? AND ${OPEN}`,
     [JSON.stringify(transcript), JSON.stringify(coverage), r.id, me.id]));

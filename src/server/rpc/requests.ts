@@ -4,6 +4,7 @@ import { AppError, type Ctx, type Row } from '../db';
 import { getRow, insertRow, updateRow } from '../engine';
 import { generateCode, notifyEvent, settingValue, workCalendar } from '../logic/common';
 import { recomputeProject } from '../logic/project';
+import { importAiRequirements } from './requirements';
 import { hasRole, invalidatePerms } from '../perms';
 
 const blank = (s: unknown) => !s || String(s).trim() === '';
@@ -260,6 +261,8 @@ export async function convertRequestToProject(ctx: Ctx, a: { p_request_id: numbe
     await addMember(r.proposed_leader_id, 'leader');
     await addMember(r.requestor_id, 'requestor_rep');
     invalidatePerms(ctx);
+    // what the AI interview made clear becomes the project's draft requirements
+    await importAiRequirements(ctx, pid, r.ai_coverage?.requirements);
 
     // Default activities from template, scheduled one after another from the start date.
     // Durations are working days (Admin → Working Days): weekends and company holidays are skipped.

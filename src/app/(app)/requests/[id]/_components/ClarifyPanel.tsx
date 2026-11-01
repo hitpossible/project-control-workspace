@@ -3,6 +3,7 @@
 import { ChevronRight, CircleHelp, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CoverageIcon } from '../../_components/AiClarifyDialog';
+import { DraftRequirements } from '../../_components/clarify/DraftRequirements';
 import { Section } from '@/components/shared/layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { coverageCount } from '@/lib/clarify';
@@ -50,6 +51,7 @@ export function ClarifyPanel({ r }: { r: ProjectRequest }) {
           </>
         );
       })()}
+      <DraftRequirements items={r.ai_coverage?.requirements} className="mt-4 border-t pt-4" />
       {!!r.ai_clarifications?.length && (
         <ol className="mt-4 space-y-3 border-t pt-4">
           {r.ai_clarifications.map((c, i) => (

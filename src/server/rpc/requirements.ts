@@ -1,3 +1,4 @@
+import { parseAiRequirements } from '@/lib/clarify';
 import type { InternalTask, ProjectRequirement } from '@/lib/types';
 import { AppError, type Ctx } from '../db';
 import { insertRow, updateRow } from '../engine';
@@ -100,6 +101,19 @@ export async function saveRequirement(ctx: Ctx, a: { p_project_id?: number; p_id
     const n = await nextSequence(ctx, `fr:${pid}`);
     return insertRow(ctx, 'project_requirements', { ...row, project_id: pid, req_no: `FR-${String(n).padStart(3, '0')}`, seq: n });
   });
+}
+
+/** Requirements the AI drafted while the request was written become draft requirements of the new project */
+export async function importAiRequirements(ctx: Ctx, projectId: number, list: unknown): Promise<number> {
+  const items = parseAiRequirements(list);
+  for (const q of items) {
+    const n = await nextSequence(ctx, `fr:${projectId}`);
+    await insertRow(ctx, 'project_requirements', {
+      project_id: projectId, req_no: `FR-${String(n).padStart(3, '0')}`, seq: n, status: 'draft',
+      title: q.title, category: q.category, description: q.description, priority: q.priority, acceptance_criteria: q.acceptance_criteria,
+    });
+  }
+  return items.length;
 }
 
 /** A requirement that already has tasks is dropped instead of deleted, so the trace is kept */

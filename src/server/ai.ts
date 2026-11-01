@@ -1,5 +1,5 @@
 import 'server-only';
-import { CRITERIA_PER_TURN, MAX_AI_TURNS, type IntakeForm, MAX_ASKS_PER_CRITERION, MAX_CHAT_MESSAGE, coverageReadiness, type AiAnalysis, type ChatMessage, type AiCoverage, type ClarifyCriterion, type CoverageStatus, type CriterionCoverage } from '@/lib/clarify';
+import { CRITERIA_PER_TURN, MAX_AI_TURNS, parseAiRequirements, type AiRequirement, type IntakeForm, MAX_ASKS_PER_CRITERION, MAX_CHAT_MESSAGE, coverageReadiness, type AiAnalysis, type ChatMessage, type AiCoverage, type ClarifyCriterion, type CoverageStatus, type CriterionCoverage } from '@/lib/clarify';
 import enEnums from '@/i18n/messages/en/enums.json';
 import { REDUCTION_ROWS } from '@/lib/constants';
 import type { DiagramDraft, DiagramKind } from '@/lib/diagram';
@@ -31,6 +31,9 @@ You get the request form, the conversation so far and the criteria. On every tur
      When an answer opens a new branch (e.g. "it needs approval"), follow it up right away (who approves, what happens when it is rejected) — let each answer decide the next question rather than going down the list.
    - Otherwise move to the next missing criterion, required ones first.
    - Where you can guess a likely answer from the form or earlier answers, offer it for them to confirm or correct (e.g. "So the line leaders fill it in and the section manager approves — is that right?"); otherwise give an example answer in brackets.
+   - Ask the way a good analyst does, not like a form: make each question specific to THIS project, using its own words and what the requestor already said — never a generic "what features do you need?".
+     Prefer (a) "walk me through the last real case" scenarios, (b) a concrete draft for them to correct — propose the fields of the screen, the columns of the report, the approval steps or the statuses you would expect for a system like this and ask what is missing or wrong — and (c) the "what if" cases: rejected, wrong data, someone away, a deadline missed, the exception that happens once a month.
+     Ask for the details a developer needs: field names and choices, report columns, calculations and limits, who may do what, how many per day, an example row of real data.
    - Short and easy for a non-IT person: at most 3 sentences, plain text, no lists or markdown.
    - Never ask about something already covered, nor about priority or the required date.
    - On the first turn (no conversation yet), greet briefly, say in one sentence what you will ask about, then ask the first question.
@@ -39,9 +42,18 @@ You get the request form, the conversation so far and the criteria. On every tur
 3. When nothing important is left (every required criterion covered, every optional one covered or not applicable), set "done": true,
    "asking": [] and make the message a one-line thank-you asking them to review the summary before submitting.
 
-Write the note, summary and message in the same language as the request (Thai request → Thai).
+4. Also write "requirements": the functions the system must have, as far as the conversation has made them clear — rebuild the WHOLE list every turn from the form and the whole conversation (keep earlier items, refine them, add new ones; never drop one the requestor did not take back).
+   Each item is one thing the system must do that a developer can build and a tester can check:
+   - "title": "<Role> can <do something>" or "The system <does something>", at most about 12 words (e.g. "Line leader submits a defect report", "System sends the approver an e-mail when a request is waiting").
+   - "category": the module or area it belongs to, 1–3 words (e.g. "Request", "Approval", "Report", "Admin") — reuse the same names so related items group together.
+   - "description": 1–2 sentences with the specifics the requestor gave (fields, rules, who, how many).
+   - "priority": "must" when the requestor said it is essential or the success criteria depend on it; "should" for the normal case; "could" for nice-to-have; "wont" only when they said it is out of scope for now.
+   - "acceptance_criteria": 1–3 short testable checks, one per line, using the real numbers / values they gave (e.g. "Approver gets the e-mail within 5 minutes"); null when nothing testable is known yet.
+   Only what the requestor said or confirmed — never invent a function, and leave out anything you only proposed and they have not accepted. [] while nothing is clear yet.
+
+Write the note, summary, message and requirements in the same language as the request (Thai request → Thai).
 Reply with JSON only, exactly in this shape:
-{"assessment": [{"key": "<criterion key>", "status": "covered|missing|not_applicable", "note": "...", "summary": "..." }], "asking": ["<criterion key>"], "message": "...", "done": false}`;
+{"assessment": [{"key": "<criterion key>", "status": "covered|missing|not_applicable", "note": "...", "summary": "..." }], "asking": ["<criterion key>"], "message": "...", "done": false, "requirements": [{"title": "...", "category": "...", "description": "...", "priority": "should", "acceptance_criteria": "..."}]}`;
 
 /**
  * Intake: the requestor starts a new request by talking to the AI instead of filling in the form; each turn also
@@ -103,6 +115,7 @@ Through a focused spoken conversation, find out what the team must know to under
 - Speak in the same language as the request form (Thai request → Thai, polite and natural). Short spoken sentences: at most 2–3 per turn, no lists.
 - Each turn: a very short acknowledgement of the last answer (no flattery), then ONE question, required criteria first.
 - Follow the thread: a general answer ("the whole department", "faster", "fewer mistakes") is not enough — dig into it first (who exactly, how many, how often, an example). When an answer opens a new branch (e.g. "it needs approval"), follow it up right away (who approves, what if it is rejected).
+- Be specific to THIS project, not generic: ask them to walk through the last real case, propose the fields / report columns / approval steps you would expect and ask what is missing, and ask the "what if" cases (rejected, wrong data, someone away). Ask for what a developer needs: fields, columns, calculations, who may do what, how many per day.
 - Where you can guess a likely answer from the form or earlier answers, offer it for them to confirm or correct; otherwise a short example answer helps.
 - If they do not know or want to skip, accept it and move on — never push.
 - Never ask about priority or the required date, nor about something already answered in the form or the conversation.
@@ -140,7 +153,7 @@ async function chat(system: string, user: string): Promise<string> {
   return (await res.json()).choices?.[0]?.message?.content ?? '';
 }
 
-export type ChatTurn = { coverage: CriterionCoverage[]; message: ChatMessage; done: boolean; form?: IntakeForm };
+export type ChatTurn = { coverage: CriterionCoverage[]; message: ChatMessage; done: boolean; form?: IntakeForm; requirements: AiRequirement[] };
 
 const STATUSES: CoverageStatus[] = ['covered', 'missing', 'not_applicable'];
 /** closing line when the conversation ends on our side (turn limit, nothing left to ask) rather than the AI's */
@@ -191,7 +204,7 @@ export async function chatTurn(r: ProjectRequest, criteria: ClarifyCriterion[], 
     const text = await chat(opts.intake ? `${SYSTEM}\n\n${INTAKE}` : SYSTEM, describe(r, criteria, extra, messages, usedUp, opts.lang));
     // some models wrap the JSON in a ``` fence or add a line before it
     const out = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1) || '{}') as {
-      assessment?: { key?: unknown; status?: unknown; note?: unknown; summary?: unknown }[]; asking?: unknown; message?: unknown; done?: unknown; form?: unknown;
+      assessment?: { key?: unknown; status?: unknown; note?: unknown; summary?: unknown }[]; asking?: unknown; message?: unknown; done?: unknown; form?: unknown; requirements?: unknown;
     };
     if (!Array.isArray(out.assessment)) throw new Error('no assessment in the reply');
     const got = new Map(out.assessment.map((a) => [String(a.key), a]));
@@ -218,6 +231,7 @@ export async function chatTurn(r: ProjectRequest, criteria: ClarifyCriterion[], 
       coverage,
       done,
       form,
+      requirements: parseAiRequirements(out.requirements),
       message: {
         role: 'assistant',
         content: done && (out.done !== true || !content) ? WRAP_UP[mode][opts.lang ?? 'en'] : content!,
@@ -271,6 +285,10 @@ export async function analyzeRequest(r: ProjectRequest, coverage: AiCoverage | n
   if (known.length) {
     lines.push('', 'CLARIFICATION SUMMARY (confirmed by the requestor)');
     for (const c of known) lines.push(`- ${c.label}${c.required ? ' (required)' : ''}: ${c.status === 'covered' ? c.summary || c.note || 'covered' : `MISSING${c.note ? ` — ${c.note}` : ''}`}`);
+  }
+  if (coverage?.requirements?.length) {
+    lines.push('', 'REQUIREMENTS DRAFTED FROM THE INTERVIEW (use them to size the work and name the modules)');
+    for (const q of coverage.requirements) lines.push(`- [${q.priority}] ${q.category ? `${q.category}: ` : ''}${q.title}`);
   }
   if (messages.length) {
     lines.push('', 'INTERVIEW');

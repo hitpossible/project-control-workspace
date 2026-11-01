@@ -45,5 +45,11 @@
     "subtitle": "Tell me what you need — I'll fill in the form on the right",
     "useForm": "Fill in myself",
     "done": "The form is ready — check it, pick the priority and required date, then submit."
+  },
+  "draftReq": {
+    "title": "Requirements drafted from the interview ({count})",
+    "note": "What the AI understood the system must do. They are added to the project as draft requirements when the request is converted; the leader reviews and approves them there.",
+    "accept": "Check",
+    "other": "Other"
   }
 }

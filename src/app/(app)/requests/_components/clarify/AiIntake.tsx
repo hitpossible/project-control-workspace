@@ -7,6 +7,7 @@ import type { ProjectRequest } from '@/lib/types';
 import RequestForm, { type AiPatch, type RequestDraft } from '../RequestForm';
 import { Button } from '@/components/ui/button';
 import { AiAvatar, ChatComposer, ChatMessages, CoverageSummary } from './ChatParts';
+import { DraftRequirements } from './DraftRequirements';
 import { intakeApi, useClarifyChat } from './useClarifyChat';
 
 /**
@@ -59,6 +60,7 @@ export default function AiIntake({ initial, onSaved, onSubmit, onOff, onUseForm 
 
       <div className="space-y-4">
         <CoverageSummary chat={chat} />
+        <DraftRequirements items={chat.coverage?.requirements} />
         <RequestForm
           initial={initial}
           aiPatch={patch}

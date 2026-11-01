@@ -10,6 +10,7 @@ import type { ProjectRequest } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/providers/AppProvider';
 import { AiAvatar, ChatComposer, ChatMessages, CoverageChecklist, CoverageIcon, ENTER } from './clarify/ChatParts';
+import { DraftRequirements } from './clarify/DraftRequirements';
 import { requestClarifyApi, useClarifyChat } from './clarify/useClarifyChat';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -143,6 +144,7 @@ export default function AiClarifyDialog({ request, onSubmit, onClose }: {
                       onChange={(e) => setSummaries((s) => ({ ...s, [c.key]: e.target.value }))} />
                   </div>
                 ))}
+                <DraftRequirements items={coverage?.requirements} className="pt-2" />
               </div>
             )}
           </div>

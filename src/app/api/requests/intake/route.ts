@@ -25,7 +25,7 @@ export const POST = withUser(async (me, req) => {
   const turn = await chatTurn(intakeRequest(body?.form, department), criteria, null, messages, turns, { intake: true, lang: chatLang(body?.lang) });
   if (!turn) return { data: { message: null } };
 
-  const coverage: AiCoverage = { checked_at: new Date().toISOString(), criteria: turn.coverage };
+  const coverage: AiCoverage = { checked_at: new Date().toISOString(), criteria: turn.coverage, requirements: turn.requirements };
   if (assess) return { data: { coverage, form: turn.form, done: turn.done, asking: turn.done ? [] : turn.message.criteria ?? [] } };
   return { data: { message: turn.message, coverage, form: turn.form, done: turn.done } };
 });
