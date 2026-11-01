@@ -86,7 +86,7 @@ export default function MeetingMom({ data, perm, reload, memberProfiles, meeting
     setBusy('save');
     try {
       await rpc('save_meeting_mom', {
-        p_id: meeting.id, p_summary: summary, p_discussion: discussion, p_decisions: decisions, p_actions: actions, p_questions: questions, p_info: info, p_attendees: attendees,
+        p_id: meeting.id, p_base_updated_at: meeting.updated_at, p_summary: summary, p_discussion: discussion, p_decisions: decisions, p_actions: actions, p_questions: questions, p_info: info, p_attendees: attendees,
       });
       notify(t('saved'));
       await reload();

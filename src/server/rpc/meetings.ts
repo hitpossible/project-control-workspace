@@ -32,6 +32,17 @@ async function lockMeeting(ctx: Ctx, id: unknown): Promise<ProjectMeeting> {
   return m;
 }
 
+/** Optimistic check: the editor was opened on an older version of the meeting, so saving would overwrite someone else's changes */
+export function assertFresh(cur: Pick<ProjectMeeting, 'updated_at'>, base: unknown) {
+  if (base !== undefined && base !== null && String(base) !== cur.updated_at) throw new AppError('Someone else changed this meeting — close it and open it again', 409);
+}
+
+/** Minutes are a record of the meeting: once recorded the meeting stays (tasks or not) */
+export function assertDeletable(m: Pick<ProjectMeeting, 'status' | 'mom_recorded_at' | 'mom_actions'>) {
+  if (m.status === 'held' || m.mom_recorded_at) throw new AppError('A meeting with minutes cannot be deleted');
+  if (m.mom_actions.some((x) => x.task_id)) throw new AppError('Tasks were created from this meeting — cancel it instead of deleting it');
+}
+
 const guard = <T>(fn: () => T): T => {
   try {
     return fn();
@@ -58,6 +69,7 @@ export async function saveMeeting(ctx: Ctx, a: Record<string, unknown> & { p_pro
   const attendees = await resolveAttendees(ctx, row.attendees);
   if (a.p_id) {
     const cur = await lockMeeting(ctx, a.p_id);
+    assertFresh(cur, a.p_base_updated_at);
     return ctx.asWorkflow(() => updateRow(ctx, 'project_meetings', cur.id, { ...row, attendees }));
   }
   const pid = Number(a.p_project_id);
@@ -78,6 +90,7 @@ async function checkedActions(ctx: Ctx, actions: ReturnType<typeof parseMomInput
 /** Record the MOM (and who attended); a planned meeting becomes "held" */
 export async function saveMeetingMom(ctx: Ctx, a: Record<string, unknown> & { p_id: number }) {
   const cur = await lockMeeting(ctx, a.p_id);
+  assertFresh(cur, a.p_base_updated_at);
   if (cur.status === 'cancelled') throw new AppError('A cancelled meeting has no minutes');
   const mom = guard(() => parseMomInput(a));
   const attendees = a.p_attendees === undefined ? cur.attendees : await resolveAttendees(ctx, guard(() => normalizeAttendees(a.p_attendees)));
@@ -93,7 +106,7 @@ export async function saveMeetingMom(ctx: Ctx, a: Record<string, unknown> & { p_
 
 export async function deleteMeeting(ctx: Ctx, a: { p_id: number }) {
   const m = await lockMeeting(ctx, a.p_id);
-  if (m.mom_actions.some((x) => x.task_id)) throw new AppError('Tasks were created from this meeting — cancel it instead of deleting it');
+  assertDeletable(m);
   await ctx.asWorkflow(() => deleteRow(ctx, 'project_meetings', m.id));
   return { id: m.id };
 }

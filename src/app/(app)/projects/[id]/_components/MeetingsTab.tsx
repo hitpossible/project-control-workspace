@@ -157,7 +157,7 @@ function PlanForm({ data, reload, memberProfiles, meeting, onSaved, onClose }: T
     setBusy(true);
     try {
       const { data: row, error } = await dbClient().rpc('save_meeting', {
-        p_project_id: data.project.id, p_id: meeting?.id, p_title: f.title, p_meeting_type: f.type, p_status: status ?? meeting?.status ?? 'planned',
+        p_project_id: data.project.id, p_id: meeting?.id, p_base_updated_at: meeting?.updated_at, p_title: f.title, p_meeting_type: f.type, p_status: status ?? meeting?.status ?? 'planned',
         p_start_at: fromLocalInput(f.start), p_end_at: fromLocalInput(f.end), p_location: f.location, p_online_link: f.link, p_purpose: f.purpose,
         p_agenda: agenda, p_attendees: people,
       });
@@ -243,7 +243,7 @@ function PlanForm({ data, reload, memberProfiles, meeting, onSaved, onClose }: T
       {timeChanged && <p className="rounded border border-amber-400 bg-amber-50 p-2 text-xs text-amber-800">{t('changedAfterInvite')}</p>}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
-          {meeting && meeting.status !== 'held' && (
+          {meeting && meeting.status !== 'held' && !meeting.mom_recorded_at && (
             <Button variant="outline" className="text-destructive" disabled={busy} onClick={remove}><Trash2 /> {t('delete')}</Button>
           )}
           {meeting?.status === 'planned' && (
