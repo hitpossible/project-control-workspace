@@ -4,7 +4,7 @@ import { getRow, insertRow, updateRow } from '../engine';
 import { notifyEvent } from '../logic/common';
 import { assertCanComplete } from '../logic/project';
 import { canManageProject } from '../perms';
-import { getObjectBuffer, putObject } from '../storage';
+import { getObjectBuffer, putObject, removeObject } from '../storage';
 
 /**
  * Closure sign-off for projects that came from a request: the leader sends the delivery for acceptance,
@@ -74,6 +74,8 @@ export async function decideClosure(ctx: Ctx, a: { p_closure_id: number; p_accep
   if (c.status !== 'pending') throw new AppError(`This closure is already ${c.status.replace('_', ' ')}`);
   const p = await project(ctx, c.project_id);
   if (!(await closureAcceptors(ctx, p)).includes(ctx.uid ?? -1)) throw new AppError('Only the requestor (or a requestor representative) can accept the delivery', 403);
+  // a leader who is also on the team as requestor representative cannot sign off their own delivery
+  if (c.requested_by === ctx.uid) throw new AppError('You sent this delivery for acceptance — the requestor (or another representative) has to decide on it', 403);
   const comment = blank(a.p_comment) ? null : String(a.p_comment).trim();
   if (comment && comment.length > MAX) throw new AppError(`Comment is too long (max ${MAX} characters)`);
   const now = new Date().toISOString();
@@ -95,13 +97,18 @@ export async function decideClosure(ctx: Ctx, a: { p_closure_id: number; p_accep
   // the signature as it was at acceptance — a later change of "My signature" does not alter this record
   const key = `closures/project-${p.id}/round-${c.round_no}-signature.png`;
   await putObject(key, await getObjectBuffer(sig), 'image/png');
-
-  return ctx.asWorkflow(async () => {
-    const r = await updateRow(ctx, 'project_closures', c.id, { status: 'accepted', decided_by: ctx.uid, decided_at: now, decision_comment: comment, signature_path: key });
-    // the projects afterUpdate hook tells the requestor and the team
-    await updateRow(ctx, 'projects', p.id, { status: 'completed' });
-    return r;
-  });
+  try {
+    return await ctx.asWorkflow(async () => {
+      const r = await updateRow(ctx, 'project_closures', c.id, { status: 'accepted', decided_by: ctx.uid, decided_at: now, decision_comment: comment, signature_path: key });
+      // the projects afterUpdate hook tells the requestor and the team
+      await updateRow(ctx, 'projects', p.id, { status: 'completed' });
+      return r;
+    });
+  } catch (e) {
+    // the transaction rolls back: do not leave the copied signature behind
+    await removeObject(key).catch(() => undefined);
+    throw e;
+  }
 }
 
 export async function withdrawClosure(ctx: Ctx, a: { p_closure_id: number }) {

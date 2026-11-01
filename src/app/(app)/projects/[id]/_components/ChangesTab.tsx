@@ -16,17 +16,11 @@ import { CR_STATUSES, CR_TYPES, PRIORITIES } from '@/lib/constants';
 import { dbClient } from '@/lib/db/client';
 import { errMsg, fmtDate, fmtDateTime } from '@/lib/format';
 import type { ChangeRequest } from '@/lib/types';
-import { useCanAccept } from './ClosureSignoff';
+import { rpc, useCanAccept } from './ClosureSignoff';
 import type { TabProps } from './types';
 
 /** Change Requests: scope changes after the project started. Server: src/server/rpc/change-requests.ts */
 const OPEN = ['submitted', 'assessed', 'agreed', 'approved'];
-
-async function rpc(fn: string, args: Record<string, unknown>) {
-  const { error } = await dbClient().rpc(fn, args);
-  if (error) throw new Error(errMsg(error));
-  dispatchEmails();
-}
 
 export default function ChangesTab({ data, perm, reload, focusCr }: TabProps & { focusCr?: number | null }) {
   const t = useTranslations('project.changes');
@@ -158,12 +152,13 @@ function ChangeRequestDialog({ cr, data, perm, reload, onClose }: Pick<TabProps,
   const mine = cr.requested_by === me?.id;
   const can = {
     assess: perm.manage && ['submitted', 'assessed'].includes(cr.status),
-    agree: canAccept && cr.status === 'assessed',
+    agree: canAccept && cr.status === 'assessed' && cr.assessed_by !== me?.id,
     decide: hasRole('manager', 'supervisor', 'admin') && cr.status === 'agreed' && (!mine || hasRole('admin')),
     implement: perm.manage && cr.status === 'approved',
     withdraw: (mine || perm.manage) && ['submitted', 'assessed', 'agreed'].includes(cr.status),
   };
-  const targetMoves = !!cr.impact_target && cr.impact_target !== data.project.target_date;
+  // a CR that moves the target needs its linked baseline revision approved before it is implemented (server rule)
+  const targetMoves = !!cr.impact_target && cr.impact_target !== data.project.target_date && data.project.baseline_version > 0;
   const revision = data.revisions.find((r) => r.change_request_id === cr.id);
   const otherPending = !revision && data.revisions.some((r) => r.status === 'pending');
 
@@ -254,7 +249,7 @@ function ChangeRequestDialog({ cr, data, perm, reload, onClose }: Pick<TabProps,
             {can.agree && <><Button variant="outline" onClick={() => setPrompt('disagree')}><ThumbsDown /> {t('disagree')}</Button><ActionButton tone="success" onClick={() => setPrompt('agree')}><ThumbsUp /> {t('agree')}</ActionButton></>}
             {can.decide && <><Button variant="outline" className="text-destructive" onClick={() => setPrompt('reject')}>{t('reject')}</Button><ActionButton tone="success" onClick={() => setPrompt('approve')}><Check /> {t('approve')}</ActionButton></>}
             {can.implement && targetMoves && !revision && !otherPending && <Button variant="outline" onClick={() => router.push(`/projects/${data.project.id}?tab=baseline&cr=${cr.id}`)}><CalendarClock /> {t('toBaseline')}</Button>}
-            {can.implement && <ActionButton tone="success" onClick={() => setPrompt('implement')}><Hammer /> {t('implement')}</ActionButton>}
+            {can.implement && !targetMoves && <ActionButton tone="success" onClick={() => setPrompt('implement')}><Hammer /> {t('implement')}</ActionButton>}
           </DialogFooter>
         </DialogContent>
       </Dialog>

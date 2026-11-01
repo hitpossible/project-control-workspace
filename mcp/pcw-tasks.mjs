@@ -19,7 +19,9 @@ const TOOLS = [
     description:
       'List the signed-in user\'s open work in Project Control relative to a date: internal tasks they own (and tasks waiting for their review), ' +
       'bugs assigned to them, and pending retests. Every item has `when` (overdue / today / this_week / later / no_due_date), status, priority, ' +
-      'project and a `url`. Items are sorted most urgent first. Use this to answer "what do I have to do today?".',
+      'project and a `url`. Items are sorted most urgent first. `actions` lists workflow steps waiting for the user: change requests to ' +
+      'assess / agree to / approve / implement and project deliveries to accept (do these in the app, not with update_task_progress). ' +
+      'Use this to answer "what do I have to do today?".',
     inputSchema: {
       type: 'object',
       properties: { date: { type: 'string', description: 'Day to plan for, YYYY-MM-DD. Defaults to today (server time zone).' } },

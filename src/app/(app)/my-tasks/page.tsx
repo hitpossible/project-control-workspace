@@ -14,7 +14,7 @@ import TaskKanban from '@/components/shared/TaskKanban';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BUG_STATUSES, GROUP_COLORS, SEVERITIES, TASK_STATUSES } from '@/lib/constants';
-import { fmtDate, isOverdue } from '@/lib/format';
+import { fmtDate, fmtDateTime, isOverdue } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
 import type { Bug, InternalTask, Retest } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 type ProjRef = { project_code: string; project_name: string } | null;
 type Row = InternalTask & { projects: ProjRef; activities: { name: string } | null };
 type BugRow = Bug & { projects: ProjRef };
+type Action = { kind: string; action: 'assess' | 'agree' | 'approve' | 'implement' | 'accept_delivery'; id: number; ref: string; title: string; project_code: string; project_name: string; since: string; link: string };
 type RetestRow = Retest & { projects: ProjRef; bugs: { bug_no: string; title: string; severity: string } | null };
 
 function MyWork() {
@@ -37,6 +38,10 @@ function MyWork() {
   const [rows, setRows] = useState<Row[]>([]);
   const [bugs, setBugs] = useState<BugRow[]>([]);
   const [retests, setRetests] = useState<RetestRow[]>([]);
+  // tasks with sub-tasks (theirs may be someone else's): completing a parent asks for no man-days
+  const [parents, setParents] = useState<Set<number>>(new Set());
+  // change requests / deliveries waiting for my decision
+  const [actions, setActions] = useState<Action[]>([]);
   const [scope, setScope] = useState(params.get('scope') ?? 'mine');
   const [filter, setFilter] = useState(params.get('filter') ?? 'open');
   const [layout, setLayout] = useState(params.get('view') ?? 'list');
@@ -48,8 +53,12 @@ function MyWork() {
     let q = db.from('internal_tasks').select('*, projects(project_code, project_name), activities(name)').order('due_date');
     if (scope === 'mine') q = q.eq('owner_id', me.id);
     if (scope === 'review') q = q.eq('reviewer_id', me.id);
-    q.then(({ data }) => {
-      setRows((data ?? []) as Row[]);
+    q.then(async ({ data }) => {
+      const list = (data ?? []) as Row[];
+      const ids = list.map((t) => t.id);
+      const subs = ids.length ? (await db.from('internal_tasks').select('parent_task_id').in('parent_task_id', ids)).data ?? [] : [];
+      setParents(new Set((subs as { parent_task_id: number }[]).map((s) => s.parent_task_id)));
+      setRows(list);
       setLoaded(true);
     });
     let b = db.from('bugs').select('*, projects(project_code, project_name)').order('due_date');
@@ -58,6 +67,7 @@ function MyWork() {
     let r = db.from('retests').select('*, projects(project_code, project_name), bugs(bug_no, title, severity)').eq('status', 'pending').order('due_date');
     if (scope !== 'all') r = r.eq('tester_id', me.id);
     r.then(({ data }) => setRetests((data ?? []) as RetestRow[]));
+    db.rpc('my_pending_actions', {}).then(({ data }) => setActions((data ?? []) as Action[]));
   }, [db, me, scope, tick]);
 
   const list = rows.filter((t) => filter === 'all' || (filter === 'overdue' ? isOverdue(t.due_date, t.status) : !['completed', 'cancelled'].includes(t.status)));
@@ -74,13 +84,14 @@ function MyWork() {
         <TabsList variant="line" className="w-full justify-start border-b border-grid">
           <TabsTrigger value="tasks" className="flex-none px-3">{tw('tab.tasks')}</TabsTrigger>
           <TabsTrigger value="bugs" className="flex-none px-3">{tw('tab.bugs')}{openBugs > 0 && <span className="ml-1 rounded-full bg-[#e2445c] px-1.5 text-[11px] text-white">{openBugs}</span>}</TabsTrigger>
+          <TabsTrigger value="actions" className="flex-none px-3">{tw('tab.actions')}{actions.length > 0 && <span className="ml-1 rounded-full bg-[#579bfc] px-1.5 text-[11px] text-white">{actions.length}</span>}</TabsTrigger>
           <TabsTrigger value="retests" className="flex-none px-3">{tw('tab.retests')}{retests.length > 0 && <span className="ml-1 rounded-full bg-[#a25ddc] px-1.5 text-[11px] text-white">{retests.length}</span>}</TabsTrigger>
         </TabsList>
       </Tabs>
       <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-grid pb-4">
-        <ViewToggle value={scope} onChange={setScope} options={tab === 'tasks' ? [['mine', tw('scope.assigned')], ['review', tw('scope.review')], ['all', tw('scope.all')]] : [['mine', tw('scope.mine')], ['all', tw('scope.all')]]} />
+        {tab !== 'actions' && <ViewToggle value={scope} onChange={setScope} options={tab === 'tasks' ? [['mine', tw('scope.assigned')], ['review', tw('scope.review')], ['all', tw('scope.all')]] : [['mine', tw('scope.mine')], ['all', tw('scope.all')]]} />}
         {tab === 'tasks' && <ViewToggle value={layout} onChange={setLayout} options={[['list', tw('view.list'), List], ['kanban', tw('view.kanban'), SquareKanban]]} />}
-        {tab !== 'retests' && (
+        {!['retests', 'actions'].includes(tab) && (
           <SelectField className="w-40" value={filter} onChange={setFilter}
             options={[{ value: 'open', label: tw('filter.open') }, { value: 'overdue', label: `⚠ ${tw('filter.overdue')}` }, { value: 'all', label: tw('filter.all') }]} />
         )}
@@ -92,6 +103,7 @@ function MyWork() {
       {loaded && tab === 'tasks' && layout === 'kanban' && (
         <TaskKanban
           tasks={list}
+          parents={parents}
           canEdit={(t) => [t.owner_id, t.reviewer_id, t.created_by].includes(me?.id ?? -1)}
           onOpen={(t) => router.push(`/projects/${t.project_id}?tab=internal&task=${t.id}`)}
           onChanged={() => setTick((n) => n + 1)}
@@ -153,6 +165,26 @@ function MyWork() {
                     </TableRow>
                   );
                 })}
+              </TableBody>
+            </Table>
+          )}
+        </BoardGroup>
+      )}
+
+      {loaded && tab === 'actions' && (
+        <BoardGroup title={tw('actionsTitle')} color="#579bfc" count={actions.length}>
+          {actions.length === 0 ? <EmptyState done text={tw('empty.actions')} /> : (
+            <Table className="board-table">
+              <TableHeader><TableRow><TableHead className="text-left">{tw('field.waiting')}</TableHead><TableHead className="text-left">{tw('field.item')}</TableHead><TableHead>{tf('project')}</TableHead><TableHead>{tw('field.since')}</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {actions.map((a) => (
+                  <TableRow key={`${a.kind}-${a.id}`} className="cursor-pointer" onClick={() => router.push(a.link)}>
+                    <TableCell className="font-medium">{tw(`action.${a.action}`)}</TableCell>
+                    <TableCell className="min-w-64 whitespace-normal">{a.title}<span className="ml-1 text-xs text-muted-foreground/70">{a.kind === 'change_request' ? a.ref : tw('closureRound', { ref: a.ref })}</span></TableCell>
+                    <TableCell className="text-center">{a.project_code}</TableCell>
+                    <TableCell className="text-center text-xs">{fmtDateTime(a.since)}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}

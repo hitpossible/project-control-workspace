@@ -4,7 +4,8 @@
   "tab": {
     "tasks": "Tasks",
     "bugs": "Bugs to fix",
-    "retests": "Retest queue"
+    "retests": "Retest queue",
+    "actions": "Waiting for me"
   },
   "scope": {
     "assigned": "Assigned to me",
@@ -26,8 +27,23 @@
     "overdue": "Nothing overdue — nice work",
     "open": "All caught up — no open tasks",
     "bugs": "No bugs to fix",
-    "retests": "Nothing to retest"
+    "retests": "Nothing to retest",
+    "actions": "Nothing waiting for you."
   },
   "reopened": "reopened ×{count}",
-  "retestTitle": "Waiting for retest"
+  "retestTitle": "Waiting for retest",
+  "actionsTitle": "Change requests and deliveries waiting for my decision",
+  "field": {
+    "waiting": "To do",
+    "item": "Item",
+    "since": "Since"
+  },
+  "closureRound": "delivery {ref}",
+  "action": {
+    "assess": "Assess change impact",
+    "agree": "Agree to change impact",
+    "approve": "Approve change request",
+    "implement": "Update plan for change",
+    "accept_delivery": "Accept delivery"
+  }
 }

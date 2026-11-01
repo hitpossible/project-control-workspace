@@ -134,6 +134,8 @@ export async function agreeChangeRequest(ctx: Ctx, a: { p_cr_id: number; p_agree
   assertFrom(cr, ['assessed'], 'agreed to');
   const p = await projectOf(ctx, cr.project_id);
   if (!(await closureAcceptors(ctx, p)).includes(ctx.uid ?? -1)) throw new AppError('Only the requestor (or a requestor representative) can agree to the impact', 403);
+  // whoever assessed the impact cannot also agree to it for the requestor
+  if (cr.assessed_by === ctx.uid) throw new AppError('You assessed this impact — the requestor (or another representative) has to agree to it', 403);
   const comment = text(a.p_comment, 'Comment');
   const now = new Date().toISOString();
   if (!a.p_agree) {
@@ -185,9 +187,12 @@ export async function implementChangeRequest(ctx: Ctx, a: { p_cr_id: number; p_n
   const cr = await lockCr(ctx, Number(a.p_cr_id));
   if (!(await canManageProject(ctx, cr.project_id))) throw new AppError('Only the Project Leader can mark a change request implemented', 403);
   assertFrom(cr, ['approved'], 'marked implemented');
-  if (cr.impact_target) {
-    const pending = await ctx.val(`SELECT 1 FROM baseline_revisions WHERE change_request_id = ? AND status = 'pending' LIMIT 1`, [cr.id]);
-    if (pending) throw new AppError('The baseline revision for this change request is still waiting for approval');
+  const p = await projectOf(ctx, cr.project_id);
+  // a CR that moves the target is carried out by a baseline revision linked to it (once there is a baseline)
+  if (cr.impact_target && cr.impact_target !== p.target_date && p.baseline_version > 0) {
+    const rev = await ctx.val<string>(`SELECT status FROM baseline_revisions WHERE change_request_id = ? AND status IN ('pending','approved') ORDER BY id DESC LIMIT 1`, [cr.id]);
+    if (rev === 'pending') throw new AppError('The baseline revision for this change request is still waiting for approval');
+    if (!rev) throw new AppError(`${cr.cr_no} moves the target to ${fmtD(cr.impact_target)} — request a baseline revision linked to it first`);
   }
   return ctx.asWorkflow(() => updateRow(ctx, 'change_requests', cr.id, {
     status: 'implemented', implemented_at: new Date().toISOString(), implemented_note: text(a.p_note, 'Note'),

@@ -28,7 +28,8 @@ export function useCanAccept(data: TabProps['data']) {
   return data.project.requestor_id === me.id || data.members.some((m) => m.user_id === me.id && m.member_role === 'requestor_rep');
 }
 
-async function rpc(fn: string, args: Record<string, unknown>) {
+/** Workflow call that throws the server message; sends queued e-mails */
+export async function rpc(fn: string, args: Record<string, unknown>) {
   const { error } = await dbClient().rpc(fn, args);
   if (error) throw new Error(errMsg(error));
   dispatchEmails();
@@ -124,10 +125,11 @@ function AcceptDialog({ data, reload, onClose }: Pick<Props, 'data' | 'reload'> 
 /** Overview banner: waiting for acceptance (accept / ask for changes / withdraw), changes asked for, or who accepted */
 export function ClosureBanner({ data, perm, reload }: Props) {
   const t = useTranslations('project.closure');
-  const { notify, profileName } = useApp();
-  const canAccept = useCanAccept(data);
-  const [dialog, setDialog] = useState<'accept' | 'changes' | null>(null);
+  const { me, notify, profileName } = useApp();
   const c = data.closures[0];
+  // the server refuses the sender as acceptor (a leader who is also requestor representative)
+  const canAccept = useCanAccept(data) && c?.requested_by !== me?.id;
+  const [dialog, setDialog] = useState<'accept' | 'changes' | null>(null);
   const p = data.project;
   if (!c || !p.request_id) return null;
 

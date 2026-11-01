@@ -186,7 +186,7 @@ async function main() {
   }
   for (const n of ['Requirement workshop', 'Requirement document', 'Design Database', 'UI / Flow design']) {
     const t = byName(n);
-    must(await L.from('internal_tasks').update({ status: 'completed', actual_start: t.planned_start, actual_finish: t.due_date }).eq('id', t.id), `complete ${n}`);
+    must(await L.from('internal_tasks').update({ status: 'completed', actual_md: 2, actual_start: t.planned_start, actual_finish: t.due_date }).eq('id', t.id), `complete ${n}`);
   }
   must(await L.from('internal_tasks').update({ owner_id: ids.dev1, reviewer_id: ids.leader, progress: 70, status: 'in_progress', actual_start: byName('Develop Backend API').planned_start,
     technical_note: 'Shift aggregation in a MySQL view. Index on (line_id, started_at).',

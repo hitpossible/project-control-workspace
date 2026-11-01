@@ -28,8 +28,10 @@ import { Person } from './labels';
 // a date-only string parses as UTC, so every time zone computes the same default
 const rankOf = (t: InternalTask) => t.board_rank ?? Date.parse(String(t.due_date).slice(0, 10)) / 86_400_000 + t.id * 1e-6;
 
-export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle }: {
+export default function TaskKanban({ tasks, parents, canEdit, onOpen, onChanged, subtitle }: {
   tasks: InternalTask[];
+  /** ids of tasks with sub-tasks, when `tasks` is a filtered list that may not hold them (My work) */
+  parents?: Set<number>;
   canEdit: (t: InternalTask) => boolean;
   onOpen: (t: InternalTask) => void;
   onChanged: () => Promise<void> | void;
@@ -48,7 +50,7 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
 
   const move = async (t: InternalTask, status: string, rank?: number) => {
     let actualMd: number | undefined;
-    if (status === 'completed' && t.status !== 'completed' && !subCount(t)) {
+    if (status === 'completed' && t.status !== 'completed' && !subCount(t) && !parents?.has(t.id)) {
       const md = await askEffort(t);
       if (md === null) return false;
       actualMd = md;

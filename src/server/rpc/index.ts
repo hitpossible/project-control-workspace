@@ -6,6 +6,7 @@ import { smartInsights } from './insights';
 import { kpiIndividual, kpiProjects, kpiTeam, triggerKpiSnapshot } from './kpi';
 import { agreeChangeRequest, assessChangeRequest, decideChangeRequest, implementChangeRequest, submitChangeRequest, withdrawChangeRequest } from './change-requests';
 import { decideClosure, requestClosure, withdrawClosure } from './closure';
+import { myPendingActions } from '../pending-actions';
 import { assignBug, cancelBug, markFixReady, recordRetest, reportBug, startFix } from './qa';
 import { actOnApproval, cancelRequest, convertRequestToProject, saveReview, submitRequest } from './requests';
 import { triggerNotificationScan } from './scan';
@@ -49,6 +50,7 @@ export const RPC: Record<string, Fn> = {
   decide_change_request: decideChangeRequest,
   implement_change_request: implementChangeRequest,
   withdraw_change_request: withdrawChangeRequest,
+  my_pending_actions: (ctx) => myPendingActions(ctx),
   // Closure sign-off (projects from a request complete when the requestor accepts)
   request_closure: requestClosure,
   decide_closure: decideClosure,

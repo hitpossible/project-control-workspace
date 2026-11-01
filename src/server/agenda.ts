@@ -1,5 +1,6 @@
 import type { Profile } from '@/lib/types';
 import { addDays, AppError, localDate, withCtx } from './db';
+import { myPendingActions } from './pending-actions';
 
 /**
  * "What do I have to do on <date>": my open work items, each tagged with when it is due relative to that date.
@@ -65,13 +66,16 @@ export async function myAgenda(me: Profile, dateRaw: string | null, origin = '')
       bugs: bugs.map((b) => ({ ...b, when: whenDue(b.due_date, date), url: `${base}/projects/${b.project_id}?tab=qa&bug=${b.id}` })).sort(byUrgency),
       retests: retests.map((r) => ({ ...r, when: whenDue(r.due_date, date), url: `${base}/projects/${r.project_id}?tab=qa&bug=${r.bug_id}` })).sort(byUrgency),
     };
+    // workflow steps waiting for me: change requests and deliveries to accept
+    const actions = (await myPendingActions(ctx)).map((a) => ({ ...a, url: `${base}${a.link}` }));
     const all = [...out.tasks, ...out.bugs, ...out.retests];
     const count = (w: When) => all.filter((x) => x.when === w).length;
     return {
       date,
       user: { id: me.id, name: me.full_name, roles: me.roles },
-      summary: { overdue: count('overdue'), today: count('today'), this_week: count('this_week'), in_progress: out.tasks.filter((t) => t.status === 'in_progress').length, total: all.length },
+      summary: { overdue: count('overdue'), today: count('today'), this_week: count('this_week'), in_progress: out.tasks.filter((t) => t.status === 'in_progress').length, waiting_for_me: actions.length, total: all.length },
       ...out,
+      actions,
     };
   });
 }

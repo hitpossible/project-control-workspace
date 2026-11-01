@@ -196,7 +196,8 @@ export function checkActualMd(v: unknown): number | null {
 }
 
 export async function taskBeforeWrite(ctx: Ctx, n: Row, old: Row | null) {
-  n.actual_md = checkActualMd(n.actual_md);
+  // only what a person types is range-checked; a parent's roll-up sum may exceed 999
+  if (ctx.depth === 0) n.actual_md = checkActualMd(n.actual_md);
   // a person completing a task says how much work it took; a parent task gets the sum of its sub-tasks (rollupFromTask)
   if (old && n.status === 'completed' && old.status !== 'completed' && ctx.depth === 0 && n.actual_md === null
     && !(await ctx.val('SELECT 1 FROM internal_tasks WHERE parent_task_id = ? LIMIT 1', [n.id]))) {

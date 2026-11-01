@@ -5,6 +5,7 @@ import {
   activityBeforeWrite, applyTemplateChecklist, assertCanComplete, recomputeProject, rollupFromActivity, rollupFromTask, taskBeforeWrite,
 } from './logic/project';
 import { normalizeDefinition } from '@/lib/definition';
+import { updateRow } from './engine';
 import { isAdmin, isSkillAssessor } from './perms';
 import { removeObject } from './storage';
 
@@ -134,8 +135,12 @@ export const HOOKS: Record<string, Hooks> = {
       }
       // a closure still waiting for acceptance is moot once the project is cancelled
       if (p.status === 'cancelled' && o.status !== 'cancelled') {
-        await ctx.exec(`UPDATE project_closures SET status = 'withdrawn' WHERE project_id = ? AND status = 'pending'`, [p.id]);
-        await ctx.exec(`UPDATE change_requests SET status = 'withdrawn' WHERE project_id = ? AND status IN ('submitted','assessed','agreed')`, [p.id]);
+        const open = [
+          ...(await ctx.q<{ id: number }>(`SELECT id FROM project_closures WHERE project_id = ? AND status = 'pending'`, [p.id])).map((r) => ['project_closures', r.id] as const),
+          ...(await ctx.q<{ id: number }>(`SELECT id FROM change_requests WHERE project_id = ? AND status IN ('submitted','assessed','agreed')`, [p.id])).map((r) => ['change_requests', r.id] as const),
+        ];
+        // through the engine so the withdrawals are audited
+        await ctx.asWorkflow(async () => { for (const [table, id] of open) await updateRow(ctx, table, id, { status: 'withdrawn' }); });
       }
       // Project closed / cancelled → requestor + team (no dedupe: a reopened project may close again)
       if ((p.status === 'completed' || p.status === 'cancelled') && o.status !== p.status) {

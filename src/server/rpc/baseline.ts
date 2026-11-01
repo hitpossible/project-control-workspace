@@ -68,6 +68,9 @@ export async function requestBaselineRevision(ctx: Ctx, a: { p_project_id: numbe
   if (crId && !(await ctx.val(`SELECT 1 FROM change_requests WHERE id = ? AND project_id = ? AND status IN ('approved','implemented')`, [crId, a.p_project_id]))) {
     throw new AppError('Link an approved change request of this project');
   }
+  if (crId && (await ctx.val(`SELECT 1 FROM baseline_revisions WHERE change_request_id = ? AND status IN ('pending','approved') LIMIT 1`, [crId]))) {
+    throw new AppError('This change request already has a baseline revision');
+  }
   const snapshot = (await ctx.q<Row>(
     `SELECT id activity_id, name, plan_start, plan_finish FROM activities WHERE project_id = ? AND status <> 'cancelled' ORDER BY seq`, [a.p_project_id]));
   const r = await insertRow(ctx, 'baseline_revisions', {
