@@ -18,5 +18,19 @@
     "qa": "QA",
     "mgmt": "Management View",
     "admin": "Admin"
+  },
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
+  "tagline": "Every project under control, from request to delivery",
+  "poweredBy": "Powered by",
+  "or": "or",
+  "microsoft": "Sign in with Microsoft",
+  "errors": {
+    "ms_failed": "Microsoft sign-in did not complete. Please try again.",
+    "ms_unregistered": "Your Microsoft account is not registered in Project Control. Please contact the administrator.",
+    "ms_off": "Microsoft sign-in is not set up.",
+    "usernameRequired": "Please enter your username",
+    "passwordRequired": "Please enter your password",
+    "invalid": "Incorrect username or password"
   }
 }

@@ -113,6 +113,13 @@ export async function authenticate(loginRaw: string, password: string): Promise<
   throw new AppError('Invalid username or password', 401);
 }
 
+/** Sign-in through Microsoft: the person must already have a profile (matched by e-mail / user principal name) */
+export async function authenticateByEmail(email: string): Promise<Profile> {
+  const profile = await findProfile(email);
+  if (!profile) throw new AppError('Your account is not registered in Project Control. Please contact the administrator.', 403);
+  return finish(profile);
+}
+
 async function finish(p: DbProfile): Promise<Profile> {
   if (!p.is_active) throw new AppError('Your account is inactive. Please contact the administrator.', 403);
   await pool().query('UPDATE profiles SET last_login_at = UTC_TIMESTAMP(3) WHERE id = ?', [p.id]);
