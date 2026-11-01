@@ -135,6 +135,7 @@ export const HOOKS: Record<string, Hooks> = {
       // a closure still waiting for acceptance is moot once the project is cancelled
       if (p.status === 'cancelled' && o.status !== 'cancelled') {
         await ctx.exec(`UPDATE project_closures SET status = 'withdrawn' WHERE project_id = ? AND status = 'pending'`, [p.id]);
+        await ctx.exec(`UPDATE change_requests SET status = 'withdrawn' WHERE project_id = ? AND status IN ('submitted','assessed','agreed')`, [p.id]);
       }
       // Project closed / cancelled → requestor + team (no dedupe: a reopened project may close again)
       if ((p.status === 'completed' || p.status === 'cancelled') && o.status !== p.status) {

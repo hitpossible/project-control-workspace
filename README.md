@@ -215,12 +215,14 @@ A component used by one route lives in that route's `_components/`; move it to `
 | **Kanban board** for internal tasks (@dnd-kit) — drag a card (mouse, or long-press on touch) or focus it and press Alt + ← / → to change status; server rules still apply (permissions, mandatory evidence before Done, 100% → Review) | Project → Internal Execution Plan → Kanban; My work → Kanban |
 | **Bug Kanban** (view only — status still changes through the bug workflow) | Project → QA & Bugs → Kanban |
 | **Comments with @mention** on Tasks and Bugs — mentioned people get in-app + e-mail notifications, owners / reviewers / developers get "new comment"; authors edit / delete their own | Task / Bug dialog → Comments |
+| **Change Requests**: a change of scope after the project started (`CR-001`… per project). The requestor side or the team raises it. The leader assesses the impact (man-days, new target date, effect), the requestor agrees to the impact (skipped when the project has no request), and a Manager / Supervisor (not the person who raised it) approves. The leader then updates the plan and marks it implemented. If the target moves, a baseline revision linked to the CR carries it out: such revisions are not counted as reschedules, and on-time completion is measured against the target the CR approved. An open CR blocks closing the project | Project → Changes |
 | **Closure sign-off**: a project that came from a request is completed only when the requestor (or a requestor representative) accepts the delivery. The leader sends a handover summary, and the requestor either accepts (their saved signature is copied in) or asks for changes with a comment. Rounds are kept, and the acceptance and signature appear in the Project Closure PDF. Projects without a request close directly | Project → Close Project / Overview banner |
 | **Global search** (Ctrl / ⌘ K): projects, requests, tasks, bugs by code or name, filtered by each user's access + quick page navigation | header search box |
 
 Bug workflow RPCs: `report_bug`, `assign_bug`, `start_fix`, `mark_fix_ready`, `record_retest`, `cancel_bug`.
 Re-plan RPCs: `request_baseline_revision`, `decide_baseline_revision`, `cancel_baseline_revision`, `review_recovery_plan`.
 Bug status can only change through these functions (guard in `hooks.ts`).
+Change request RPCs: `submit_change_request`, `assess_change_request`, `agree_change_request`, `decide_change_request`, `implement_change_request`, `withdraw_change_request` (`src/server/rpc/change-requests.ts`).
 Closure RPCs: `request_closure`, `decide_closure`, `withdraw_closure` (`src/server/rpc/closure.ts`). The projects hook only allows `completed` on a request-based project through `decide_closure`.
 
 ## Phase 3 — Management Intelligence
@@ -256,7 +258,7 @@ These defaults are confirmable/configurable:
 12. A bug closes only when a retest passes (Rule 7); any QA (not only the original tester) may retest
 13. Baseline V2+ must be approved by a Manager / Supervisor who is not the requester
 14. Workforce Plan links to a project optionally (Q20); staff can see the whole team plan, members edit their own, Supervisor / Manager edit everyone
-15. On-time project completion is measured against the **first** baseline target; waiting days come from time activities spent in *Waiting* status
+15. On-time project completion is measured against the **first** baseline target, or against the latest baseline that an approved Change Request moved. Waiting days come from time activities spent in *Waiting* status
 
 ## Production notes
 

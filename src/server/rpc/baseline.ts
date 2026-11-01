@@ -54,7 +54,7 @@ export async function createBaseline(ctx: Ctx, a: { p_project_id: number; p_reas
   return freezeBaseline(ctx, a.p_project_id, a.p_reason ?? null, null);
 }
 
-export async function requestBaselineRevision(ctx: Ctx, a: { p_project_id: number; p_reason: string; p_impact?: string | null; p_new_target?: string | null }) {
+export async function requestBaselineRevision(ctx: Ctx, a: { p_project_id: number; p_reason: string; p_impact?: string | null; p_new_target?: string | null; p_change_request_id?: number | null }) {
   const p = (await getRow(ctx, 'projects', a.p_project_id)) as unknown as Project | null;
   if (!p) throw new AppError('Project not found', 404);
   if (!(await canManageProject(ctx, a.p_project_id))) throw new AppError('Only the Project Leader can request a baseline revision', 403);
@@ -63,10 +63,15 @@ export async function requestBaselineRevision(ctx: Ctx, a: { p_project_id: numbe
   if (await ctx.val(`SELECT 1 FROM baseline_revisions WHERE project_id = ? AND status = 'pending' LIMIT 1`, [a.p_project_id])) {
     throw new AppError('A baseline revision is already waiting for approval');
   }
+  // a revision that carries out an approved change request (not counted as a reschedule in KPI)
+  const crId = a.p_change_request_id ? Number(a.p_change_request_id) : null;
+  if (crId && !(await ctx.val(`SELECT 1 FROM change_requests WHERE id = ? AND project_id = ? AND status IN ('approved','implemented')`, [crId, a.p_project_id]))) {
+    throw new AppError('Link an approved change request of this project');
+  }
   const snapshot = (await ctx.q<Row>(
     `SELECT id activity_id, name, plan_start, plan_finish FROM activities WHERE project_id = ? AND status <> 'cancelled' ORDER BY seq`, [a.p_project_id]));
   const r = await insertRow(ctx, 'baseline_revisions', {
-    project_id: a.p_project_id, from_version: p.baseline_version, reason: a.p_reason.trim(), impact: a.p_impact ?? null,
+    project_id: a.p_project_id, from_version: p.baseline_version, reason: a.p_reason.trim(), change_request_id: crId, impact: a.p_impact ?? null,
     previous_target_date: p.target_date, proposed_target_date: a.p_new_target ?? p.target_date, plan_snapshot: snapshot,
   });
   const approvers = (await ctx.q<{ id: number }>(`SELECT id FROM profiles WHERE is_active = 1 AND JSON_CONTAINS(roles, '"manager"')`)).map((x) => x.id);

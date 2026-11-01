@@ -533,6 +533,32 @@ export interface EvidenceRequirement {
   created_at: string;
 }
 
+export interface ChangeRequest {
+  id: number;
+  project_id: number;
+  cr_no: string;
+  title: string;
+  change_type: 'add' | 'modify' | 'remove';
+  description: string;
+  reason: string;
+  priority: string;
+  status: 'submitted' | 'assessed' | 'agreed' | 'approved' | 'implemented' | 'rejected' | 'withdrawn';
+  impact_md: number | null;
+  impact_target: string | null;
+  impact_summary: string | null;
+  assessed_by: number | null;
+  assessed_at: string | null;
+  agreed_by: number | null;
+  agreed_at: string | null;
+  decided_by: number | null;
+  decided_at: string | null;
+  decision_comment: string | null;
+  implemented_at: string | null;
+  implemented_note: string | null;
+  requested_by: number;
+  requested_at: string;
+}
+
 export interface ProjectClosure {
   id: number;
   project_id: number;
@@ -562,6 +588,7 @@ export interface BaselineRevision {
   decided_at: string | null;
   decision_comment: string | null;
   baseline_id: number | null;
+  change_request_id: number | null;
 }
 
 // ---------------------------------------------------------------------------

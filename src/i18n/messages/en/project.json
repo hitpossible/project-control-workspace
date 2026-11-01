@@ -11,7 +11,8 @@
     "evidence": "Evidence",
     "history": "History",
     "srs": "SRS",
-    "definition": "Project definition"
+    "definition": "Project definition",
+    "changes": "Changes"
   },
   "round": "Round {no}",
   "leader": "Leader {name}",
@@ -30,7 +31,8 @@
       "tasks": "All internal tasks closed",
       "tasksOpen": "{count} task(s) still open",
       "otherBugs": "No other open bugs",
-      "bugsOpen": "{count} bug(s) still open"
+      "bugsOpen": "{count} bug(s) still open",
+      "changeRequests": "No open change requests"
     },
     "title": "Close project",
     "description": "{code} will be marked Done and stop being tracked for delays and alerts.",
@@ -274,7 +276,8 @@
       "targetChange": "Target change",
       "requested": "Requested",
       "decision": "Decision",
-      "status": "Status"
+      "status": "Status",
+      "scopeChange": "Scope change"
     },
     "revision": {
       "title": "Request Baseline Revision (V{from} → V{to})",
@@ -283,7 +286,10 @@
       "impactPlaceholder": "e.g. Go-live +1 week; no cost impact",
       "newTarget": "New Target Date",
       "sent": "Revision request sent for approval",
-      "submit": "Submit for Approval"
+      "submit": "Submit for Approval",
+      "changeRequest": "Change request",
+      "noChangeRequest": "Not from a change request",
+      "changeRequestHelp": "A revision for an approved change request is a scope change, not a reschedule (KPI)."
     },
     "decide": {
       "approveTitle": "Approve baseline V{version}",
@@ -381,5 +387,77 @@
     "withdrawn": "Acceptance request withdrawn",
     "acceptedTitle": "Delivery accepted",
     "decidedBy": "by {by} on {date}"
+  },
+  "changes": {
+    "intro": "Changes of scope after the project started. The leader assesses the impact, the requestor agrees to it, a Manager / Supervisor approves, then the plan is updated.",
+    "new": "New change request",
+    "newDescription": "Describe what should change and why. The project leader assesses the effort and schedule impact next.",
+    "empty": "No change requests.",
+    "open": "In progress",
+    "closed": "Closed",
+    "field": {
+      "title": "Title",
+      "type": "Change",
+      "priority": "Priority",
+      "status": "Status",
+      "effort": "Effort",
+      "effortMd": "Effort (man-days)",
+      "newTarget": "New target",
+      "raised": "Raised",
+      "description": "What should change",
+      "reason": "Why it is needed",
+      "impactSummary": "Impact"
+    },
+    "descriptionPlaceholder": "The feature / screen / report to add, change or remove, and how it should work",
+    "reasonPlaceholder": "Business reason, who needs it, what happens without it",
+    "impactPlaceholder": "Affected activities and tasks, risks, cost, what is dropped or postponed",
+    "effortHelp": "Extra work; negative if it saves effort",
+    "targetHelp": "Leave empty if the target date does not move",
+    "md": "{n} MD",
+    "from": "from {date}",
+    "unchanged": "unchanged",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "submitted": "Change request submitted",
+    "assess": "Assess impact",
+    "reassess": "Re-assess",
+    "sendAssessment": "Send assessment",
+    "assessed": "Impact assessment sent",
+    "agree": "Agree to impact",
+    "agreeTitle": "Agree to the impact",
+    "agreed": "Sent for approval",
+    "disagree": "Turn down",
+    "disagreeTitle": "Turn down the change",
+    "disagreed": "Change request turned down",
+    "approve": "Approve",
+    "approveTitle": "Approve the change request",
+    "approved": "Change request approved",
+    "reject": "Reject",
+    "rejectTitle": "Reject the change request",
+    "rejected": "Change request rejected",
+    "implement": "Mark implemented",
+    "implementTitle": "The plan now carries this change",
+    "implemented": "Marked implemented",
+    "withdraw": "Withdraw",
+    "withdrawTitle": "Withdraw the change request",
+    "withdrawn": "Change request withdrawn",
+    "toBaseline": "Request baseline revision",
+    "revisionHint": "The target moves to {date}: request a baseline revision linked to this change request before marking it implemented.",
+    "revisionLinked": "Linked baseline revision: {status}",
+    "step": {
+      "raised": "Raised",
+      "assessed": "Impact assessed",
+      "agreed": "Requestor agreed",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "implemented": "Implemented"
+    },
+    "next": {
+      "submitted": "Next: the project leader assesses the impact.",
+      "assessed": "Next: the requestor agrees to the impact.",
+      "agreed": "Next: a Manager / Supervisor approves.",
+      "approved": "Next: the leader updates the plan and marks it implemented."
+    },
+    "revisionBusy": "Another baseline revision is waiting for approval — once it is decided, request one linked to this change request."
   }
 }

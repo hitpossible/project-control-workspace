@@ -283,5 +283,19 @@
     "integration": "การเชื่อมต่อระบบ",
     "domain": "ความรู้ธุรกิจ",
     "other": "อื่น ๆ"
+  },
+  "crStatus": {
+    "submitted": "ส่งแล้ว",
+    "assessed": "รอผู้ขอยืนยัน",
+    "agreed": "รออนุมัติ",
+    "approved": "อนุมัติแล้ว",
+    "implemented": "ดำเนินการแล้ว",
+    "rejected": "ไม่อนุมัติ",
+    "withdrawn": "ถอนแล้ว"
+  },
+  "crType": {
+    "add": "เพิ่มขอบเขต",
+    "modify": "แก้ไขขอบเขต",
+    "remove": "ลดขอบเขต"
   }
 }

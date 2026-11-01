@@ -46,7 +46,11 @@ export async function kpiProjects(ctx: Ctx): Promise<KpiProject[]> {
     `SELECT p.id, p.project_code, p.project_name, l.full_name leader_name, p.status, p.health, p.progress, p.start_date, p.target_date,
             p.forecast_date, p.baseline_version,
             (SELECT b.planned_finish FROM project_baselines b WHERE b.project_id = p.id ORDER BY b.version_no DESC LIMIT 1) baseline_finish,
-            (SELECT b.target_date FROM project_baselines b WHERE b.project_id = p.id ORDER BY b.version_no LIMIT 1) first_target,
+            -- on time = against the first baseline, or the latest one an approved change request moved
+            COALESCE((SELECT b.target_date FROM baseline_revisions br JOIN project_baselines b ON b.id = br.baseline_id
+                       WHERE br.project_id = p.id AND br.status = 'approved' AND br.change_request_id IS NOT NULL ORDER BY b.version_no DESC LIMIT 1),
+                     (SELECT b.target_date FROM project_baselines b WHERE b.project_id = p.id ORDER BY b.version_no LIMIT 1)) first_target,
+            (SELECT COUNT(*) FROM baseline_revisions br WHERE br.project_id = p.id AND br.status = 'approved' AND br.change_request_id IS NULL) reschedule_count,
             (SELECT MAX(a.actual_finish) FROM activities a WHERE a.project_id = p.id AND a.status <> 'cancelled') last_finish
        FROM projects p LEFT JOIN profiles l ON l.id = p.leader_id
       ${vis === null ? '' : `WHERE p.id IN (${ph})`}
@@ -87,7 +91,8 @@ export async function kpiProjects(ctx: Ctx): Promise<KpiProject[]> {
       schedule_variance: p.baseline_finish && p.forecast_date ? cal.workdaysBetween(p.baseline_finish, p.forecast_date) : null,
       completed_on: completed ? row.last_finish : null,
       on_time: completed && row.last_finish && (row.first_target ?? p.target_date) ? row.last_finish <= (row.first_target ?? p.target_date)! : null,
-      reschedules: Math.max(p.baseline_version - 1, 0),
+      // revisions that carry out an approved change request are scope changes, not reschedules
+      reschedules: Number((p as unknown as { reschedule_count: number }).reschedule_count ?? 0),
       waiting_days: waiting.get(p.id) ?? 0,
       tasks_total: internal ? tk.length : null,
       tasks_completed: internal ? done.length : null,

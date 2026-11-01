@@ -45,6 +45,9 @@ export async function assertCanComplete(ctx: Ctx, projectId: number) {
   if (missing.length) throw new AppError(`Mandatory project evidence missing: ${missing.join(', ')}`);
   const crit = await openCriticalBugs(ctx, projectId);
   if (crit > 0) throw new AppError(`${crit} critical bug(s) still open — close them before completing the project`);
+  const crs = await ctx.q<{ cr_no: string }>(
+    `SELECT cr_no FROM change_requests WHERE project_id = ? AND status IN ('submitted','assessed','agreed','approved') ORDER BY id`, [projectId]);
+  if (crs.length) throw new AppError(`Change request(s) still open: ${crs.map((c) => c.cr_no).join(', ')} — implement, reject or withdraw them first`);
 }
 
 export type QaStats = { open_bugs: number; critical_bugs: number; high_bugs: number; retest_pending: number; retest_overdue: number; fix_overdue: number; evidence_missing: number };

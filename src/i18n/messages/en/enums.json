@@ -283,5 +283,19 @@
     "integration": "Integration",
     "domain": "Business domain",
     "other": "Other"
+  },
+  "crStatus": {
+    "submitted": "Submitted",
+    "assessed": "Waiting Requestor",
+    "agreed": "Waiting Approval",
+    "approved": "Approved",
+    "implemented": "Implemented",
+    "rejected": "Rejected",
+    "withdrawn": "Withdrawn"
+  },
+  "crType": {
+    "add": "Add scope",
+    "modify": "Modify scope",
+    "remove": "Remove scope"
   }
 }

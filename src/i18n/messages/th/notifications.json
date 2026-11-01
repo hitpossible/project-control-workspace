@@ -44,7 +44,11 @@
     "bug_closed": "ปิดบั๊กแล้ว",
     "evidence_missing": "หลักฐานยังไม่ครบ",
     "closure_requested": "รอรับมอบงาน",
-    "closure_changes_requested": "ขอให้แก้ไขก่อนปิด"
+    "closure_changes_requested": "ขอให้แก้ไขก่อนปิด",
+    "cr_submitted": "คำขอเปลี่ยนแปลง",
+    "cr_assessed": "ผลกระทบการเปลี่ยนแปลง",
+    "cr_agreed": "รออนุมัติการเปลี่ยนแปลง",
+    "cr_decided": "ผลการพิจารณาการเปลี่ยนแปลง"
   },
   "empty": {
     "unread": {

@@ -34,11 +34,13 @@ export function closeChecks({ data, perm }: Pick<TabProps, 'data' | 'perm'>, t: 
   const missingProject = missing.filter((r) => r.entity_type === 'project');
   const openTasks = data.tasks.filter((t) => !CLOSED.includes(t.status));
   const openBugs = Math.max(0, p.open_bugs - p.critical_bugs);
+  const openCrs = data.changeRequests.filter((c) => ['submitted', 'assessed', 'agreed', 'approved'].includes(c.status));
   const list = (names: string[]) => names.slice(0, 5).join(', ') + (names.length > 5 ? ` ${t('more', { count: names.length - 5 })}` : '');
   return [
     { label: t('check.activities'), ok: openActs.length === 0, blocking: true, detail: openActs.length ? t('check.stillOpen', { items: list(openActs.map((a) => a.name)) }) : undefined },
     { label: t('check.evidence'), ok: missing.length === 0, blocking: missingProject.length > 0, detail: missing.length ? t('check.missing', { items: list(missing.map((r) => r.name)) }) : undefined },
     { label: t('check.criticalBugs'), ok: p.critical_bugs === 0, blocking: true, detail: p.critical_bugs ? t('check.criticalOpen', { count: p.critical_bugs }) : undefined },
+    { label: t('check.changeRequests'), ok: openCrs.length === 0, blocking: true, detail: openCrs.length ? t('check.stillOpen', { items: list(openCrs.map((c) => c.cr_no)) }) : undefined },
     ...(perm.internal ? [
       { label: t('check.tasks'), ok: openTasks.length === 0, blocking: false, detail: openTasks.length ? t('check.tasksOpen', { count: openTasks.length }) : undefined },
       { label: t('check.otherBugs'), ok: openBugs === 0, blocking: false, detail: openBugs ? t('check.bugsOpen', { count: openBugs }) : undefined },

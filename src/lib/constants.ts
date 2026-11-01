@@ -176,6 +176,18 @@ export const REVISION_STATUSES = opts('revisionStatus', [
   { value: 'cancelled', color: '#757575' },
 ]);
 
+export const CR_STATUSES = opts('crStatus', [
+  { value: 'submitted', color: '#579bfc' },
+  { value: 'assessed', color: '#fdab3d' },
+  { value: 'agreed', color: '#ffcb00' },
+  { value: 'approved', color: '#00c875' },
+  { value: 'implemented', color: '#037f4c' },
+  { value: 'rejected', color: '#e2445c' },
+  { value: 'withdrawn', color: '#757575' },
+]);
+
+export const CR_TYPES = opts('crType', [{ value: 'add', color: '#00c875' }, { value: 'modify', color: '#fdab3d' }, { value: 'remove', color: '#e2445c' }]);
+
 // Phase 3
 export const WORK_TYPES = opts('workType', [
   { value: 'office', color: '#579bfc' },

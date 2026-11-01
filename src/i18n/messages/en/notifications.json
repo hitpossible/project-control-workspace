@@ -44,7 +44,11 @@
     "bug_closed": "Bug closed",
     "evidence_missing": "Evidence missing",
     "closure_requested": "Acceptance needed",
-    "closure_changes_requested": "Changes requested"
+    "closure_changes_requested": "Changes requested",
+    "cr_submitted": "Change request",
+    "cr_assessed": "Change impact",
+    "cr_agreed": "Change approval",
+    "cr_decided": "Change decided"
   },
   "empty": {
     "unread": {
