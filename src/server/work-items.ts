@@ -1,4 +1,5 @@
 import type { DataFilter } from '@/lib/db/protocol';
+import { branchName, workRef } from '@/lib/git';
 import { runQuery } from './data';
 import { AppError, type Ctx, inList, type Row } from './db';
 import { checkActualMd, missingEvidence } from './logic/project';
@@ -41,6 +42,14 @@ async function comments(ctx: Ctx, type: WorkType, id: number) {
   return rows.map((c) => ({ id: c.id, author: who.get(Number(c.created_by)) ?? null, body: c.body, created_at: c.created_at }));
 }
 
+async function links(ctx: Ctx, type: WorkType, id: number) {
+  const rows = await select(ctx, 'work_links', [{ op: 'eq', col: 'entity_type', value: type }, { op: 'eq', col: 'entity_id', value: id }], { order: 'created_at' });
+  return rows.map((l) => ({ id: l.id, kind: l.kind, provider: l.provider, url: l.url, title: l.title, created_at: l.created_at }));
+}
+
+/** ref + suggested branch: how to tie git work to this item (src/lib/git.ts) */
+const gitInfo = (type: WorkType, id: number, name: string) => ({ ref: workRef(type, id), suggested_branch: branchName(type, id, name) });
+
 async function one(ctx: Ctx, table: string, id: number, label: string): Promise<Row> {
   const row = (await select(ctx, table, [{ op: 'eq', col: 'id', value: id }], { columns: '*, projects(project_code, project_name)' }))[0];
   if (!row) throw new AppError(`${label} not found`, 404); // also when the policy hides it
@@ -65,6 +74,7 @@ export async function workItemDetail(ctx: Ctx, type: WorkType, id: number, base:
       created_by: t.created_by ? who.get(Number(t.created_by)) ?? null : null,
       parent_task: parent, subtasks: subtasks.map((s) => ({ ...s, owner: who.get(Number(s.owner_id)) ?? null })), bugs,
       missing_evidence: await missingEvidence(ctx, 'task', id),
+      ...gitInfo(type, id, String(t.name)), links: await links(ctx, type, id),
       comments: await comments(ctx, type, id),
       url: `${base}/projects/${t.project_id}?tab=internal&task=${id}`,
     };
@@ -86,6 +96,7 @@ export async function workItemDetail(ctx: Ctx, type: WorkType, id: number, base:
       fix_description: f.fix_description, technical_note: f.technical_note, unit_test_result: f.unit_test_result, commit_link: f.commit_link, fix_ready_at: f.fix_ready_at,
     })),
     retests: retests.map((r) => ({ id: r.id, round: r.retest_round, status: r.status, result: r.result, comment: r.comment, tester: name(r.tester_id), due_date: r.due_date, tested_at: r.tested_at })),
+    ...gitInfo(type, id, String(b.title)), links: await links(ctx, type, id),
     comments: await comments(ctx, type, id),
     url: `${base}/projects/${b.project_id}?tab=qa&bug=${id}`,
   };
@@ -94,9 +105,10 @@ export async function workItemDetail(ctx: Ctx, type: WorkType, id: number, base:
 // ---------------------------------------------------------------------
 // Updates
 // ---------------------------------------------------------------------
-export type TaskUpdate = { status?: string; progress?: number; actual_md?: number | null; comment?: string };
+export type LinkInput = { url: string; title?: string | null };
+export type TaskUpdate = { status?: string; progress?: number; actual_md?: number | null; comment?: string; links?: LinkInput[] };
 export type BugUpdate = {
-  action?: 'start_fix' | 'fix_ready'; comment?: string;
+  action?: 'start_fix' | 'fix_ready'; comment?: string; links?: LinkInput[];
   fix_description?: string; unit_test_result?: string; technical_note?: string; commit_link?: string;
 };
 
@@ -106,6 +118,18 @@ const text = (v: unknown, max: number, label: string): string | undefined => {
   if (s.length > max) throw new AppError(`${label} is too long (max ${max} characters)`);
   return s || undefined;
 };
+
+/** git links to attach (branch / commit / PR URLs); validated by the work_links hook */
+export function parseLinks(v: unknown): LinkInput[] | undefined {
+  if (v === undefined || v === null) return undefined;
+  if (!Array.isArray(v) || v.length > 10) throw new AppError('links must be a list of at most 10 { url, title? }');
+  return v.map((l) => {
+    const url = typeof l === 'string' ? l : (l as { url?: unknown })?.url;
+    if (typeof url !== 'string' || !url.trim()) throw new AppError('Every link needs a url');
+    const title = typeof l === 'object' && l ? (l as { title?: unknown }).title : undefined;
+    return { url: url.trim(), title: typeof title === 'string' ? title : null };
+  });
+}
 
 export function parseTaskUpdate(body: Record<string, unknown>): TaskUpdate {
   const out: TaskUpdate = {};
@@ -123,8 +147,9 @@ export function parseTaskUpdate(body: Record<string, unknown>): TaskUpdate {
   }
   if (body.actual_md !== undefined) out.actual_md = checkActualMd(body.actual_md);
   out.comment = text(body.comment, 4000, 'comment');
-  if (out.status === undefined && out.progress === undefined && out.actual_md === undefined && !out.comment) {
-    throw new AppError('Nothing to update: send status, progress, actual_md and/or comment');
+  out.links = parseLinks(body.links);
+  if (out.status === undefined && out.progress === undefined && out.actual_md === undefined && !out.comment && !out.links?.length) {
+    throw new AppError('Nothing to update: send status, progress, actual_md, links and/or comment');
   }
   return out;
 }
@@ -137,8 +162,9 @@ export function parseBugUpdate(body: Record<string, unknown>): BugUpdate {
     fix_description: text(body.fix_description, 4000, 'fix_description'), unit_test_result: text(body.unit_test_result, 4000, 'unit_test_result'),
     technical_note: text(body.technical_note, 4000, 'technical_note'), commit_link: text(body.commit_link, 500, 'commit_link'),
   };
+  out.links = parseLinks(body.links);
   if (action === 'fix_ready' && !out.fix_description) throw new AppError('fix_ready needs fix_description (what was changed and why)');
-  if (!action && !out.comment) throw new AppError('Nothing to update: send action and/or comment');
+  if (!action && !out.comment && !out.links?.length) throw new AppError('Nothing to update: send action, links and/or comment');
   return out;
 }
 
@@ -147,6 +173,14 @@ async function addComment(ctx: Ctx, type: WorkType, id: number, projectId: numbe
     table: 'comments', action: 'insert',
     values: { entity_type: type, entity_id: id, project_id: projectId, body: AGENT_COMMENT_PREFIX + body, mentions: [] },
   });
+}
+
+async function addLinks(ctx: Ctx, type: WorkType, id: number, list: LinkInput[] | undefined) {
+  for (const l of list ?? []) {
+    // already linked → skip quietly (the AI may send the same PR twice)
+    if (await ctx.val('SELECT 1 FROM work_links WHERE entity_type = ? AND entity_id = ? AND url = ?', [type, id, l.url])) continue;
+    await runQuery(ctx, { table: 'work_links', action: 'insert', values: { entity_type: type, entity_id: id, url: l.url, title: l.title ?? null } });
+  }
 }
 
 export async function updateWorkItem(ctx: Ctx, type: WorkType, id: number, body: Record<string, unknown>, base: string) {
@@ -161,6 +195,7 @@ export async function updateWorkItem(ctx: Ctx, type: WorkType, id: number, body:
       const res = await runQuery(ctx, { table: 'internal_tasks', action: 'update', values: patch, filters: [{ op: 'eq', col: 'id', value: id }], returning: 'id' });
       if (!(res.data as Row[]).length) throw new AppError('You cannot update this task (only its owner, reviewer, creator or the project leader can)', 403);
     }
+    await addLinks(ctx, type, id, u.links);
     if (u.comment) await addComment(ctx, type, id, Number(t.project_id), u.comment);
   } else {
     const u = parseBugUpdate(body);
@@ -174,6 +209,8 @@ export async function updateWorkItem(ctx: Ctx, type: WorkType, id: number, body:
         p_technical_note: u.technical_note ?? null, p_commit_link: u.commit_link ?? null,
       });
     }
+    // the commit / PR of a fix is a link too
+    await addLinks(ctx, type, id, [...(u.links ?? []), ...(u.action === 'fix_ready' && u.commit_link ? [{ url: u.commit_link }] : [])]);
     if (u.comment) await addComment(ctx, type, id, Number(b.project_id), u.comment);
   }
   return workItemDetail(ctx, type, id, base);

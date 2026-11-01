@@ -122,6 +122,18 @@ An AI assistant such as Claude Code can read and update your work through `mcp/p
 
 The tools call `GET /api/me/agenda?date=YYYY-MM-DD` and `GET` / `POST /api/me/work/<task|bug>/<id>` as you. These routes use the same table policies (`runQuery`) and QA workflow functions as the UI, so a token can do only what you can do in the browser. Every change lands in the audit log. Bearer tokens work only on routes wrapped in `withApiUser` (`src/server/api.ts`). Write routes need a write-scope token, and tokens cannot create other tokens. Only a SHA-256 of each token is stored (`api_tokens`). Revoking a token on the Profile page stops it right away.
 
+### Git conventions (GitHub now, company GitLab later)
+
+Every task and bug has a **ref** that is unique across projects: `T{id}` for a task and `B{id}` for a bug. (`T-0005` / `BUG-0005` repeat in each project.) Put the ref in:
+
+| Where | Example |
+|---|---|
+| Branch | `feat/T123-shift-summary-api` · `fix/B45-downtime-midnight` |
+| Commit message | `T123: aggregate downtime across midnight` |
+| PR / MR title | `[B45] Fix shift total when downtime crosses midnight` |
+
+The task / bug dialog has a **Git** tab. It shows the ref and the branch name to create (with copy buttons), and lists the branch / commit / PR links (`work_links`). The type of each link and whether it is GitHub or GitLab are read from the URL, and GitLab is recognised by its `/-/` paths on any host, so moving to the company GitLab needs no setting. The AI assistant gets `ref` and `suggested_branch` from `get_work_item_detail`, and attaches links with `update_task_progress` (`links`). A bug's Fix Ready commit link is added as a link too. `parseWorkRefs` in `src/lib/git.ts` reads refs from branch names, commits and PR titles, ready for syncing from GitHub / GitLab later.
+
 The seed runs the **real workflow through the same server functions and access policies as the API**: 3 converted projects (one delayed with recovery plan, one on track, one still planning), plus requests in Approved / Waiting System Review / Waiting Requestor Approval / Draft, QA bugs / retests, a pending baseline revision and a workforce plan.
 
 ## Architecture

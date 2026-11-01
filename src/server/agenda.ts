@@ -1,4 +1,5 @@
 import type { Profile } from '@/lib/types';
+import { workRef } from '@/lib/git';
 import { addDays, AppError, localDate, withCtx } from './db';
 import { myPendingActions } from './pending-actions';
 
@@ -62,9 +63,9 @@ export async function myAgenda(me: Profile, dateRaw: string | null, origin = '')
       [me.id]);
 
     const out = {
-      tasks: tasks.map((t) => ({ ...t, when: whenDue(t.due_date, date), url: `${base}/projects/${t.project_id}?tab=internal&task=${t.id}` })).sort(byUrgency),
-      bugs: bugs.map((b) => ({ ...b, when: whenDue(b.due_date, date), url: `${base}/projects/${b.project_id}?tab=qa&bug=${b.id}` })).sort(byUrgency),
-      retests: retests.map((r) => ({ ...r, when: whenDue(r.due_date, date), url: `${base}/projects/${r.project_id}?tab=qa&bug=${r.bug_id}` })).sort(byUrgency),
+      tasks: tasks.map((t) => ({ ...t, ref: workRef('task', t.id), when: whenDue(t.due_date, date), url: `${base}/projects/${t.project_id}?tab=internal&task=${t.id}` })).sort(byUrgency),
+      bugs: bugs.map((b) => ({ ...b, ref: workRef('bug', b.id), when: whenDue(b.due_date, date), url: `${base}/projects/${b.project_id}?tab=qa&bug=${b.id}` })).sort(byUrgency),
+      retests: retests.map((r) => ({ ...r, ref: workRef('bug', r.bug_id), when: whenDue(r.due_date, date), url: `${base}/projects/${r.project_id}?tab=qa&bug=${r.bug_id}` })).sort(byUrgency),
     };
     // workflow steps waiting for me: change requests and deliveries to accept
     const actions = (await myPendingActions(ctx)).map((a) => ({ ...a, url: `${base}${a.link}` }));

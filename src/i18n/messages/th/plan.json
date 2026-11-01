@@ -4,7 +4,8 @@
     "details": "รายละเอียด",
     "evidence": "หลักฐาน",
     "history": "ประวัติ",
-    "comments": "ความคิดเห็น"
+    "comments": "ความคิดเห็น",
+    "git": "Git"
   },
   "field": {
     "status": "สถานะ",
@@ -92,5 +93,24 @@
     "delayRequired": "จำเป็น — งานเลยกำหนด",
     "notDelayed": "ไม่ล่าช้า",
     "effortRequired": "กรุณาใส่จำนวน man-day ที่ใช้จริงก่อนปิดงาน"
+  },
+  "git": {
+    "ref": "รหัสอ้างอิง",
+    "branch": "ชื่อ branch ที่ควรสร้าง",
+    "commit": "ขึ้นต้นข้อความ commit ด้วย",
+    "convention": "ใส่ {ref} ในชื่อ branch ขึ้นต้นข้อความ commit และใส่ [{ref}] ในชื่อ PR / MR แล้วเพิ่มลิงก์ branch หรือ PR ไว้ที่นี่ ใช้ได้ทั้ง GitHub และ GitLab",
+    "empty": "ยังไม่มีลิงก์ git",
+    "url": "ลิงก์ branch / commit / PR",
+    "title": "ชื่อ (ไม่บังคับ)",
+    "add": "เพิ่มลิงก์",
+    "added": "เพิ่มลิงก์แล้ว",
+    "remove": "ลบ",
+    "removeTitle": "ลบลิงก์นี้ใช่ไหม",
+    "kind": {
+      "branch": "Branch",
+      "commit": "Commit",
+      "pull_request": "Pull / merge request",
+      "other": "ลิงก์"
+    }
   }
 }

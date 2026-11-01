@@ -71,6 +71,10 @@ const TOOLS = [
         technical_note: { type: 'string', description: 'Bug fix_ready: notes for the tester / reviewer.' },
         commit_link: { type: 'string', description: 'Bug fix_ready: commit, branch or PR URL.' },
         comment: { type: 'string', description: 'Comment to add to the item (both types).' },
+        links: {
+          type: 'array', maxItems: 10, description: 'Git links to attach (both types): branch, commit or pull / merge request URLs (GitHub or GitLab).',
+          items: { type: 'object', properties: { url: { type: 'string' }, title: { type: 'string' } }, required: ['url'], additionalProperties: false },
+        },
       },
       required: ['type', 'id'],
       additionalProperties: false,
@@ -122,7 +126,9 @@ async function handle(msg) {
         instructions:
           'Project Control (PCW) work tracker. Call get_my_agenda to see what the user has to do (summarise overdue items first), ' +
           'get_work_item_detail before working on an item, and update_task_progress to record progress — only after the user agrees to the change. ' +
-          'Work on one item at a time; never mark work done that has not been verified.',
+          'Work on one item at a time; never mark work done that has not been verified. ' +
+          'Git: every item has a ref (T123 / B45) and a suggested_branch (get_work_item_detail). Create that branch, start commit messages with ' +
+          '"<ref>: ", put "[<ref>]" in the PR / MR title, then attach the branch / PR URLs with update_task_progress `links` when handing the work over.',
       };
     case 'ping':
       return {};

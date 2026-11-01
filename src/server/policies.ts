@@ -196,6 +196,19 @@ export const POLICIES: Record<string, Policy> = {
   // Checklist names are visible with the project; managed by the leader
   evidence_requirements: { read: (ctx) => visibleProject(ctx), insert: manage, update: manage, check: manage, delete: manage },
   baseline_revisions: { read: (ctx) => visibleProject(ctx) },
+  // git links on tasks / bugs: the internal team adds them (project taken from the item in hooks.ts); author or leader removes
+  work_links: {
+    read: (ctx) => internalProject(ctx),
+    insert: async (ctx, r) => {
+      r.created_by ??= ctx.uid;
+      // judged on the task / bug's own project (the hook then fills project_id the same way)
+      const table = r.entity_type === 'task' ? 'internal_tasks' : r.entity_type === 'bug' ? 'bugs' : null;
+      const project = table ? await ctx.val<number>(`SELECT project_id FROM ${table} WHERE id = ?`, [r.entity_id]) : null;
+      return r.created_by === ctx.uid && !!project && canViewInternal(ctx, project);
+    },
+    delete: async (ctx, o) => o.created_by === ctx.uid || (await manage(ctx, o)),
+    readonly: ['created_by', 'created_at', 'provider', 'kind', 'project_id'],
+  },
   // change requests: with the project (the requestor takes part); written only by rpc/change-requests.ts
   change_requests: { read: (ctx) => visibleProject(ctx) },
   // closure sign-off: with the project; written only by rpc/closure.ts

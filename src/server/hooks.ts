@@ -5,6 +5,7 @@ import {
   activityBeforeWrite, applyTemplateChecklist, assertCanComplete, recomputeProject, rollupFromActivity, rollupFromTask, taskBeforeWrite,
 } from './logic/project';
 import { normalizeDefinition } from '@/lib/definition';
+import { gitLinkInfo } from '@/lib/git';
 import { updateRow } from './engine';
 import { isAdmin, isSkillAssessor } from './perms';
 import { removeObject } from './storage';
@@ -223,6 +224,22 @@ export const HOOKS: Record<string, Hooks> = {
   },
 
   comments: commentHooks,
+
+  work_links: {
+    async beforeInsert(ctx, r) {
+      // the task / bug decides the project (never the client's project_id)
+      const table = r.entity_type === 'task' ? 'internal_tasks' : r.entity_type === 'bug' ? 'bugs' : null;
+      if (!table) throw new AppError('Links are for tasks and bugs');
+      const pid = await ctx.val<number>(`SELECT project_id FROM ${table} WHERE id = ?`, [r.entity_id]);
+      if (!pid) throw new AppError(`${r.entity_type === 'task' ? 'Task' : 'Bug'} not found`, 404);
+      if (r.project_id && Number(r.project_id) !== pid) throw new AppError('Link does not belong to this project');
+      r.project_id = pid;
+      const url = String(r.url ?? '').trim();
+      const info = url.length <= 500 ? gitLinkInfo(url) : null;
+      if (!info) throw new AppError('Enter a web link (https://…) of at most 500 characters');
+      Object.assign(r, { url, provider: info.provider, kind: info.kind, title: r.title ? String(r.title).trim().slice(0, 300) || null : null });
+    },
+  },
 
   profile_skills: {
     beforeInsert: (ctx, r) => skillLevelRules(ctx, r, null),

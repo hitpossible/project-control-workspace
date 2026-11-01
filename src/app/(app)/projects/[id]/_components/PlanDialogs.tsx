@@ -7,6 +7,7 @@ import { useOptions } from '@/i18n/useOptions';
 import { ACTIVITY_STATUSES, DELAY_CATEGORIES, PRIORITIES, TASK_STATUSES, TASK_TYPES } from '@/lib/constants';
 import { errMsg, fmtDateTime, isOverdue, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
+import WorkLinks from './WorkLinks';
 import type { Activity, InternalTask, Profile, Project, TaskDependency } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import AuditHistory from '@/components/shared/AuditHistory';
@@ -282,7 +283,7 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
             {t('task.context')} · {project.project_code}{task && ` · ${t('updatedBy', { at: fmtDateTime(task.updated_at), name: profileName(task.updated_by) })}`}
           </DialogDescription>
         </DialogHeader>
-        {task && <DialogTabs value={tab} onChange={setTab} tabs={[['details', t('tab.details')], ['comments', t('tab.comments')], ['evidence', t('tab.evidence')], ['history', t('tab.history')]]} />}
+        {task && <DialogTabs value={tab} onChange={setTab} tabs={[['details', t('tab.details')], ['comments', t('tab.comments')], ['evidence', t('tab.evidence')], ['git', t('tab.git')], ['history', t('tab.history')]]} />}
 
         {tab === 'details' && (
           <div className="space-y-3">
@@ -350,6 +351,7 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
         )}
         {tab === 'evidence' && task && <EntityEvidence projectId={project.id} entityType="task" entityId={task.id} canAdd canManage={canManage} />}
         {tab === 'comments' && task && <CommentThread projectId={project.id} entityType="task" entityId={task.id} canModerate={canManage} />}
+        {tab === 'git' && task && <WorkLinks type="task" id={task.id} name={task.name} canAdd canManage={canManage} />}
         {tab === 'history' && task && <AuditHistory entity={{ table: 'internal_tasks', id: task.id }} />}
 
         <DialogFooter className="sm:justify-between">

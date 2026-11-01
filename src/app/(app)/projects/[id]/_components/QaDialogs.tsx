@@ -7,6 +7,7 @@ import { useOptions, type OptionLabels } from '@/i18n/useOptions';
 import { PRIORITIES, ROOT_CAUSE_CATEGORIES, SEVERITIES, BUG_STATUSES, TEST_RESULTS, TEST_ROUND_STATUSES, TEST_TYPES } from '@/lib/constants';
 import { errMsg, fmtDate, fmtDateTime, isOverdue, nullify } from '@/lib/format';
 import { dbClient } from '@/lib/db/client';
+import WorkLinks from './WorkLinks';
 import type { Activity, Bug, BugFix, InternalTask, Profile, Project, Retest, TestRound } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import AuditHistory from '@/components/shared/AuditHistory';
@@ -185,7 +186,7 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
           {step(5, t('step.closed'), bug.status === 'closed', false)}
         </div>
 
-        <DialogTabs value={tab} onChange={setTab} tabs={[['workflow', t('tab.workflow')], ['details', t('tab.details')], ['comments', t('tab.comments')], ['fixes', t('tab.fixes')], ['evidence', t('tab.evidence')], ['history', t('tab.history')]]} />
+        <DialogTabs value={tab} onChange={setTab} tabs={[['workflow', t('tab.workflow')], ['details', t('tab.details')], ['comments', t('tab.comments')], ['fixes', t('tab.fixes')], ['evidence', t('tab.evidence')], ['git', t('tab.git')], ['history', t('tab.history')]]} />
 
         {tab === 'workflow' && (
           <div className="space-y-4">
@@ -332,6 +333,7 @@ export function BugDialog({ project, bug, rounds, activities, tasks, fixes, rete
 
         {tab === 'evidence' && <EvidencePanel entityType="bug" entityId={bug.id} projectId={project.id} canAdd canVerify={canManage} />}
         {tab === 'comments' && <CommentThread projectId={project.id} entityType="bug" entityId={bug.id} canModerate={canManage} />}
+        {tab === 'git' && <WorkLinks type="bug" id={bug.id} name={bug.title} canAdd canManage={canManage} />}
         {tab === 'history' && <AuditHistory entity={{ table: 'bugs', id: bug.id }} />}
 
         <DialogFooter><Button variant="outline" onClick={onClose}>{tc('close')}</Button></DialogFooter>

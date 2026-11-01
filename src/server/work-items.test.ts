@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseBugUpdate, parseTaskUpdate, workType } from './work-items';
+import { parseBugUpdate, parseLinks, parseTaskUpdate, workType } from './work-items';
 
 describe('workType', () => {
   it('accepts task and bug only', () => {
@@ -25,6 +25,16 @@ describe('parseTaskUpdate', () => {
     expect(() => parseTaskUpdate({ progress: 101 })).toThrow();
     expect(() => parseTaskUpdate({ progress: 'abc' })).toThrow();
     expect(() => parseTaskUpdate({ comment: '   ' })).toThrow(/Nothing to update/);
+  });
+});
+
+describe('parseLinks', () => {
+  it('takes URLs or { url, title } and limits the list', () => {
+    expect(parseLinks(['https://github.com/a/b/pull/1'])).toEqual([{ url: 'https://github.com/a/b/pull/1', title: null }]);
+    expect(parseLinks([{ url: ' https://x/-/merge_requests/2 ', title: 'MR' }])).toEqual([{ url: 'https://x/-/merge_requests/2', title: 'MR' }]);
+    expect(() => parseLinks([{ title: 'no url' }])).toThrow(/url/);
+    expect(() => parseLinks(Array(11).fill('https://x'))).toThrow(/10/);
+    expect(parseTaskUpdate({ links: ['https://github.com/a/b/pull/1'] }).links).toHaveLength(1);
   });
 });
 

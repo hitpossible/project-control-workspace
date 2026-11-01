@@ -4,7 +4,8 @@
     "details": "Details",
     "evidence": "Evidence",
     "history": "History",
-    "comments": "Comments"
+    "comments": "Comments",
+    "git": "Git"
   },
   "field": {
     "status": "Status",
@@ -92,5 +93,24 @@
     "delayRequired": "Required — task is overdue",
     "notDelayed": "Not delayed",
     "effortRequired": "Enter the man-days this task took before completing it"
+  },
+  "git": {
+    "ref": "Ref",
+    "branch": "Branch to create",
+    "commit": "Commit message starts with",
+    "convention": "Put {ref} in the branch name, at the start of commit messages and as [{ref}] in the PR / MR title, then add the branch or PR link here. Works with GitHub and GitLab.",
+    "empty": "No git links yet.",
+    "url": "Branch / commit / PR link",
+    "title": "Title (optional)",
+    "add": "Add link",
+    "added": "Link added",
+    "remove": "Remove",
+    "removeTitle": "Remove this link?",
+    "kind": {
+      "branch": "Branch",
+      "commit": "Commit",
+      "pull_request": "Pull / merge request",
+      "other": "Link"
+    }
   }
 }

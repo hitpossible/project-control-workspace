@@ -55,7 +55,8 @@
     "fixes": "Fix & Retest History",
     "evidence": "Evidence",
     "history": "History",
-    "bugs": "Bugs ({count})"
+    "bugs": "Bugs ({count})",
+    "git": "Git"
   },
   "fix": {
     "description": "Fix Description",
