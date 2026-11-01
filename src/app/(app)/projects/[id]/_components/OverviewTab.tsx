@@ -1,6 +1,6 @@
 'use client';
 
-import { Bug, CalendarClock, Check, Clock, FileCheck, Pencil, TrendingUp, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { Bug, CalendarClock, Check, Clock, FileCheck, Hourglass, Pencil, TrendingUp, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { dispatchEmails, useApp } from '@/providers/AppProvider';
@@ -32,11 +32,19 @@ export default function OverviewTab({ data, perm, reload }: TabProps) {
   const sv = p.schedule_variance;
 
   const doneActs = data.activities.filter((a) => a.status === 'completed').length;
+  // effort: man-days entered on tasks (leaf tasks only — a parent holds the sum of its sub-tasks)
+  // vs the request-review estimate plus approved change requests
+  const leaves = data.tasks.filter((x) => x.status !== 'cancelled' && !data.tasks.some((c) => c.parent_task_id === x.id));
+  const actualMd = Math.round(leaves.reduce((s, x) => s + Number(x.actual_md ?? 0), 0) * 10) / 10;
+  const crMd = data.changeRequests.filter((c) => ['approved', 'implemented'].includes(c.status)).reduce((s, c) => s + Number(c.impact_md ?? 0), 0);
+  const plannedMd = p.estimated_md == null ? null : Math.round((Number(p.estimated_md) + crMd) * 10) / 10;
+  const noEffort = leaves.filter((x) => x.status === 'completed' && x.actual_md == null).length;
+  const overMd = plannedMd !== null && actualMd > plannedMd;
   const late = sv != null && sv > 0;
 
   return (
     <div className="grid grid-cols-12 gap-4">
-      <div className={cn('col-span-12 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border md:grid-cols-3', perm.internal ? 'xl:grid-cols-5' : 'xl:grid-cols-4')}>
+      <div className={cn('col-span-12 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border md:grid-cols-3', perm.internal ? 'xl:grid-cols-6' : 'xl:grid-cols-4')}>
         <Kpi icon={TrendingUp} label={t('kpi.progress')} value={`${Math.round(p.progress)}%`}
           hint={<><span className="mt-1.5 mb-1 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-[#00c875]" style={{ width: `${Math.min(100, p.progress)}%` }} /></span>{t('kpi.activitiesDone', { done: doneActs, total: data.activities.length })}</>} />
         <Kpi icon={CalendarClock} label={t('kpi.targetForecast')} tone={late ? 'bad' : undefined}
@@ -48,6 +56,14 @@ export default function OverviewTab({ data, perm, reload }: TabProps) {
         <Kpi icon={Bug} label={t('kpi.bugs')} tone={p.critical_bugs ? 'bad' : undefined}
           value={<>{p.open_bugs}<span className="text-sm font-normal text-muted-foreground"> {t('kpi.open')}</span> · <span className={cn(p.critical_bugs > 0 && 'text-[#bb3354]')}>{p.critical_bugs}</span><span className="text-sm font-normal text-muted-foreground"> {t('kpi.critical')}</span></>}
           hint={t('kpi.waitingRetest', { count: p.retest_pending })} />
+        {perm.internal && (
+          <Kpi icon={Hourglass} label={t('kpi.effort')} tone={overMd ? 'bad' : undefined}
+            value={<>{t('kpi.md', { n: actualMd })}<span className="text-sm font-normal text-muted-foreground"> / {plannedMd === null ? '–' : t('kpi.md', { n: plannedMd })}</span></>}
+            hint={<>
+              <span className="block truncate">{p.estimated_md == null ? (crMd ? t('kpi.noEstimateCr', { cr: crMd }) : t('kpi.noEstimate')) : crMd ? t('kpi.estimateWithCr', { est: Number(p.estimated_md), cr: crMd }) : t('kpi.estimate', { est: Number(p.estimated_md) })}</span>
+              {noEffort > 0 && <span className="block truncate text-amber-700">{t('kpi.noEffort', { count: noEffort })}</span>}
+            </>} />
+        )}
         <Kpi icon={FileCheck} label={t('kpi.evidenceMissing')} tone={p.evidence_missing ? 'warn' : 'good'} value={p.evidence_missing} hint={t('kpi.checklistItems', { count: data.requirements.length })} />
       </div>
 

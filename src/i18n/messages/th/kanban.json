@@ -23,6 +23,12 @@
   "task": {
     "autoMoved": "{no} ถูกย้ายไป \"{status}\" (ความคืบหน้า 100% / ตามกฎของ workflow)",
     "empty": "ไม่มีงาน",
-    "subTasks": "งานย่อย {count} งาน"
+    "subTasks": "งานย่อย {count} งาน",
+    "effortTitle": "งานนี้ใช้แรงงานไปเท่าไร",
+    "effortText": "{no} {name} — ใส่จำนวน man-day ก่อนย้ายไป Done",
+    "effortLabel": "แรงงานที่ใช้ (man-day)",
+    "effortHelp": "เช่น 0.5 = ครึ่งวัน, 3 = สามวัน",
+    "effortCancel": "ยกเลิก",
+    "effortConfirm": "ย้ายไป Done"
   }
 }

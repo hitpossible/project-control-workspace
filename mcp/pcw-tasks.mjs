@@ -62,6 +62,7 @@ const TOOLS = [
         id: { type: 'integer' },
         status: { type: 'string', enum: ['todo', 'in_progress', 'waiting', 'review', 'on_hold'], description: 'Task only.' },
         progress: { type: 'number', minimum: 0, maximum: 100, description: 'Task only.' },
+        actual_md: { type: 'number', exclusiveMinimum: 0, maximum: 999, description: 'Task only: man-days the work really took so far (needed before the reviewer can complete it). Ask the user.' },
         action: { type: 'string', enum: ['start_fix', 'fix_ready'], description: 'Bug only.' },
         fix_description: { type: 'string', description: 'Bug fix_ready: what was changed and why.' },
         unit_test_result: { type: 'string', description: 'Bug fix_ready: tests run and their result.' },

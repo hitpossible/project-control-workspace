@@ -225,6 +225,8 @@ export interface ProjectView extends Project {
   request_no: string | null;
   requestor_department: string | null;
   requestor_id: number | null;
+  /** man-days estimated at the request review */
+  estimated_md: number | null;
   baseline_finish: string | null;
   schedule_variance: number | null;
   overdue_activities: number;
@@ -329,6 +331,8 @@ export interface InternalTask {
   actual_start: string | null;
   actual_finish: string | null;
   progress: number;
+  /** man-days the work really took (entered at completion) */
+  actual_md: number | null;
   status: string;
   description: string | null;
   technical_note: string | null;

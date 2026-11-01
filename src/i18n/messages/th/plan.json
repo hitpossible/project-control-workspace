@@ -44,7 +44,10 @@
     "dependsOn": "ต้องรอ (เสร็จก่อนจึงเริ่มได้)",
     "technicalNote": "บันทึกทางเทคนิค (ภายใน)",
     "internalComment": "ความเห็นภายใน",
-    "recoveryAction": "การแก้ไขเพื่อกู้คืน"
+    "recoveryAction": "การแก้ไขเพื่อกู้คืน",
+    "actualMd": "แรงงานที่ใช้ (MD)",
+    "actualMdFromSubtasks": "แรงงาน (รวมจาก sub-task)",
+    "actualMdHelp": "จำนวน man-day ที่ใช้จริง เช่น 1.5"
   },
   "activity": {
     "reviewed": "ทำเครื่องหมายว่าตรวจแผนกู้คืนแล้ว",
@@ -87,6 +90,7 @@
     "empty": "ว่าง",
     "delay": "ความล่าช้า / การกู้คืน",
     "delayRequired": "จำเป็น — งานเลยกำหนด",
-    "notDelayed": "ไม่ล่าช้า"
+    "notDelayed": "ไม่ล่าช้า",
+    "effortRequired": "กรุณาใส่จำนวน man-day ที่ใช้จริงก่อนปิดงาน"
   }
 }

@@ -23,6 +23,12 @@
   "task": {
     "autoMoved": "{no} moved to \"{status}\" (progress is 100% / workflow rule)",
     "empty": "No tasks",
-    "subTasks": "{count} sub-task(s)"
+    "subTasks": "{count} sub-task(s)",
+    "effortTitle": "How much work did it take?",
+    "effortText": "{no} {name} — enter the man-days before moving it to Done.",
+    "effortLabel": "Effort used (man-days)",
+    "effortHelp": "e.g. 0.5 = half a day, 3 = three days",
+    "effortCancel": "Cancel",
+    "effortConfirm": "Move to Done"
   }
 }

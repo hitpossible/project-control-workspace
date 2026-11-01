@@ -140,6 +140,8 @@ export default function KanbanBoard<T extends Item>({
     } finally {
       setMoving(null);
     }
+    // not moved (cancelled, refused or put elsewhere): show the card where the data has it right away
+    if (ok === false) setPlaced(null);
     // re-ordering inside a column needs no toast; a column change can be undone
     if (ok === false || undoing || status === from.status) return;
     const name = (item as { task_no?: string; name?: string }).task_no ?? (item as { name?: string }).name;

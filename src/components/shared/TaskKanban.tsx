@@ -2,6 +2,7 @@
 
 import { GitBranch } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 import { useOptions } from '@/i18n/useOptions';
 import { PRIORITIES, TASK_STATUSES, TASK_TYPES } from '@/lib/constants';
 import { dbClient } from '@/lib/db/client';
@@ -9,6 +10,9 @@ import { errMsg } from '@/lib/format';
 import type { InternalTask } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/providers/AppProvider';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TextField } from './form';
 import KanbanBoard, { KanbanDue, KanbanProgress, KanbanTag } from './KanbanBoard';
 import { Person } from './labels';
 
@@ -38,9 +42,18 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
   // Cancelled is only shown when something is in it
   const columns = options(TASK_STATUSES).filter((c) => c.value !== 'cancelled' || tasks.some((t) => t.status === 'cancelled'));
   const subCount = (t: InternalTask) => tasks.filter((x) => x.parent_task_id === t.id).length;
+  // dropping into Done asks for the man-days the task took (a parent task sums its sub-tasks)
+  const [ask, setAsk] = useState<{ task: InternalTask; resolve: (md: number | null) => void } | null>(null);
+  const askEffort = (task: InternalTask) => new Promise<number | null>((resolve) => setAsk({ task, resolve }));
 
   const move = async (t: InternalTask, status: string, rank?: number) => {
-    const patch = { ...(status !== t.status && { status }), ...(rank !== undefined && { board_rank: rank }) };
+    let actualMd: number | undefined;
+    if (status === 'completed' && t.status !== 'completed' && !subCount(t)) {
+      const md = await askEffort(t);
+      if (md === null) return false;
+      actualMd = md;
+    }
+    const patch = { ...(status !== t.status && { status }), ...(rank !== undefined && { board_rank: rank }), ...(actualMd !== undefined && { actual_md: actualMd }) };
     const { data, error } = await dbClient().from('internal_tasks').update(patch).eq('id', t.id).select('status').single();
     if (error) {
       notify(errMsg(error), 'error');
@@ -53,6 +66,8 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
   };
 
   return (
+    <>
+    {ask && <EffortPrompt task={ask.task} onDone={(md) => { ask.resolve(md); setAsk(null); }} />}
     <KanbanBoard
       columns={columns}
       items={tasks}
@@ -90,5 +105,29 @@ export default function TaskKanban({ tasks, canEdit, onOpen, onChanged, subtitle
         );
       }}
     />
+    </>
+  );
+}
+
+function EffortPrompt({ task, onDone }: { task: InternalTask; onDone: (md: number | null) => void }) {
+  const tk = useTranslations('kanban.task');
+  const [md, setMd] = useState(task.actual_md ? String(task.actual_md) : '');
+  const ok = Number(md) > 0 && Number(md) <= 999;
+  return (
+    <Dialog open onOpenChange={(o) => !o && onDone(null)}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{tk('effortTitle')}</DialogTitle>
+          <DialogDescription>{tk('effortText', { no: task.task_no ?? '', name: task.name })}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={(e) => { e.preventDefault(); if (ok) onDone(Number(md)); }}>
+          <TextField type="number" label={tk('effortLabel')} required value={md} onChange={setMd} helperText={tk('effortHelp')} />
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" onClick={() => onDone(null)}>{tk('effortCancel')}</Button>
+            <Button type="submit" disabled={!ok}>{tk('effortConfirm')}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

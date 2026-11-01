@@ -81,7 +81,14 @@
       "critical": "critical",
       "waitingRetest": "{count} waiting retest",
       "evidenceMissing": "Evidence Missing",
-      "checklistItems": "{count} checklist items"
+      "checklistItems": "{count} checklist items",
+      "effort": "Effort (actual / planned)",
+      "md": "{n} MD",
+      "noEstimate": "No estimate from the request review",
+      "estimate": "Estimate {est} MD",
+      "estimateWithCr": "Estimate {est} + CR {cr} MD",
+      "noEffort": "{count} done task(s) without effort",
+      "noEstimateCr": "No estimate · CR +{cr} MD"
     },
     "days": "{n}d",
     "attention": "Project Need Attention",

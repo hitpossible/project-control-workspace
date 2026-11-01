@@ -187,7 +187,21 @@ export async function activityBeforeWrite(ctx: Ctx, n: Row, old: Row | null) {
   }
 }
 
+/** Man-days on a task: empty, or more than 0 and at most 999 */
+export function checkActualMd(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const md = Number(v);
+  if (!Number.isFinite(md) || md <= 0 || md > 999) throw new AppError('Actual effort must be between 0.1 and 999 man-days');
+  return Math.round(md * 10) / 10;
+}
+
 export async function taskBeforeWrite(ctx: Ctx, n: Row, old: Row | null) {
+  n.actual_md = checkActualMd(n.actual_md);
+  // a person completing a task says how much work it took; a parent task gets the sum of its sub-tasks (rollupFromTask)
+  if (old && n.status === 'completed' && old.status !== 'completed' && ctx.depth === 0 && n.actual_md === null
+    && !(await ctx.val('SELECT 1 FROM internal_tasks WHERE parent_task_id = ? LIMIT 1', [n.id]))) {
+    throw new AppError(`Enter the actual effort (man-days) to complete "${n.name}"`);
+  }
   if (old && n.status === 'completed' && old.status !== 'completed') {
     const missing = await missingEvidence(ctx, 'task', Number(n.id));
     if (missing.length) {
@@ -210,8 +224,8 @@ export async function taskBeforeWrite(ctx: Ctx, n: Row, old: Row | null) {
 // ---------------------------------------------------------------------
 // Roll task progress up: sub-task → parent task → activity → project (was rollup_from_task)
 // ---------------------------------------------------------------------
-type Agg = { avg: number | null; cnt: number; done: number; astart: string | null; afinish: string | null };
-const AGG = `SELECT AVG(progress) avg, COUNT(*) cnt, SUM(status = 'completed') done, MIN(actual_start) astart, MAX(actual_finish) afinish`;
+type Agg = { avg: number | null; cnt: number; done: number; astart: string | null; afinish: string | null; md: number | null };
+const AGG = `SELECT AVG(progress) avg, COUNT(*) cnt, SUM(status = 'completed') done, MIN(actual_start) astart, MAX(actual_finish) afinish, SUM(actual_md) md`;
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export async function rollupFromTask(ctx: Ctx, r: Row) {
@@ -227,6 +241,7 @@ export async function rollupFromTask(ctx: Ctx, r: Row) {
           status: all ? 'completed' : parent.status === 'completed' ? 'in_progress' : parent.status,
           actual_start: g.astart ?? parent.actual_start,
           actual_finish: all ? g.afinish : null,
+          actual_md: g.md === null ? null : r2(Number(g.md)),
         });
       }
     }

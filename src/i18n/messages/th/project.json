@@ -81,7 +81,14 @@
       "critical": "วิกฤต",
       "waitingRetest": "รอทดสอบซ้ำ {count}",
       "evidenceMissing": "หลักฐานยังไม่ครบ",
-      "checklistItems": "รายการตรวจสอบ {count} รายการ"
+      "checklistItems": "รายการตรวจสอบ {count} รายการ",
+      "effort": "แรงงาน (จริง / แผน)",
+      "md": "{n} MD",
+      "noEstimate": "ยังไม่มีการประเมินตอนรีวิวคำขอ",
+      "estimate": "ประเมิน {est} MD",
+      "estimateWithCr": "ประเมิน {est} + CR {cr} MD",
+      "noEffort": "งานที่เสร็จแล้ว {count} รายการยังไม่ได้ใส่แรงงาน",
+      "noEstimateCr": "ไม่มีการประเมิน · CR +{cr} MD"
     },
     "days": "{n} วัน",
     "attention": "โปรเจกต์ต้องติดตาม",

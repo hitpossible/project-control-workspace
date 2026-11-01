@@ -13,6 +13,10 @@ describe('parseTaskUpdate', () => {
   it('keeps status, progress and a trimmed comment', () => {
     expect(parseTaskUpdate({ status: 'review', progress: '80.555', comment: '  done  ' })).toEqual({ status: 'review', progress: 80.56, comment: 'done' });
   });
+  it('takes actual effort in man-days', () => {
+    expect(parseTaskUpdate({ actual_md: '2.25' })).toEqual({ actual_md: 2.3, comment: undefined });
+    expect(() => parseTaskUpdate({ actual_md: 0 })).toThrow(/man-days/);
+  });
   it('never lets a tool complete or cancel a task', () => {
     expect(() => parseTaskUpdate({ status: 'completed' })).toThrow(/left to people/);
     expect(() => parseTaskUpdate({ status: 'cancelled' })).toThrow();

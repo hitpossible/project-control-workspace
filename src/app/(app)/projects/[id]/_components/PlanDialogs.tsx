@@ -220,6 +220,8 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
   const editable = !task || canManage || [task.owner_id, task.reviewer_id, task.created_by].includes(me?.id ?? -1);
   const hasChildren = !!task && tasks.some((x) => x.parent_task_id === task.id);
   const overdue = isOverdue(f.due_date, f.status ?? '');
+  // completing a task (not a parent: it sums its sub-tasks) needs the man-days it took
+  const needsEffort = f.status === 'completed' && task?.status !== 'completed' && !hasChildren;
   const parentOptions = tasks.filter((x) => !x.parent_task_id && x.id !== task?.id && x.activity_id === f.activity_id);
   const predOptions = tasks.filter((x) => x.id !== task?.id).map((x) => ({ value: String(x.id), label: `${x.task_no} ${x.name}` }));
 
@@ -231,11 +233,13 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
     if (overdue && (!f.delay_reason?.trim() || !f.recovery_action?.trim())) {
       return notify(t('task.overdueRequired'), 'warning');
     }
+    if (needsEffort && !(Number(f.actual_md) > 0)) return notify(t('task.effortRequired'), 'warning');
     const payload = nullify({
       name: f.name, activity_id: f.activity_id, parent_task_id: f.parent_task_id ?? null, seq: f.seq ?? 0,
       task_type: f.task_type, owner_id: f.owner_id, reviewer_id: f.reviewer_id ?? null, priority: f.priority,
       planned_start: f.planned_start ?? null, due_date: f.due_date, actual_start: f.actual_start ?? null,
       actual_finish: f.actual_finish ?? null, progress: f.progress ?? 0, status: f.status,
+      actual_md: f.actual_md === null || f.actual_md === undefined || String(f.actual_md) === '' ? null : Number(f.actual_md),
       description: f.description ?? null, technical_note: f.technical_note ?? null, internal_comment: f.internal_comment ?? null,
       delay_category: f.delay_category ?? null, delay_reason: f.delay_reason ?? null, recovery_action: f.recovery_action ?? null,
     });
@@ -291,10 +295,13 @@ export function TaskDialog({ project, task, defaults, activities, tasks, deps, c
               <SelectField className={col('col-span-6 sm:col-span-2')} label={t('field.priority')} value={f.priority} onChange={(v) => set('priority', v)} options={options(PRIORITIES)} disabled={!editable} />
             </Grid>
             <div className="grid grid-cols-12 gap-3 rounded-lg bg-muted/50 p-3">
-              <SelectField className={col('sm:col-span-5')} label={t('field.status')} value={f.status} onChange={(v) => set('status', v)} options={options(TASK_STATUSES)} disabled={!editable} />
-              <div className={col('sm:col-span-7')}>
+              <SelectField className={col('sm:col-span-4')} label={t('field.status')} value={f.status} onChange={(v) => set('status', v)} options={options(TASK_STATUSES)} disabled={!editable} />
+              <div className={col('sm:col-span-5')}>
                 <ProgressField label={hasChildren ? t('field.progressFromSubtasks') : t('field.progress')} value={Number(f.progress ?? 0)} onChange={(v) => set('progress', v)} disabled={!editable || hasChildren} />
               </div>
+              <TextField className={col('sm:col-span-3')} type="number" label={hasChildren ? t('field.actualMdFromSubtasks') : t('field.actualMd')} required={needsEffort}
+                value={f.actual_md ?? ''} onChange={(v) => set('actual_md', v === '' ? null : (v as unknown as number))} disabled={!editable || hasChildren}
+                helperText={needsEffort ? t('field.actualMdHelp') : undefined} />
             </div>
             <Grid>
               <UserSelect className={col('sm:col-span-6')} label={t('field.owner')} required value={f.owner_id} onChange={(v) => set('owner_id', v as number)} users={members} disabled={!canManage && !!task} />

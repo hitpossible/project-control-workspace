@@ -1,7 +1,7 @@
 import type { DataFilter } from '@/lib/db/protocol';
 import { runQuery } from './data';
 import { AppError, type Ctx, inList, type Row } from './db';
-import { missingEvidence } from './logic/project';
+import { checkActualMd, missingEvidence } from './logic/project';
 import { markFixReady, startFix } from './rpc/qa';
 
 /**
@@ -56,7 +56,7 @@ export async function workItemDetail(ctx: Ctx, type: WorkType, id: number, base:
     const bugs = await select(ctx, 'bugs', [{ op: 'eq', col: 'task_id', value: id }], { columns: 'id, bug_no, title, status, severity' });
     const who = await names(ctx, [t.owner_id, t.reviewer_id, t.created_by, ...subtasks.map((s) => s.owner_id)]);
     return {
-      type, id: t.id, task_no: t.task_no, name: t.name, task_type: t.task_type, status: t.status, priority: t.priority, progress: t.progress,
+      type, id: t.id, task_no: t.task_no, name: t.name, task_type: t.task_type, status: t.status, priority: t.priority, progress: t.progress, actual_md: t.actual_md,
       planned_start: t.planned_start, due_date: t.due_date, actual_start: t.actual_start, actual_finish: t.actual_finish,
       description: t.description, technical_note: t.technical_note, internal_comment: t.internal_comment,
       delay_reason: t.delay_reason, recovery_action: t.recovery_action,
@@ -94,7 +94,7 @@ export async function workItemDetail(ctx: Ctx, type: WorkType, id: number, base:
 // ---------------------------------------------------------------------
 // Updates
 // ---------------------------------------------------------------------
-export type TaskUpdate = { status?: string; progress?: number; comment?: string };
+export type TaskUpdate = { status?: string; progress?: number; actual_md?: number | null; comment?: string };
 export type BugUpdate = {
   action?: 'start_fix' | 'fix_ready'; comment?: string;
   fix_description?: string; unit_test_result?: string; technical_note?: string; commit_link?: string;
@@ -121,8 +121,11 @@ export function parseTaskUpdate(body: Record<string, unknown>): TaskUpdate {
     if (!Number.isFinite(p) || p < 0 || p > 100) throw new AppError('progress must be 0–100');
     out.progress = Math.round(p * 100) / 100;
   }
+  if (body.actual_md !== undefined) out.actual_md = checkActualMd(body.actual_md);
   out.comment = text(body.comment, 4000, 'comment');
-  if (out.status === undefined && out.progress === undefined && !out.comment) throw new AppError('Nothing to update: send status, progress and/or comment');
+  if (out.status === undefined && out.progress === undefined && out.actual_md === undefined && !out.comment) {
+    throw new AppError('Nothing to update: send status, progress, actual_md and/or comment');
+  }
   return out;
 }
 
@@ -153,6 +156,7 @@ export async function updateWorkItem(ctx: Ctx, type: WorkType, id: number, body:
     const patch: Row = {};
     if (u.status !== undefined) patch.status = u.status;
     if (u.progress !== undefined) patch.progress = u.progress;
+    if (u.actual_md !== undefined) patch.actual_md = u.actual_md;
     if (Object.keys(patch).length) {
       const res = await runQuery(ctx, { table: 'internal_tasks', action: 'update', values: patch, filters: [{ op: 'eq', col: 'id', value: id }], returning: 'id' });
       if (!(res.data as Row[]).length) throw new AppError('You cannot update this task (only its owner, reviewer, creator or the project leader can)', 403);

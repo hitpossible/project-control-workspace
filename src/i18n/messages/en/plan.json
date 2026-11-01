@@ -44,7 +44,10 @@
     "dependsOn": "Depends on (finish-to-start)",
     "technicalNote": "Technical Note (internal)",
     "internalComment": "Internal Comment",
-    "recoveryAction": "Recovery Action"
+    "recoveryAction": "Recovery Action",
+    "actualMd": "Effort used (MD)",
+    "actualMdFromSubtasks": "Effort (sum of sub-tasks)",
+    "actualMdHelp": "Man-days the work took, e.g. 1.5"
   },
   "activity": {
     "reviewed": "Recovery plan marked as reviewed",
@@ -87,6 +90,7 @@
     "empty": "Empty",
     "delay": "Delay / Recovery",
     "delayRequired": "Required — task is overdue",
-    "notDelayed": "Not delayed"
+    "notDelayed": "Not delayed",
+    "effortRequired": "Enter the man-days this task took before completing it"
   }
 }
