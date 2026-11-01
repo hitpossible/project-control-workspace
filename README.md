@@ -61,7 +61,7 @@ Every start applies new migrations to the company database before the app starts
 
 - **Company accounts** sign in with their AD username/password. The app posts `{ username, password }` to `AD_LOGIN_URL`; HTTP 2xx (without `success:false` / `error`) = success. On first login a profile with role *Requestor* is created (`AD_AUTO_PROVISION`); an admin then assigns roles in Admin → Users.
 - **Local accounts** (rows with a password hash — demo users, break-glass admin) are checked first. Admin → Users can set a local password.
-- `AUTH_PROVIDERS` = `ad`, `local` or `ad,local`.
+- `AUTH_PROVIDERS` = `ad`, `local` or `ad,local`. **Production: use `ad`** (add `local` only for a break-glass admin) and never run `npm run seed` on a real database — every demo account shares the password in `scripts/seed.ts`.
 
 ### Demo accounts
 
