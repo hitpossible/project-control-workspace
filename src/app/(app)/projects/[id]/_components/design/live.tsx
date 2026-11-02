@@ -4,6 +4,7 @@ import { ViewportPortal, useViewport } from '@xyflow/react';
 import { useTranslations } from 'next-intl';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '@/providers/AppProvider';
+import { uuid } from '@/lib/ids';
 import { Tip } from '@/components/shared/Tip';
 import { type FlowNode } from './flow';
 
@@ -13,7 +14,7 @@ import { type FlowNode } from './flow';
  * saves are not reported back to it.
  */
 export function useDiagramLive(id: number) {
-  const [tab] = useState(() => crypto.randomUUID());
+  const [tab] = useState(() => uuid());
   const [viewers, setViewers] = useState<{ tab: string; userId: number; name: string }[]>([]);
   const [remote, setRemote] = useState<{ name: string; updated_at: string } | null>(null);
   const [deleted, setDeleted] = useState<{ name: string } | null>(null);
