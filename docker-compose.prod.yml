@@ -61,3 +61,11 @@ services:
 
 volumes:
   minio-data:
+
+# Docker picks the next free /20 for an unnamed network, and on this server that range (192.168.160.0/20) overlapped the
+# company DB host (192.168.161.98) → "EHOSTUNREACH". Pinned to a small range that nothing else here uses.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.254.253.0/24
