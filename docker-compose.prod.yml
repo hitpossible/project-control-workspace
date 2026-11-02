@@ -3,12 +3,12 @@
 # Database = the company MySQL server (DATABASE_URL); no MySQL container.
 # Migrations run on every start (only new files in db/migrations are applied) before the app starts.
 # Put the app behind the company reverse proxy / HTTPS (COOKIE_SECURE=true; the mic for voice chat needs HTTPS).
-name: tbkk-pcw
+name: pcw
 
 services:
   app:
     build: { context: . }
-    image: ${APP_IMAGE:-tbkk-pcw}:${APP_TAG:-latest}
+    image: ${APP_IMAGE:-pcw}:${APP_TAG:-latest}
     env_file: .env.production
     ports:
       - "${APP_PORT:-3000}:3000"
@@ -25,7 +25,7 @@ services:
   # REALTIME_PUBLIC_URL=wss://<app host>/realtime for the app.
   realtime:
     build: { context: ., target: realtime }
-    image: ${APP_IMAGE:-tbkk-pcw}-realtime:${APP_TAG:-latest}
+    image: ${APP_IMAGE:-pcw}-realtime:${APP_TAG:-latest}
     env_file: .env.production
     ports:
       - "${REALTIME_PORT:-3001}:3001"
@@ -34,7 +34,7 @@ services:
 
   migrate:
     build: { context: ., target: tools }
-    image: ${APP_IMAGE:-tbkk-pcw}-tools:${APP_TAG:-latest}
+    image: ${APP_IMAGE:-pcw}-tools:${APP_TAG:-latest}
     env_file: .env.production
     restart: "no"
     logging: *logging

@@ -37,7 +37,7 @@ There is no MySQL container: locally the database is MAMP, in production the com
 **Local — the app in Docker** (migrations + the app next to MinIO + Mailpit, settings from `.env.local`; inside the containers MinIO / SMTP point at the Docker services). Containers reach MAMP through `host.docker.internal`, so add to `.env.local`:
 
 ```bash
-DOCKER_DATABASE_URL=mysql://root:<password>@host.docker.internal:8889/tbkk_pcw
+DOCKER_DATABASE_URL=mysql://root:<password>@host.docker.internal:8889/pcw_db
 ```
 
 ```bash
