@@ -30,10 +30,11 @@ function LoginForm() {
   const [show, setShow] = useState(false);
   const [missing, setMissing] = useState<{ username?: boolean; password?: boolean }>({});
   const [microsoft, setMicrosoft] = useState(false);
+  const [demo, setDemo] = useState(false);
   const urlError = params.get('error');
 
   useEffect(() => {
-    fetch('/api/auth/providers').then((r) => r.json()).then((j) => setMicrosoft(!!j.microsoft)).catch(() => {});
+    fetch('/api/auth/providers').then((r) => r.json()).then((j) => { setMicrosoft(!!j.microsoft); setDemo(!!j.demo); }).catch(() => {});
   }, []);
 
   const submit = async (e: React.FormEvent) => {
@@ -111,7 +112,7 @@ function LoginForm() {
             </>
           )}
 
-          {process.env.NODE_ENV !== 'production' && (
+          {demo && (
             <div className="mt-7 border-t pt-5">
               <p className="text-center text-xs text-muted-foreground">{t('demoHint')}</p>
               <div className="mt-3 flex flex-wrap justify-center gap-1.5">
