@@ -23,29 +23,29 @@ import { Person } from './labels';
 /** Option with a ready-to-show label (lists from constants.ts get theirs from useOptions().options) */
 export type Opt = { value: string; label: string; color?: string };
 
-export function FormField({ label, required, helperText, children, className }: {
-  label?: string; required?: boolean; helperText?: React.ReactNode; children: React.ReactNode; className?: string;
+export function FormField({ label, required, helperText, error, children, className }: {
+  label?: string; required?: boolean; helperText?: React.ReactNode; /** red message under the field */ error?: string | null; children: React.ReactNode; className?: string;
 }) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
       {label && <Label className="text-xs font-medium text-muted-foreground">{label}{required && <span className="text-destructive"> *</span>}</Label>}
       {children}
-      {helperText && <p className="text-xs text-muted-foreground">{helperText}</p>}
+      {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : helperText && <p className="text-xs text-muted-foreground">{helperText}</p>}
     </div>
   );
 }
 
-export function TextField({ label, value, onChange, multiline, rows = 3, required, disabled, type = 'text', placeholder, helperText, className, mono }: {
+export function TextField({ label, value, onChange, multiline, rows = 3, required, disabled, type = 'text', placeholder, helperText, error, className, mono }: {
   label?: string; value: string | number | null | undefined; onChange?: (v: string) => void; multiline?: boolean; rows?: number;
-  required?: boolean; disabled?: boolean; type?: string; placeholder?: string; helperText?: React.ReactNode; className?: string; mono?: boolean;
+  required?: boolean; disabled?: boolean; type?: string; placeholder?: string; helperText?: React.ReactNode; error?: string | null; className?: string; mono?: boolean;
 }) {
   return (
-    <FormField label={label} required={required} helperText={helperText} className={className}>
+    <FormField label={label} required={required} helperText={helperText} error={error} className={className}>
       {multiline ? (
-        <Textarea rows={rows} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} disabled={disabled} placeholder={placeholder}
+        <Textarea rows={rows} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} disabled={disabled} placeholder={placeholder} aria-invalid={!!error}
           className={cn('min-h-0 bg-white', mono && 'font-mono text-xs')} />
       ) : (
-        <Input type={type} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} disabled={disabled} placeholder={placeholder} className="h-9 bg-white" />
+        <Input type={type} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} disabled={disabled} placeholder={placeholder} aria-invalid={!!error} className="h-9 bg-white" />
       )}
     </FormField>
   );
@@ -53,13 +53,13 @@ export function TextField({ label, value, onChange, multiline, rows = 3, require
 
 const NONE = '__none__';
 
-export function SelectField({ label, value, onChange, options, disabled, required, allowEmpty, helperText, placeholder, className }: {
+export function SelectField({ label, value, onChange, options, disabled, required, allowEmpty, helperText, error, placeholder, className }: {
   label?: string; value: string | null | undefined; onChange: (v: string) => void; options: Opt[];
-  disabled?: boolean; required?: boolean; allowEmpty?: boolean; helperText?: string; placeholder?: string; className?: string;
+  disabled?: boolean; required?: boolean; allowEmpty?: boolean; helperText?: string; error?: string | null; placeholder?: string; className?: string;
 }) {
   const t = useTranslations('common');
   return (
-    <FormField label={label} required={required} helperText={helperText} className={className}>
+    <FormField label={label} required={required} helperText={helperText} error={error} className={className}>
       <Select value={value || ''} onValueChange={(v) => onChange(v === NONE ? '' : v)} disabled={disabled}>
         <SelectTrigger className="h-9 w-full bg-white"><SelectValue placeholder={placeholder ?? (allowEmpty ? '—' : t('select'))} /></SelectTrigger>
         <SelectContent>
@@ -71,19 +71,19 @@ export function SelectField({ label, value, onChange, options, disabled, require
   );
 }
 
-export function DateField({ label, value, onChange, disabled, required, helperText, className }: {
-  label?: string; value: string | null | undefined; onChange: (v: string) => void; disabled?: boolean; required?: boolean; helperText?: string; className?: string;
+export function DateField({ label, value, onChange, disabled, required, helperText, error, className }: {
+  label?: string; value: string | null | undefined; onChange: (v: string) => void; disabled?: boolean; required?: boolean; helperText?: string; error?: string | null; className?: string;
 }) {
   return (
-    <FormField label={label} required={required} helperText={helperText} className={className}>
-      <DatePicker value={value} onChange={onChange} disabled={disabled} clearable={!required} />
+    <FormField label={label} required={required} helperText={helperText} error={error} className={className}>
+      <DatePicker value={value} onChange={onChange} disabled={disabled} clearable={!required} invalid={!!error} />
     </FormField>
   );
 }
 
 /** shadcn date picker (Popover + Calendar); value is a 'YYYY-MM-DD' string, '' when cleared */
-export function DatePicker({ value, onChange, disabled, clearable, placeholder, className }: {
-  value: string | null | undefined; onChange: (v: string) => void; disabled?: boolean; clearable?: boolean; placeholder?: string; className?: string;
+export function DatePicker({ value, onChange, disabled, clearable, placeholder, className, invalid }: {
+  value: string | null | undefined; onChange: (v: string) => void; disabled?: boolean; clearable?: boolean; placeholder?: string; className?: string; invalid?: boolean;
 }) {
   const t = useTranslations('common');
   const locale = useLocale();
@@ -94,7 +94,7 @@ export function DatePicker({ value, onChange, disabled, clearable, placeholder, 
       <div className={cn('relative', className)}>
         <PopoverTrigger asChild>
           <Button type="button" variant="outline" disabled={disabled}
-            className={cn('h-9 w-full justify-start bg-white px-3 font-normal', !value && 'text-muted-foreground', clearable && value && 'pr-8')}>
+            aria-invalid={invalid} className={cn('h-9 w-full justify-start bg-white px-3 font-normal', !value && 'text-muted-foreground', clearable && value && 'pr-8')}>
             <CalendarIcon className="text-muted-foreground" />
             <span className="truncate">{value ? fmtDate(value) : placeholder ?? t('selectDate')}</span>
           </Button>

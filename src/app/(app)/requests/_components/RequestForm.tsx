@@ -45,6 +45,9 @@ export type AiPatch = { values: RequestDraft; seq: number };
  * Intake (written with the AI): `aiPatch` fills fields as the chat goes — only fields that are empty or still the AI's own,
  * never what the requestor typed — and marks them for review until edited; `extra` adds the transcript to the saved draft.
  */
+/** what submitting needs (rpc/requests.ts submitRequest); a draft only needs the project name */
+const REQUIRED_TO_SUBMIT = ['project_name', 'description', 'reason', 'priority', 'date_required'] as const;
+
 export default function RequestForm({ initial, onSaved, onSubmit, aiPatch, onChange, extra, onBeforeSave }: {
   initial: RequestDraft;
   onSaved: (r: ProjectRequest) => void;
@@ -64,6 +67,8 @@ export default function RequestForm({ initial, onSaved, onSubmit, aiPatch, onCha
   const { me, notify } = useApp();
   const [f, setF] = useState<RequestDraft>(initial);
   const [busy, setBusy] = useState(false);
+  // required fields found empty when the requestor pressed Submit (cleared per field once it is filled)
+  const [missing, setMissing] = useState<Set<string>>(new Set());
   const [clarify, setClarify] = useState<ProjectRequest | null>(null);
   // fields the AI filled that the requestor has not touched since
   const [aiKeys, setAiKeys] = useState<Set<string>>(new Set());
@@ -82,12 +87,18 @@ export default function RequestForm({ initial, onSaved, onSubmit, aiPatch, onCha
   }, [f, onChange]);
 
   const edited = (k: keyof ProjectRequest) => aiKeys.has(k) && setAiKeys((s) => { const n = new Set(s); n.delete(k); return n; });
-  const set = (k: keyof ProjectRequest) => (v: string | null) => { edited(k); setF((p) => ({ ...p, [k]: v })); };
+  const set = (k: keyof ProjectRequest) => (v: string | null) => {
+    edited(k);
+    setMissing((s) => { if (!s.has(k)) return s; const n = new Set(s); n.delete(k); return n; });
+    setF((p) => ({ ...p, [k]: v }));
+  };
+  const err = (k: keyof ProjectRequest) => (missing.has(k) ? t('fieldRequired') : null);
   const aiHelp = (k: keyof ProjectRequest) => (aiKeys.has(k) ? <span className="flex items-center gap-1 text-[#784bd1]"><Sparkles className="size-3" />{t('aiFilled')}</span> : undefined);
   const txt = (k: keyof ProjectRequest) => ({
     value: (f[k] as string | null) ?? '',
     onChange: (v: string) => set(k)(v),
     helperText: aiHelp(k),
+    error: err(k),
   });
 
   const num = (k: keyof ProjectRequest) => ({
@@ -114,6 +125,18 @@ export default function RequestForm({ initial, onSaved, onSubmit, aiPatch, onCha
     return res.data as ProjectRequest;
   };
 
+  /** the fields the server insists on at submit — shown in red under the field instead of failing after the click */
+  const validateForSubmit = () => {
+    const empty = REQUIRED_TO_SUBMIT.filter((k) => !String(f[k] ?? '').trim());
+    setMissing(new Set(empty));
+    if (empty.length) {
+      notify(t('missingFields'), 'warning');
+      // bring the first empty field into view
+      requestAnimationFrame(() => document.querySelector('[aria-invalid="true"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+    }
+    return !empty.length;
+  };
+
   return (
     <div>
       {!me?.department && (
@@ -126,9 +149,9 @@ export default function RequestForm({ initial, onSaved, onSubmit, aiPatch, onCha
           <TextField className="col-span-12" label={t('field.description')} required multiline {...txt('description')} />
           <TextField className="col-span-12 md:col-span-6" label={t('field.reason')} required multiline {...txt('reason')} />
           <TextField className="col-span-12 md:col-span-6" label={t('field.expectation')} multiline {...txt('expectation')} />
-          <SelectField className="col-span-12 sm:col-span-4" label={t('field.priority')} value={f.priority} onChange={set('priority')} options={options(PRIORITIES)} required />
+          <SelectField className="col-span-12 sm:col-span-4" label={t('field.priority')} value={f.priority} onChange={set('priority')} options={options(PRIORITIES)} required error={err('priority')} />
           <TextField className="col-span-12 sm:col-span-4" label={t('field.dateSubmitted')} value={f.date_submitted ?? t('setOnSubmit')} disabled />
-          <DateField className="col-span-12 sm:col-span-4" label={t('field.dateRequired')} value={f.date_required} onChange={set('date_required')} required />
+          <DateField className="col-span-12 sm:col-span-4" label={t('field.dateRequired')} value={f.date_required} onChange={set('date_required')} required error={err('date_required')} />
         </div>
       </Section>
 
@@ -160,6 +183,7 @@ export default function RequestForm({ initial, onSaved, onSubmit, aiPatch, onCha
         }}>{t('saveDraft')}</Button>
         {onSubmit && (
           <Button disabled={busy} onClick={async () => {
+            if (!validateForSubmit()) return;
             setBusy(true);
             const r = await save();
             setBusy(false);

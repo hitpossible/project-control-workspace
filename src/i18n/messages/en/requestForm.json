@@ -21,5 +21,7 @@
   "draftSaved": "Draft saved",
   "saveDraft": "Save Draft",
   "submit": "Submit for Approval",
-  "aiFilled": "Filled in by the AI — please check"
+  "aiFilled": "Filled in by the AI — please check",
+  "fieldRequired": "This field is required",
+  "missingFields": "Please fill in the required fields (marked in red) before submitting"
 }
